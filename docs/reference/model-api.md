@@ -15,6 +15,8 @@ MystemDocument parse(String originalText, String json)
 
 `parse(MystemRawResult)` requires `MystemOutputFormat.JSON`.
 
+The implementation uses Jackson Core's streaming parser. It does not depend on `jackson-databind`.
+
 ## Document Model
 
 - `MystemDocument` - original text, parsed tokens, and non-fatal text issues.

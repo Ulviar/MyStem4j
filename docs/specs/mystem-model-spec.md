@@ -67,7 +67,7 @@ MystemDocument parse(String originalText, String json);
 - Неизвестные JSON-поля игнорируются.
 - Некорректный JSON должен давать `MystemJsonParseException`.
 
-Для MVP используется Jackson, а не ручной JSON parser.
+Для MVP используется Jackson Core Streaming API, а не ручной JSON parser или databind/tree model.
 
 ## Offset alignment
 
