@@ -7,6 +7,7 @@ This repository currently contains the first layer of the project: a runtime ove
 ## Modules
 
 - `mystem4j-runtime` - MyStem CLI runtime: one-shot requests, reusable JSON-line sessions, pooled sessions, file requests, executable probing, typed options, and runtime exceptions.
+- `mystem4j-model` - MyStem JSON postprocessing: parsed tokens, analyses, grammar strings, offsets, and Unicode text preparation.
 - `mystem4j-kotlin` - Kotlin DSL and extension helpers over the Java runtime API.
 - `mystem4j-gradle-plugin` - Gradle plugin that downloads, extracts, probes, and wires a MyStem binary into test/distribution workflows.
 
@@ -32,6 +33,7 @@ plugins {
 
 dependencies {
     implementation("io.github.ulviar.mystem4j:mystem4j-runtime:<version>")
+    implementation("io.github.ulviar.mystem4j:mystem4j-model:<version>")
     implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:<version>") // optional Kotlin DSL
 }
 
@@ -72,10 +74,13 @@ The documentation is organized with Diataxis:
 - [Getting started tutorial](docs/tutorials/getting-started.md)
 - [Prepare MyStem with Gradle](docs/how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](docs/how-to/use-runtime-clients.md)
+- [Parse MyStem output](docs/how-to/parse-mystem-output.md)
 - [Runtime API reference](docs/reference/runtime-api.md)
+- [Model API reference](docs/reference/model-api.md)
 - [Gradle plugin reference](docs/reference/gradle-plugin.md)
 - [Architecture explanation](docs/explanation/architecture.md)
 - [Runtime component specification](docs/specs/mystem-runtime-spec.md)
+- [Model component specification](docs/specs/mystem-model-spec.md)
 
 ## Local Smoke Sample
 

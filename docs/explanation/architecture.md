@@ -7,10 +7,11 @@ MyStem4j is split into layers so that Lucene integration can be built on top of 
 The implemented milestone contains:
 
 - `mystem4j-runtime` - process execution and raw MyStem output;
+- `mystem4j-model` - JSON postprocessing, grammar parsing, token offset alignment, and Unicode preparation;
 - `mystem4j-kotlin` - Kotlin DSL over the runtime;
 - `mystem4j-gradle-plugin` - MyStem binary preparation for build/test/distribution workflows.
 
-The runtime has no Lucene dependency and does not parse MyStem output into morphology objects.
+The runtime has no Lucene dependency and does not parse MyStem output into morphology objects. The model layer is the first postprocessing layer above raw CLI output.
 
 ## Why MyStem Is External
 
@@ -45,9 +46,8 @@ The current cache is project-local under `build/mystem`. A shared Gradle user-ho
 
 ## Path Toward Lucene
 
-The next layers can build on the runtime without changing process management:
+The next layers can build on the runtime and model modules without changing process management:
 
-- model layer: parse MyStem JSON/XML/text into stable Java/Kotlin structures;
 - Unicode/tokenization layer: normalize unusual character sequences and preserve offsets;
 - Lucene layer: `Tokenizer`, `TokenFilter`, `Analyzer`, and factory classes.
 

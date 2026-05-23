@@ -619,6 +619,7 @@ Java baseline:
 Первый компонент считается готовым, когда выполнены условия:
 
 - Есть модуль `mystem4j-runtime`.
+- Есть модуль `mystem4j-model`.
 - Есть модуль `mystem4j-kotlin`.
 - Есть модуль `mystem4j-gradle-plugin`.
 - Можно создать one-shot `MystemClient` и получить сырой результат MyStem.

@@ -10,10 +10,12 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 
 - [Prepare MyStem with Gradle](how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](how-to/use-runtime-clients.md)
+- [Parse MyStem output](how-to/parse-mystem-output.md)
 
 ## Reference
 
 - [Runtime API](reference/runtime-api.md)
+- [Model API](reference/model-api.md)
 - [Gradle plugin](reference/gradle-plugin.md)
 
 ## Explanation
@@ -23,3 +25,4 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 ## Specifications
 
 - [MyStem runtime component specification](specs/mystem-runtime-spec.md)
+- [MyStem model component specification](specs/mystem-model-spec.md)
