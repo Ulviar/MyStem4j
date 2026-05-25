@@ -28,7 +28,7 @@ class MystemExtractTaskTest {
         }
 
         Project project = ProjectBuilder.builder().build();
-        MystemExtractTask task = project.getTasks().create("mystemExtract", MystemExtractTask.class);
+        MystemExtractTask task = project.getTasks().register("mystemExtract", MystemExtractTask.class).get();
         Path executable = temporaryDirectory.resolve("prepared/mystem");
         task.getArchiveFile().set(archive.toFile());
         task.getArchiveType().set("zip");

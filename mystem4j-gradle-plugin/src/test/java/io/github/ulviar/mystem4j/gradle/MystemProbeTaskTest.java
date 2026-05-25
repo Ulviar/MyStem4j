@@ -19,7 +19,7 @@ class MystemProbeTaskTest {
     @Test
     void rejectsNonMystemProbeOutput() throws IOException {
         Project project = ProjectBuilder.builder().build();
-        MystemProbeTask task = project.getTasks().create("mystemProbe", MystemProbeTask.class);
+        MystemProbeTask task = project.getTasks().register("mystemProbe", MystemProbeTask.class).get();
         task.getExecutableFile().set(script(
                         "not-mystem",
                         """

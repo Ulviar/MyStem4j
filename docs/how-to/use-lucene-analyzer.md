@@ -11,7 +11,7 @@ dependencies {
 }
 ```
 
-`mystem4j-lucene` currently uses Lucene 9.x because MyStem4j targets Java 17. Lucene 10.x requires a Java 21 project baseline.
+`mystem4j-lucene` currently uses Lucene 10.x and requires the project Java 21 baseline.
 
 ## Create an Analyzer
 

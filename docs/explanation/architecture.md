@@ -68,4 +68,4 @@ The Lucene layer builds on the runtime, model, and tokenization modules without 
 - `MystemLuceneTokenizer` reads the whole Lucene input, prepares unsafe Unicode, calls a JSON MyStem client, parses model objects, prepares search tokens, and emits Lucene attributes.
 - `MystemLuceneAnalyzer` wires the tokenizer into Lucene's `Analyzer` API.
 
-The layer depends on Lucene 9.x while the project baseline is Java 17. Lucene 10.x is a future option after moving the project baseline to Java 21.
+The layer depends on Lucene 10.x and the project baseline is Java 21.

@@ -6,9 +6,11 @@ Artifact: `mystem4j-lucene`
 
 ## Compatibility
 
-The module currently depends on Lucene `9.12.3`.
+The module currently depends on Lucene `10.4.0`.
 
-Reason: MyStem4j targets Java 17, while Lucene 10.x requires Java 21.
+Reason: MyStem4j targets Java 21, which matches Lucene 10.x requirements.
+
+Lucene analysis tests use `lucene-test-framework` and `BaseTokenStreamTestCase`. The test runtime includes JUnit Vintage so Lucene's JUnit4/randomizedtesting infrastructure runs under Gradle's JUnit Platform setup.
 
 ## Analyzer
 

@@ -1,8 +1,5 @@
 package io.github.ulviar.mystem4j.lucene;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.MystemExecutionMode;
 import io.github.ulviar.mystem4j.MystemFileContentResult;
@@ -12,6 +9,7 @@ import io.github.ulviar.mystem4j.MystemRawResult;
 import io.github.ulviar.mystem4j.MystemRequestStats;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.StringReader;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -20,66 +18,69 @@ import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.Function;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.junit.jupiter.api.Test;
+import org.apache.lucene.tests.analysis.BaseTokenStreamTestCase;
 
-class MystemLuceneAnalyzerTest {
-    @Test
-    void emitsFormsOffsetsPositionsTypesAndKeywordFlags() throws IOException {
-        FakeClient client = new FakeClient(input -> """
-                [
-                  {"analysis":[{"lex":"раз++","gr":"S"}],"text":"Раз"},
-                  {"analysis":[],"text":"C"}
-                ]
-                """);
-        try (Analyzer analyzer = new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.entityAware())) {
-            List<SeenToken> tokens = analyze(analyzer, "Раз++ C++");
-
-            assertEquals(List.of(
-                    new SeenToken("раз++", 0, 5, 1, "word", true),
-                    new SeenToken("раз", 0, 5, 0, "word", true),
-                    new SeenToken("c++", 6, 9, 1, "word", false),
-                    new SeenToken("c", 6, 9, 0, "word", false)), tokens);
-        }
-    }
-
-    @Test
-    void defaultAnalyzerUsesConservativeSemanticPolicy() throws IOException {
-        FakeClient client = new FakeClient(input -> """
-                [
-                  {"analysis":[],"text":"10#"},
-                  {"analysis":[],"text":"$"},
-                  {"analysis":[],"text":"https"},
-                  {"analysis":[],"text":"://"},
-                  {"analysis":[],"text":"example"},
-                  {"analysis":[],"text":"."},
-                  {"analysis":[],"text":"com"}
-                ]
-                """);
-        try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
-            List<SeenToken> tokens = analyze(analyzer, "10# $ https://example.com");
-
-            assertEquals(List.of(
-                    new SeenToken("10#", 0, 3, 1, "word", true),
-                    new SeenToken("10", 0, 3, 0, "word", true),
-                    new SeenToken("https", 6, 11, 1, "word", false),
-                    new SeenToken("example", 14, 21, 1, "word", false),
-                    new SeenToken("com", 22, 25, 1, "word", false)), tokens);
-            assertFalse(tokens.stream().anyMatch(token -> token.type().equals("url")));
-            assertFalse(tokens.stream().anyMatch(token -> token.type().equals("currency")));
-            assertFalse(tokens.stream().anyMatch(token -> token.type().equals("number")));
-        }
-    }
-
-    @Test
-    void preparesUnsafeInputAndKeepsOriginalOffsets() throws IOException {
+public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
+    public void testEmitsFormsOffsetsPositionsTypesAndKeywordFlags() throws IOException {
         FakeClient client = new FakeClient(input -> {
-            assertEquals("A B", input);
+            if (!"Раз++ C++".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [
+                      {"analysis":[{"lex":"раз++","gr":"S"}],"text":"Раз"},
+                      {"analysis":[],"text":"C"}
+                    ]
+                    """;
+        });
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.entityAware())) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "Раз++ C++",
+                    new String[] {"раз++", "раз", "c++", "c"},
+                    new int[] {0, 0, 6, 6},
+                    new int[] {5, 5, 9, 9},
+                    new String[] {"word", "word", "word", "word"},
+                    new int[] {1, 0, 1, 0});
+            assertKeywordFlags(analyzer, "Раз++ C++", true, true, false, false);
+        }
+    }
+
+    public void testDefaultAnalyzerUsesConservativeSemanticPolicy() throws IOException {
+        FakeClient client = new FakeClient(input -> {
+            if (!"10# $ https://example.com".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [
+                      {"analysis":[],"text":"10#"},
+                      {"analysis":[],"text":"https"},
+                      {"analysis":[],"text":"example"},
+                      {"analysis":[],"text":"com"}
+                    ]
+                    """;
+        });
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "10# $ https://example.com",
+                    new String[] {"10#", "10", "https", "example", "com"},
+                    new int[] {0, 0, 6, 14, 22},
+                    new int[] {3, 3, 11, 21, 25},
+                    new String[] {"word", "word", "word", "word", "word"},
+                    new int[] {1, 0, 1, 1, 1});
+            assertKeywordFlags(analyzer, "10# $ https://example.com", true, true, false, false, false);
+        }
+    }
+
+    public void testPreparesUnsafeInputAndKeepsOriginalOffsets() throws IOException {
+        FakeClient client = new FakeClient(input -> {
+            if (!"A B".equals(input)) {
+                return "[]";
+            }
             return """
                     [
                       {"analysis":[],"text":"A"},
@@ -88,42 +89,153 @@ class MystemLuceneAnalyzerTest {
                     """;
         });
         try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
-            List<SeenToken> tokens = analyze(analyzer, "A\u0001B");
-
-            assertEquals(List.of(
-                    new SeenToken("a", 0, 1, 1, "word", false),
-                    new SeenToken("b", 2, 3, 1, "word", false)), tokens);
+            assertAnalyzesTo(
+                    analyzer,
+                    "A\u0001B",
+                    new String[] {"a", "b"},
+                    new int[] {0, 2},
+                    new int[] {1, 3},
+                    new String[] {"word", "word"},
+                    new int[] {1, 1});
+            assertKeywordFlags(analyzer, "A\u0001B", false, false);
         }
     }
 
-    private static List<SeenToken> analyze(Analyzer analyzer, String text) throws IOException {
-        try (TokenStream stream = analyzer.tokenStream("field", new StringReader(text))) {
-            CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
-            OffsetAttribute offset = stream.addAttribute(OffsetAttribute.class);
-            PositionIncrementAttribute positionIncrement = stream.addAttribute(PositionIncrementAttribute.class);
-            TypeAttribute type = stream.addAttribute(TypeAttribute.class);
-            KeywordAttribute keyword = stream.addAttribute(KeywordAttribute.class);
+    public void testAnalyzerCanReuseComponentsForMultipleInputs() throws IOException {
+        FakeClient client = new FakeClient(input -> """
+                [{"analysis":[],"text":"%s"}]
+                """.formatted(input));
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "Alpha",
+                    new String[] {"alpha"},
+                    new int[] {0},
+                    new int[] {5},
+                    new String[] {"word"},
+                    new int[] {1});
+            assertAnalyzesTo(
+                    analyzer,
+                    "Beta",
+                    new String[] {"beta"},
+                    new int[] {0},
+                    new int[] {4},
+                    new String[] {"word"},
+                    new int[] {1});
+        }
+    }
 
-            ArrayList<SeenToken> result = new ArrayList<>();
+    public void testOffsetsAreCorrectedThroughLuceneCharFilters() throws IOException {
+        FakeClient client = new FakeClient(input -> {
+            if (!"Alpha".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [{"analysis":[],"text":"Alpha"}]
+                    """;
+        });
+        try (Analyzer analyzer = new Analyzer() {
+            @Override
+            protected Reader initReader(String fieldName, Reader reader) {
+                return new DropFirstCharacterFilter(reader);
+            }
+
+            @Override
+            protected TokenStreamComponents createComponents(String fieldName) {
+                return new TokenStreamComponents(new MystemLuceneTokenizer(client));
+            }
+        }) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "XAlpha",
+                    new String[] {"alpha"},
+                    new int[] {1},
+                    new int[] {6},
+                    new String[] {"word"},
+                    new int[] {1});
+        }
+    }
+
+    public void testEmptyInputProducesNoTokens() throws IOException {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(new EchoClient())) {
+            assertAnalyzesTo(analyzer, "", new String[0], new int[0], new int[0], new String[0], new int[0]);
+        }
+    }
+
+    public void testRandomDataDoesNotBreakTokenStreamLifecycle() throws IOException {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(new EchoClient())) {
+            checkRandomData(random(), analyzer, 50, 64, false, false);
+        }
+    }
+
+    private static void assertKeywordFlags(Analyzer analyzer, String text, boolean... expected) throws IOException {
+        try (TokenStream stream = analyzer.tokenStream("field", new StringReader(text))) {
+            KeywordAttribute keyword = stream.addAttribute(KeywordAttribute.class);
+            ArrayList<Boolean> actual = new ArrayList<>();
             stream.reset();
             while (stream.incrementToken()) {
-                result.add(new SeenToken(
-                        term.toString(),
-                        offset.startOffset(),
-                        offset.endOffset(),
-                        positionIncrement.getPositionIncrement(),
-                        type.type(),
-                        keyword.isKeyword()));
+                actual.add(keyword.isKeyword());
             }
             stream.end();
-            return List.copyOf(result);
+            assertEquals(toList(expected), actual);
         }
     }
 
-    private record SeenToken(
-            String term, int startOffset, int endOffset, int positionIncrement, String type, boolean keyword) {}
+    private static List<Boolean> toList(boolean... values) {
+        ArrayList<Boolean> result = new ArrayList<>(values.length);
+        for (boolean value : values) {
+            result.add(value);
+        }
+        return List.copyOf(result);
+    }
 
-    private static final class FakeClient implements MystemClient {
+    private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
+
+    private static final class DropFirstCharacterFilter extends CharFilter {
+        private String filtered;
+        private int index;
+
+        private DropFirstCharacterFilter(Reader input) {
+            super(input);
+        }
+
+        @Override
+        public int read(char[] cbuf, int off, int len) throws IOException {
+            ensureBuffered();
+            if (index >= filtered.length()) {
+                return -1;
+            }
+            int count = Math.min(len, filtered.length() - index);
+            filtered.getChars(index, index + count, cbuf, off);
+            index += count;
+            return count;
+        }
+
+        @Override
+        public void close() throws IOException {
+            input.close();
+        }
+
+        @Override
+        protected int correct(int currentOff) {
+            return currentOff + 1;
+        }
+
+        private void ensureBuffered() throws IOException {
+            if (filtered != null) {
+                return;
+            }
+            char[] buffer = new char[256];
+            StringBuilder result = new StringBuilder();
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                result.append(buffer, 0, read);
+            }
+            filtered = result.isEmpty() ? "" : result.substring(1);
+        }
+    }
+
+    private static class FakeClient implements MystemClient {
         private final Function<String, String> output;
 
         private FakeClient(Function<String, String> output) {
@@ -160,5 +272,49 @@ class MystemLuceneAnalyzerTest {
 
         @Override
         public void close() {}
+    }
+
+    private static final class EchoClient extends FakeClient {
+        private EchoClient() {
+            super(input -> input.isEmpty()
+                    ? "[]"
+                    : """
+                    [{"analysis":[],"text":%s}]
+                    """.formatted(jsonString(input)));
+        }
+    }
+
+    private static String jsonString(String value) {
+        StringBuilder result = new StringBuilder(value.length() + 2);
+        result.append('"');
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            switch (character) {
+                case '"' -> result.append("\\\"");
+                case '\\' -> result.append("\\\\");
+                case '\b' -> result.append("\\b");
+                case '\f' -> result.append("\\f");
+                case '\n' -> result.append("\\n");
+                case '\r' -> result.append("\\r");
+                case '\t' -> result.append("\\t");
+                default -> {
+                    if (character < 0x20) {
+                        appendUnicodeEscape(result, character);
+                    } else {
+                        result.append(character);
+                    }
+                }
+            }
+        }
+        result.append('"');
+        return result.toString();
+    }
+
+    private static void appendUnicodeEscape(StringBuilder result, char character) {
+        result.append("\\u");
+        result.append(HEX_DIGITS[(character >>> 12) & 0xF]);
+        result.append(HEX_DIGITS[(character >>> 8) & 0xF]);
+        result.append(HEX_DIGITS[(character >>> 4) & 0xF]);
+        result.append(HEX_DIGITS[character & 0xF]);
     }
 }

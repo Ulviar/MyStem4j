@@ -24,16 +24,16 @@
 - зависеть от конкретного способа создания MyStem клиента;
 - скрыто включать entity-aware URL/email/currency поведение;
 - закрывать переданный клиент без явного opt-in;
-- поддерживать Lucene 10.x при Java 17 baseline.
+- поддерживать Java baselines ниже 21.
 
 ## Compatibility
 
 Baseline:
 
-- Java: 17
-- Lucene: 9.12.3
+- Java: 21
+- Lucene: 10.4.0
 
-Lucene 10.x требует Java 21, поэтому он не является целевой версией до поднятия Java baseline всего проекта.
+Lucene 10.x является целевой версией после поднятия Java baseline всего проекта до 21.
 
 ## API
 
@@ -75,12 +75,25 @@ Lucene token stream должен эмитить:
 
 Reusable single-session client не является хорошим default для конкурентного Lucene indexing. One-shot client корректен, но обычно дороже по startup overhead.
 
+## Test policy
+
+Analysis-компоненты Lucene должны тестироваться через официальный `lucene-test-framework`.
+
+Baseline:
+
+- `org.apache.lucene:lucene-test-framework:10.4.0`;
+- `org.apache.lucene.tests.analysis.BaseTokenStreamTestCase`;
+- JUnit Vintage для запуска JUnit4/randomizedtesting тестов через текущую JUnit Platform конфигурацию.
+
+Ручной обход `TokenStream` допустим только как дополнительная проверка attributes, которые не покрываются стандартными helpers, например `KeywordAttribute`.
+
 ## Acceptance criteria
 
 - Есть модуль `mystem4j-lucene`.
-- Модуль зависит от Lucene 9.x и не поднимает Java baseline выше 17.
+- Модуль зависит от Lucene 10.x и использует Java baseline 21.
 - Есть `Analyzer` и `Tokenizer`.
 - Default analyzer использует conservative tokenization policy.
 - Entity-aware behavior включается только через explicit `MystemSearchTokenizerOptions`.
 - Unit tests проходят без реального MyStem через fake client.
-- Offsets в Lucene token stream соответствуют исходному input, включая input, подготовленный `MystemTextPreprocessor`.
+- Analyzer/tokenizer tests используют `BaseTokenStreamTestCase`.
+- Offsets в Lucene token stream соответствуют исходному input, включая input, подготовленный `MystemTextPreprocessor`, и Lucene `CharFilter` offset correction.

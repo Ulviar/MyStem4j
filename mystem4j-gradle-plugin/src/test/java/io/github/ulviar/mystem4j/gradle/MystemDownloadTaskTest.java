@@ -20,7 +20,7 @@ class MystemDownloadTaskTest {
     @Test
     void rejectsDownloadWithoutExplicitOptIn() throws IOException {
         Project project = ProjectBuilder.builder().build();
-        MystemDownloadTask task = project.getTasks().create("mystemDownload", MystemDownloadTask.class);
+        MystemDownloadTask task = project.getTasks().register("mystemDownload", MystemDownloadTask.class).get();
         task.getVersion().set("3.1");
         task.getDownload().set(false);
         task.getAcceptYandexMystemLicense().set(true);
@@ -34,7 +34,8 @@ class MystemDownloadTaskTest {
     @Test
     void rejectsDownloadWithoutLicenseAcceptance() throws IOException {
         Project project = ProjectBuilder.builder().build();
-        MystemDownloadTask task = project.getTasks().create("mystemDownloadWithLicenseCheck", MystemDownloadTask.class);
+        MystemDownloadTask task =
+                project.getTasks().register("mystemDownloadWithLicenseCheck", MystemDownloadTask.class).get();
         task.getVersion().set("3.1");
         task.getDownload().set(true);
         task.getAcceptYandexMystemLicense().set(false);
@@ -48,7 +49,8 @@ class MystemDownloadTaskTest {
     @Test
     void redownloadsWhenArchiveMetadataChanges() throws IOException {
         Project project = ProjectBuilder.builder().build();
-        MystemDownloadTask task = project.getTasks().create("mystemDownloadWithMetadata", MystemDownloadTask.class);
+        MystemDownloadTask task =
+                project.getTasks().register("mystemDownloadWithMetadata", MystemDownloadTask.class).get();
         Path firstSource = temporaryDirectory.resolve("first.tar.gz");
         Path secondSource = temporaryDirectory.resolve("second.tar.gz");
         Path archive = temporaryDirectory.resolve("mystem.tar.gz");
