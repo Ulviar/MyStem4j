@@ -11,7 +11,7 @@ public enum MystemOutputFormat {
         this.cliName = cliName;
     }
 
-    public String cliName() {
+    String cliName() {
         return cliName;
     }
 }

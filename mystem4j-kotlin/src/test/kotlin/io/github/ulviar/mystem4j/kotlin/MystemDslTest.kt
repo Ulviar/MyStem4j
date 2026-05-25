@@ -24,10 +24,10 @@ class MystemDslTest {
                 format(MystemOutputFormat.JSON)
             }
 
-        assertEquals(
-            listOf("-i", "-e", "utf-8", "-d", "--eng-gr", "--format", "json"),
-            options.toArguments(),
-        )
+        assertEquals(true, options.grammarInfo())
+        assertEquals(true, options.disambiguate())
+        assertEquals(true, options.englishGrammemes())
+        assertEquals(MystemOutputFormat.JSON, options.format())
     }
 
     @Test

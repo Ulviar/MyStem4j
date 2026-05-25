@@ -24,6 +24,7 @@ mystem4j {
 | `sha256` | built in for official archives | expected archive checksum |
 | `maxArchiveBytes` | `104857600` | maximum downloaded archive size |
 | `maxProbeOutputBytes` | `65536` | maximum captured stdout/stderr bytes for `mystemProbe` |
+| `cacheDirectory` | Gradle user home `caches/mystem4j` | shared checksum cache for downloaded archives |
 | `download` | `false` | explicit opt-in for network download |
 | `acceptYandexMystemLicense` | `false` | explicit license acceptance for download |
 | `configureTests` | `false` | wire prepared executable into Gradle `Test` tasks |
@@ -38,7 +39,7 @@ Official archives use built-in SHA-256 values. Custom `http` and `https` `archiv
 
 | Task | Purpose |
 | --- | --- |
-| `mystemDownload` | downloads the platform archive into `build/mystem/downloads` |
+| `mystemDownload` | downloads or reuses the platform archive and writes it into `build/mystem/downloads` |
 | `mystemExtract` | extracts the executable into `build/mystem/bin/<platform>` |
 | `mystemProbe` | runs a JSON smoke request against the prepared executable |
 | `mystemPrepareTestRuntime` | writes test runtime properties and supplies the executable path |
@@ -63,10 +64,14 @@ When `configureTests` is enabled, each Gradle `Test` task gets:
 
 ## Cache Metadata
 
-`mystemDownload` writes a metadata sidecar next to the archive. The cached archive is reused only when these values match:
+`mystemDownload` writes a metadata sidecar next to the project-local archive. The project-local archive is reused only
+when these values match:
 
 - version;
 - archive URL;
 - expected sha256 value.
 
 The archive content must match the expected checksum whenever a checksum is configured or supplied by the built-in distribution metadata.
+
+When a checksum is available, downloaded archives are also stored under `cacheDirectory` with a file lock. This cache is
+shared between builds and projects, while extraction outputs remain under the current project's `build` directory.

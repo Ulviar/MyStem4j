@@ -18,7 +18,8 @@ Each module publication provides:
 - source JAR;
 - Javadoc JAR.
 
-Each JAR also has a stable `Automatic-Module-Name` manifest entry.
+Library JARs provide explicit JPMS descriptors. The Gradle plugin artifact keeps a stable
+`Automatic-Module-Name` manifest entry because Gradle plugins are loaded through Gradle's plugin classpath.
 
 ## License Boundary
 
@@ -36,4 +37,10 @@ Run real MyStem integration checks before release:
 
 ```bash
 ./gradlew realMystemTest -Dmystem4j.executable=/path/to/mystem
+```
+
+Run the exhaustive Unicode offset stress gate when changing Unicode preprocessing or MyStem offset alignment:
+
+```bash
+./gradlew realMystemUnicodeStress -Dmystem4j.executable=/path/to/mystem
 ```

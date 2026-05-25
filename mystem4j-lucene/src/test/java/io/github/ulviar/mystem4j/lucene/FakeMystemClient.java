@@ -9,12 +9,15 @@ import io.github.ulviar.mystem4j.MystemRawResult;
 import io.github.ulviar.mystem4j.MystemRequestStats;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.Function;
 
 final class FakeMystemClient implements MystemClient {
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private final Function<String, String> output;
+    private final ArrayList<String> requests = new ArrayList<>();
     private boolean closed;
     private int closeCount;
 
@@ -32,6 +35,7 @@ final class FakeMystemClient implements MystemClient {
 
     @Override
     public MystemRawResult analyze(String text) {
+        requests.add(text);
         String rawOutput = output.apply(text);
         return new MystemRawResult(
                 text,
@@ -70,6 +74,10 @@ final class FakeMystemClient implements MystemClient {
 
     int closeCount() {
         return closeCount;
+    }
+
+    List<String> requests() {
+        return List.copyOf(requests);
     }
 
     private static String jsonString(String value) {

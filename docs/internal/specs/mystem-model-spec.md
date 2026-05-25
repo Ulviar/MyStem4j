@@ -49,8 +49,6 @@ io.github.ulviar.mystem4j.model
 Основной API:
 
 ```java
-MystemDocument parse(MystemRawResult result);
-
 MystemDocument parse(String originalText, String json);
 
 MystemDocument parse(MystemPreparedText preparedText, String json);
@@ -58,7 +56,6 @@ MystemDocument parse(MystemPreparedText preparedText, String json);
 
 Требования:
 
-- `parse(MystemRawResult)` принимает только `MystemOutputFormat.JSON`.
 - JSON output должен содержать один или несколько top-level массивов MyStem items. Несколько массивов допустимы для multiline input в one-shot/file режимах MyStem.
 - Каждый item должен создавать `MystemToken`.
 - Поле `text` становится `MystemToken.text`.
@@ -158,7 +155,7 @@ Real-MyStem tests должны быть opt-in через `mystem4j.executable`,
 ## Acceptance criteria
 
 - Есть модуль `mystem4j-model`.
-- Parser строит `MystemDocument` из `MystemRawResult` и raw JSON.
+- Parser строит `MystemDocument` из original text и raw JSON.
 - Parser извлекает lemma, grammar, weight и token text.
 - Grammar parser покрывает common grammemes, variants и пустую правую часть.
 - Offset alignment покрывает повторяющиеся токены и пропуски пунктуации.

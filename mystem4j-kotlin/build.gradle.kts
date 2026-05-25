@@ -21,6 +21,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
 }
 
+tasks.named<Javadoc>("javadoc") {
+    source = fileTree("src/main/java") {
+        include("__no_javadoc_sources__")
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {

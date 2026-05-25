@@ -17,11 +17,11 @@ public enum MystemEncoding {
         this.charset = charset;
     }
 
-    public String cliName() {
+    String cliName() {
         return cliName;
     }
 
-    public Charset charset() {
+    Charset charset() {
         return charset;
     }
 }

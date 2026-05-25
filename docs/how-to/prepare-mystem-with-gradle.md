@@ -67,10 +67,20 @@ This copies the prepared executable into the configured directory. It does not a
 
 ## Cache Behavior
 
-The current plugin cache is project-local:
+The plugin uses two cache layers:
 
 - archive: `build/mystem/downloads/<archive>`;
 - metadata sidecar: `build/mystem/downloads/<archive>.metadata.properties`;
 - executable: `build/mystem/bin/<platform>/<mystem executable>`.
 
-The archive is reused only when version, URL, and expected checksum metadata match. `gradle clean` removes this cache.
+The project-local archive is reused only when version, URL, and expected checksum metadata match. `gradle clean` removes
+this layer.
+
+When a checksum is configured or built in, the downloaded archive is also reused from `cacheDirectory`, which defaults to
+Gradle user home `caches/mystem4j`. Override it only when the build needs an isolated cache:
+
+```kotlin
+mystem4j {
+    cacheDirectory.set(layout.projectDirectory.dir(".gradle/mystem4j-cache"))
+}
+```

@@ -17,6 +17,7 @@ public class Mystem4jExtension {
     private final Property<Long> maxArchiveBytes;
     private final Property<Integer> maxProbeOutputBytes;
     private final Property<String> targetOs;
+    private final DirectoryProperty cacheDirectory;
     private final DirectoryProperty distributionDirectory;
 
     @Inject
@@ -32,6 +33,7 @@ public class Mystem4jExtension {
         maxArchiveBytes = objects.property(Long.class).convention(100L * 1024L * 1024L);
         maxProbeOutputBytes = objects.property(Integer.class).convention(64 * 1024);
         targetOs = objects.property(String.class).convention(MystemDistribution.currentOs());
+        cacheDirectory = objects.directoryProperty();
         distributionDirectory = objects.directoryProperty();
     }
 
@@ -77,6 +79,10 @@ public class Mystem4jExtension {
 
     public Property<String> getTargetOs() {
         return targetOs;
+    }
+
+    public DirectoryProperty getCacheDirectory() {
+        return cacheDirectory;
     }
 
     public DirectoryProperty getDistributionDirectory() {

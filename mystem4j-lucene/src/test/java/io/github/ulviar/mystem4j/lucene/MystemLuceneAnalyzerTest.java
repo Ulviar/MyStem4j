@@ -117,6 +117,59 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
     }
 
+    public void testTokenizerAnalyzesInputInBoundedChunks() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> input.isBlank()
+                ? "[]"
+                : """
+                [{"analysis":[],"text":"%s"}]
+                """.formatted(input.strip()));
+        MystemLuceneAnalysisOptions analysisOptions =
+                new MystemLuceneAnalysisOptions(100, 8, MystemLucenePositionPolicy.COMPACT);
+        try (Analyzer analyzer =
+                new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "Alpha Beta Gamma",
+                    new String[] {"alpha", "beta", "gamma"},
+                    new int[] {0, 6, 11},
+                    new int[] {5, 10, 16},
+                    new String[] {"word", "word", "word"},
+                    new int[] {1, 1, 1});
+        }
+
+        assertEquals(List.of("Alpha ", "Beta ", "Gamma"), client.requests().subList(0, 3));
+        for (String request : client.requests()) {
+            assertTrue(request.length() <= analysisOptions.maxChunkChars());
+        }
+    }
+
+    public void testPositionPolicyCanPreserveSkippedTokenGaps() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> {
+            if (!"A B".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [
+                      {"analysis":[],"text":"A"},
+                      {"analysis":[],"text":"B"}
+                    ]
+                    """;
+        });
+        MystemLuceneAnalysisOptions analysisOptions =
+                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+        try (Analyzer analyzer =
+                new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "A B",
+                    new String[] {"a", "b"},
+                    new int[] {0, 2},
+                    new int[] {1, 3},
+                    new String[] {"word", "word"},
+                    new int[] {1, 2});
+        }
+    }
+
     public void testAnalyzerCanReuseComponentsForMultipleInputs() throws IOException {
         FakeMystemClient client = new FakeMystemClient(input -> """
                 [{"analysis":[],"text":"%s"}]
@@ -189,6 +242,20 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         try (Analyzer analyzer = new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), 4)) {
             expectThrows(IOException.class, () -> assertAnalyzesTo(analyzer, "12345", new String[0]));
         }
+        assertTrue(client.requests().isEmpty());
+    }
+
+    public void testRejectsInvalidLuceneAnalysisOptions() {
+        expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneAnalysisOptions(0, 1, MystemLucenePositionPolicy.COMPACT));
+        expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneAnalysisOptions(1, 0, MystemLucenePositionPolicy.COMPACT));
+        expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneAnalysisOptions(1, 2, MystemLucenePositionPolicy.COMPACT));
+        expectThrows(NullPointerException.class, () -> new MystemLuceneAnalysisOptions(1, 1, null));
     }
 
     public void testAnalyzerDoesNotCloseClientByDefault() {

@@ -3,9 +3,6 @@ package io.github.ulviar.mystem4j.model;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import io.github.ulviar.mystem4j.MystemInvalidOptionsException;
-import io.github.ulviar.mystem4j.MystemOutputFormat;
-import io.github.ulviar.mystem4j.MystemRawResult;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,14 +22,6 @@ public final class MystemJsonParser {
 
     MystemJsonParser(JsonFactory jsonFactory) {
         this.jsonFactory = Objects.requireNonNull(jsonFactory, "jsonFactory");
-    }
-
-    public MystemDocument parse(MystemRawResult result) {
-        Objects.requireNonNull(result, "result");
-        if (result.format() != MystemOutputFormat.JSON) {
-            throw new MystemInvalidOptionsException("MystemJsonParser requires JSON raw results.");
-        }
-        return parse(result.input(), result.output());
     }
 
     public MystemDocument parse(String originalText, String json) {

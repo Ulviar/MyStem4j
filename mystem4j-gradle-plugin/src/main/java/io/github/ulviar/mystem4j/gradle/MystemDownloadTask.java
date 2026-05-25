@@ -8,9 +8,12 @@ import java.io.Writer;
 import java.net.URI;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -18,9 +21,11 @@ import java.util.HexFormat;
 import java.util.Properties;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -47,6 +52,9 @@ public abstract class MystemDownloadTask extends DefaultTask {
     @Input
     public abstract Property<Long> getMaxArchiveBytes();
 
+    @Internal
+    public abstract DirectoryProperty getCacheDirectory();
+
     @OutputFile
     public abstract RegularFileProperty getArchiveFile();
 
@@ -66,7 +74,7 @@ public abstract class MystemDownloadTask extends DefaultTask {
 
         Path archive = getArchiveFile().get().getAsFile().toPath();
         Path metadata = getMetadataFile().get().getAsFile().toPath();
-        String expectedSha256 = getExpectedSha256().getOrNull();
+        String expectedSha256 = normalizeSha256(getExpectedSha256().getOrNull());
         long maxArchiveBytes = getMaxArchiveBytes().get();
         URI archiveUri = URI.create(getArchiveUrl().get());
         validateDownloadRequest(archiveUri, expectedSha256, maxArchiveBytes);
@@ -82,7 +90,12 @@ public abstract class MystemDownloadTask extends DefaultTask {
             Files.createDirectories(metadata.getParent());
             Path temporaryArchive = archive.resolveSibling(archive.getFileName() + ".part");
             Files.deleteIfExists(temporaryArchive);
-            downloadTo(archiveUri, temporaryArchive, maxArchiveBytes);
+            materializeArchive(
+                    archiveUri,
+                    temporaryArchive,
+                    archive.getFileName().toString(),
+                    maxArchiveBytes,
+                    expectedSha256);
             if (!matchesExpectedSha256(temporaryArchive, expectedSha256)) {
                 Files.deleteIfExists(temporaryArchive);
                 throw new GradleException("Downloaded MyStem archive checksum does not match expected sha256.");
@@ -104,6 +117,42 @@ public abstract class MystemDownloadTask extends DefaultTask {
                 error.addSuppressed(ignored);
             }
             throw new GradleException("Failed to download MyStem archive from " + getArchiveUrl().get(), error);
+        }
+    }
+
+    private void materializeArchive(
+            URI archiveUri, Path destination, String archiveName, long maxArchiveBytes, String expectedSha256)
+            throws IOException {
+        if (expectedSha256.isBlank()) {
+            downloadTo(archiveUri, destination, maxArchiveBytes);
+            return;
+        }
+
+        Path cacheRoot = getCacheDirectory().get().getAsFile().toPath();
+        Path cachedArchive = cacheRoot.resolve(getVersion().get()).resolve(expectedSha256).resolve(archiveName);
+        Path lockFile = cachedArchive.resolveSibling(cachedArchive.getFileName() + ".lock");
+        Path temporaryCacheArchive = cachedArchive.resolveSibling(cachedArchive.getFileName() + ".part");
+        Files.createDirectories(cachedArchive.getParent());
+        try (FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                FileLock ignored = channel.lock()) {
+            if (!Files.isRegularFile(cachedArchive) || !matchesExpectedSha256(cachedArchive, expectedSha256)) {
+                Files.deleteIfExists(temporaryCacheArchive);
+                try {
+                    downloadTo(archiveUri, temporaryCacheArchive, maxArchiveBytes);
+                    if (!matchesExpectedSha256(temporaryCacheArchive, expectedSha256)) {
+                        throw new GradleException("Downloaded MyStem archive checksum does not match expected sha256.");
+                    }
+                    moveReplacing(temporaryCacheArchive, cachedArchive);
+                } catch (GradleException | IOException error) {
+                    try {
+                        Files.deleteIfExists(temporaryCacheArchive);
+                    } catch (IOException cleanupError) {
+                        error.addSuppressed(cleanupError);
+                    }
+                    throw error;
+                }
+            }
+            Files.copy(cachedArchive, destination, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

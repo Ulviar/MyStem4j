@@ -6,14 +6,31 @@ import java.util.Objects;
 /**
  * Text prepared for MyStem with offset mapping back to the original Java string.
  */
-public record MystemPreparedText(
-        String originalText, String text, List<MystemOffsetMapping> mappings, List<MystemTextIssue> issues) {
-    public MystemPreparedText {
-        originalText = Objects.requireNonNull(originalText, "originalText");
-        text = Objects.requireNonNull(text, "text");
-        mappings = List.copyOf(Objects.requireNonNull(mappings, "mappings"));
-        issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
-        validateMappings(originalText, text, mappings);
+public final class MystemPreparedText {
+    private final String originalText;
+    private final String text;
+    private final List<MystemOffsetMapping> mappings;
+    private final List<MystemTextIssue> issues;
+
+    MystemPreparedText(
+            String originalText, String text, List<MystemOffsetMapping> mappings, List<MystemTextIssue> issues) {
+        this.originalText = Objects.requireNonNull(originalText, "originalText");
+        this.text = Objects.requireNonNull(text, "text");
+        this.mappings = List.copyOf(Objects.requireNonNull(mappings, "mappings"));
+        this.issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
+        validateMappings(this.originalText, this.text, this.mappings);
+    }
+
+    public String originalText() {
+        return originalText;
+    }
+
+    public String text() {
+        return text;
+    }
+
+    public List<MystemTextIssue> issues() {
+        return issues;
     }
 
     public int originalOffsetFor(int preparedOffset) {

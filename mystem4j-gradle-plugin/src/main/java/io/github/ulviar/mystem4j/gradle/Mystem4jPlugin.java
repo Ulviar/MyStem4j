@@ -16,6 +16,12 @@ public class Mystem4jPlugin implements Plugin<Project> {
     public void apply(Project project) {
         Mystem4jExtension extension =
                 project.getExtensions().create("mystem4j", Mystem4jExtension.class);
+        extension.getCacheDirectory().convention(project.getLayout()
+                .dir(project.provider(() -> project.getGradle()
+                        .getGradleUserHomeDir()
+                        .toPath()
+                        .resolve("caches/mystem4j")
+                        .toFile())));
         extension.getDistributionDirectory().convention(project.getLayout().getBuildDirectory().dir("mystem/distribution"));
 
         Provider<MystemDistribution> distribution = project.provider(
@@ -52,6 +58,7 @@ public class Mystem4jPlugin implements Plugin<Project> {
                     task.getArchiveUrl().set(archiveUrl);
                     task.getExpectedSha256().set(expectedSha256);
                     task.getMaxArchiveBytes().set(extension.getMaxArchiveBytes());
+                    task.getCacheDirectory().set(extension.getCacheDirectory());
                     task.getArchiveFile().set(archiveFile);
                     task.getMetadataFile().set(metadataFile);
                 });

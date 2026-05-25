@@ -1,8 +1,6 @@
 package io.github.ulviar.mystem4j.model;
 
-import io.github.ulviar.mystem4j.MystemException;
-
-public class MystemJsonParseException extends MystemException {
+public class MystemJsonParseException extends RuntimeException {
     public MystemJsonParseException(String message) {
         super(message);
     }

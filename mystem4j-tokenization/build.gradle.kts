@@ -6,6 +6,7 @@ plugins {
 dependencies {
     api(project(":mystem4j-model"))
 
+    testImplementation(project(":mystem4j-runtime"))
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
 }

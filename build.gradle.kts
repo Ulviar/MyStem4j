@@ -110,3 +110,9 @@ tasks.register("realMystemTest") {
         }
     }
 }
+
+tasks.register("realMystemUnicodeStress") {
+    group = "verification"
+    description = "Runs the exhaustive real MyStem Unicode offset stress test."
+    dependsOn(":mystem4j-model:realMystemUnicodeStress")
+}

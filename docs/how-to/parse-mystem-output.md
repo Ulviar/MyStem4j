@@ -25,7 +25,7 @@ try (MystemClient client = Mystem.builder()
                 .build())
         .build()) {
     MystemRawResult raw = client.analyze("Мама мыла раму.");
-    MystemDocument document = parser.parse(raw);
+    MystemDocument document = parser.parse(raw.input(), raw.output());
 
     for (MystemToken token : document.tokens()) {
         System.out.println(token.text() + " " + token.startOffset() + "-" + token.endOffset());
@@ -64,7 +64,7 @@ The preprocessor:
 - replaces unpaired surrogate code units with `U+FFFD`;
 - replaces unsafe control characters with spaces;
 - replaces Unicode noncharacters with spaces;
-- records offset mappings back to the original Java string.
+- retains offset mapping back to the original Java string.
 
 This keeps MyStem input safer without losing the information needed to map token offsets back to the caller's text.
 

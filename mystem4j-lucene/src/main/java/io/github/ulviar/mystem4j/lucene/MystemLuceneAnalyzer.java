@@ -16,7 +16,7 @@ public final class MystemLuceneAnalyzer extends Analyzer {
     private final MystemClient client;
     private final MystemSearchTokenizerOptions options;
     private final boolean closeClientOnClose;
-    private final int maxInputChars;
+    private final MystemLuceneAnalysisOptions analysisOptions;
     private final AtomicBoolean closedClient = new AtomicBoolean();
 
     /**
@@ -46,7 +46,19 @@ public final class MystemLuceneAnalyzer extends Analyzer {
      * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
      */
     public MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars) {
-        this(client, options, false, maxInputChars);
+        this(client, options, false, MystemLuceneAnalysisOptions.withMaxInputChars(maxInputChars));
+    }
+
+    /**
+     * Creates an analyzer with explicit tokenization and Lucene analysis options.
+     *
+     * @param client MyStem client configured for JSON output
+     * @param options search tokenization policy
+     * @param analysisOptions Lucene-side limits and position policy
+     */
+    public MystemLuceneAnalyzer(
+            MystemClient client, MystemSearchTokenizerOptions options, MystemLuceneAnalysisOptions analysisOptions) {
+        this(client, options, false, analysisOptions);
     }
 
     /**
@@ -58,7 +70,7 @@ public final class MystemLuceneAnalyzer extends Analyzer {
      */
     public MystemLuceneAnalyzer(
             MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose) {
-        this(client, options, closeClientOnClose, MystemLuceneTokenizer.DEFAULT_MAX_INPUT_CHARS);
+        this(client, options, closeClientOnClose, MystemLuceneAnalysisOptions.defaults());
     }
 
     /**
@@ -71,18 +83,31 @@ public final class MystemLuceneAnalyzer extends Analyzer {
      */
     public MystemLuceneAnalyzer(
             MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose, int maxInputChars) {
+        this(client, options, closeClientOnClose, MystemLuceneAnalysisOptions.withMaxInputChars(maxInputChars));
+    }
+
+    /**
+     * Creates an analyzer with explicit tokenization options, ownership policy, and Lucene analysis options.
+     *
+     * @param client MyStem client configured for JSON output
+     * @param options search tokenization policy
+     * @param closeClientOnClose whether {@link #close()} should close the supplied client
+     * @param analysisOptions Lucene-side limits and position policy
+     */
+    public MystemLuceneAnalyzer(
+            MystemClient client,
+            MystemSearchTokenizerOptions options,
+            boolean closeClientOnClose,
+            MystemLuceneAnalysisOptions analysisOptions) {
         this.client = Objects.requireNonNull(client, "client");
         this.options = Objects.requireNonNull(options, "options");
-        if (maxInputChars <= 0) {
-            throw new IllegalArgumentException("maxInputChars must be positive");
-        }
         this.closeClientOnClose = closeClientOnClose;
-        this.maxInputChars = maxInputChars;
+        this.analysisOptions = Objects.requireNonNull(analysisOptions, "analysisOptions");
     }
 
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
-        return new TokenStreamComponents(new MystemLuceneTokenizer(client, options, maxInputChars));
+        return new TokenStreamComponents(new MystemLuceneTokenizer(client, options, analysisOptions));
     }
 
     @Override

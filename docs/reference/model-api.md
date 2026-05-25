@@ -9,12 +9,9 @@ Artifact: `mystem4j-model`
 `MystemJsonParser` parses MyStem JSON output into a `MystemDocument`.
 
 ```java
-MystemDocument parse(MystemRawResult result)
 MystemDocument parse(String originalText, String json)
 MystemDocument parse(MystemPreparedText preparedText, String json)
 ```
-
-`parse(MystemRawResult)` requires `MystemOutputFormat.JSON`.
 
 `parse(MystemPreparedText, String)` aligns MyStem token text against prepared text and returns offsets mapped back to the original text.
 
@@ -50,10 +47,9 @@ The first left-side item is treated as part of speech. Remaining left-side items
 
 - original text;
 - prepared text;
-- offset mappings from prepared text to original text;
 - non-fatal issues.
 
-Offset mappings in `MystemPreparedText` must be contiguous, monotonic, and cover both prepared and original text.
+Use `originalOffsetFor(int)` to map a prepared-text offset back to the original text.
 
 Issue types:
 
@@ -64,4 +60,4 @@ Issue types:
 
 ## Exceptions
 
-`MystemJsonParseException` is thrown when JSON cannot be parsed as one or more MyStem JSON arrays. It extends `MystemException`.
+`MystemJsonParseException` is thrown when JSON cannot be parsed as one or more MyStem JSON arrays.

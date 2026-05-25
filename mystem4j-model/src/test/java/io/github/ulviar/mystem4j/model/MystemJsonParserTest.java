@@ -5,13 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.ulviar.mystem4j.MystemExecutionMode;
-import io.github.ulviar.mystem4j.MystemInvalidOptionsException;
-import io.github.ulviar.mystem4j.MystemOutputFormat;
-import io.github.ulviar.mystem4j.MystemRawResult;
-import io.github.ulviar.mystem4j.MystemRequestStats;
-import java.time.Duration;
-import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 
 class MystemJsonParserTest {
@@ -123,24 +116,5 @@ class MystemJsonParserTest {
     @Test
     void rejectsNonArrayJson() {
         assertThrows(MystemJsonParseException.class, () -> parser.parse("text", "{\"text\":\"text\"}"));
-    }
-
-    @Test
-    void rejectsNonJsonRawResult() {
-        MystemRawResult rawResult = new MystemRawResult(
-                "text",
-                "text",
-                MystemOutputFormat.TEXT,
-                new MystemRequestStats(
-                        Duration.ZERO,
-                        MystemExecutionMode.ONE_SHOT_TEXT,
-                        4,
-                        4,
-                        4,
-                        4,
-                        OptionalInt.empty(),
-                        false));
-
-        assertThrows(MystemInvalidOptionsException.class, () -> parser.parse(rawResult));
     }
 }

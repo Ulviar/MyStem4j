@@ -44,8 +44,20 @@ Analyzer analyzer = new MystemLuceneAnalyzer(
 
 The third constructor argument makes the analyzer close the supplied client when the analyzer is closed.
 
+Use `MystemLuceneAnalysisOptions` when field limits, MyStem request chunk size, or Lucene position gaps must be explicit:
+
+```java
+Analyzer analyzer = new MystemLuceneAnalyzer(
+        client,
+        MystemSearchTokenizerOptions.conservative(),
+        new MystemLuceneAnalysisOptions(
+                1_000_000,
+                32_768,
+                MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS));
+```
+
 ## Runtime Choice
 
 For indexing, prefer a pooled MyStem client. A reusable single process client is not intended for concurrent analyzer use. One-shot clients are safe but usually slower for large indexing jobs.
 
-The Lucene tokenizer handles multiline fields by replacing CR/LF with spaces before calling the JSON-line client and preserving offsets in the original field. The default field limit is `MystemLuceneTokenizer.DEFAULT_MAX_INPUT_CHARS`; use a constructor with `maxInputChars` for a stricter policy.
+The Lucene tokenizer handles multiline fields by replacing CR/LF with spaces before calling the JSON-line client and preserving offsets in the original field. The default field limit is `MystemLuceneTokenizer.DEFAULT_MAX_INPUT_CHARS`; use a constructor with `maxInputChars` or `MystemLuceneAnalysisOptions` for a stricter policy.

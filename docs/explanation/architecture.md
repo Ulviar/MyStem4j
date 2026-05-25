@@ -54,18 +54,18 @@ The plugin prepares a project-local MyStem binary:
 
 1. choose the platform archive;
 2. download with explicit opt-in and license acceptance;
-3. reuse the archive only when metadata matches;
+3. reuse the shared checksum cache and project-local archive when metadata matches;
 4. extract the executable;
 5. run a JSON smoke probe;
 6. optionally wire the executable into tests or copy it for application distribution.
 
-The current cache is project-local under `build/mystem`. A shared Gradle user-home cache is a future enhancement, not current behavior.
+Downloaded archives with known SHA-256 checksums are reused through a shared Gradle user-home cache. Extraction outputs remain project-local under `build/mystem`.
 
 ## Lucene Layer
 
 The Lucene layer builds on the runtime, model, and tokenization modules without changing process management:
 
-- `MystemLuceneTokenizer` reads the whole Lucene input, prepares unsafe Unicode, calls a JSON MyStem client, parses model objects, prepares search tokens, and emits Lucene attributes.
+- `MystemLuceneTokenizer` reads Lucene input in bounded chunks, prepares unsafe Unicode, calls a JSON MyStem client, parses model objects, prepares search tokens, and emits Lucene attributes.
 - `MystemLuceneAnalyzer` wires the tokenizer into Lucene's `Analyzer` API.
 
 The layer depends on Lucene 10.x and the project baseline is Java 21.

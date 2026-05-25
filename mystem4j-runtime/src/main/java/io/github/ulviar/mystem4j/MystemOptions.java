@@ -53,12 +53,7 @@ public record MystemOptions(
         return new Builder();
     }
 
-    /**
-     * Renders options into deterministic MyStem CLI arguments.
-     *
-     * @return CLI arguments
-     */
-    public List<String> toArguments() {
+    List<String> toArguments() {
         ArrayList<String> arguments = new ArrayList<>();
         if (newLineEachWord) {
             arguments.add("-n");
