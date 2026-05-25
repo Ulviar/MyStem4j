@@ -1,24 +1,41 @@
 # Use Lucene Analyzer
 
-Use `mystem4j-lucene` when Lucene should index/search tokens produced from MyStem JSON output.
+Use `mystem4j-lucene` when Lucene should index or query tokens produced from
+MyStem JSON output.
 
-## Add the Module
+## Add The Module
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
     implementation("io.github.ulviar.mystem4j:mystem4j-lucene:0.1.0")
 }
 ```
 
-`mystem4j-lucene` currently uses Lucene 10.x and requires the project Java 21 baseline.
+`mystem4j-lucene` uses Lucene `10.4.0`, requires Java 21, and exposes the runtime
+and tokenization types used by its public API.
 
-## Create an Analyzer
+## Create An Analyzer
 
-The MyStem client must be configured for JSON output.
+The supplied MyStem client must return JSON. For indexing jobs, prefer a pooled
+client. Always close both the analyzer and the client, or let the analyzer own the
+client with `closeClientOnClose=true`.
 
 ```java
-MystemClient client = Mystem.builder()
+import io.github.ulviar.mystem4j.Mystem;
+import io.github.ulviar.mystem4j.MystemClient;
+import io.github.ulviar.mystem4j.MystemOptions;
+import io.github.ulviar.mystem4j.MystemOutputFormat;
+import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions;
+import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer;
+import io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
+import java.nio.file.Path;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+
+try (MystemClient client = Mystem.builder()
         .executable(Path.of("/path/to/mystem"))
         .options(MystemOptions.builder()
                 .format(MystemOutputFormat.JSON)
@@ -27,37 +44,81 @@ MystemClient client = Mystem.builder()
                 .build())
         .pooled()
         .build();
+     Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
+    try (TokenStream stream = analyzer.tokenStream("body", "Мама мыла раму.")) {
+        CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
+        OffsetAttribute offsets = stream.addAttribute(OffsetAttribute.class);
 
-Analyzer analyzer = new MystemLuceneAnalyzer(client);
+        stream.reset();
+        while (stream.incrementToken()) {
+            System.out.printf("%s [%d,%d]%n",
+                    term.toString(), offsets.startOffset(), offsets.endOffset());
+        }
+        stream.end();
+    }
+}
 ```
 
-The default analyzer uses conservative tokenization: it keeps safe offsets, gap recovery, lemmas, suffix forms, and fallback forms, but does not merge URL/email entities or expose currency/number token types.
+The default analyzer uses conservative tokenization: it keeps safe offsets, gap
+recovery, lemmas, suffix forms, and fallback forms, but it does not merge URL/email
+entities or expose currency/number token types. Printed terms should include lemma
+forms such as `мама`, `мыть`, and `рама`.
 
-Use entity-aware tokenization only when the application needs these signals:
+## Use Entity-Aware Tokenization
+
+Use entity-aware tokenization only when the application needs URL/email grouping,
+number token types, currency token types, and currency form expansion.
 
 ```java
+boolean closeClientOnClose = true;
+
 Analyzer analyzer = new MystemLuceneAnalyzer(
         client,
         MystemSearchTokenizerOptions.entityAware(),
-        true);
+        closeClientOnClose);
 ```
 
-The third constructor argument makes the analyzer close the supplied client when the analyzer is closed.
+`closeClientOnClose=true` means `analyzer.close()` also closes the supplied
+`MystemClient`.
 
-Use `MystemLuceneAnalysisOptions` when field limits, MyStem request chunk size, or Lucene position gaps must be explicit:
+## Set Field Limits And Position Policy
 
 ```java
+int maxInputChars = 100_000;
+int maxChunkChars = 16_384;
+
+MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+        maxInputChars,
+        maxChunkChars,
+        MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+
 Analyzer analyzer = new MystemLuceneAnalyzer(
         client,
         MystemSearchTokenizerOptions.conservative(),
-        new MystemLuceneAnalysisOptions(
-                1_000_000,
-                32_768,
-                MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS));
+        analysisOptions);
 ```
+
+Defaults are:
+
+| Option | Default |
+| --- | --- |
+| `maxInputChars` | `1_000_000` UTF-16 code units per Lucene field |
+| `maxChunkChars` | `32_768` UTF-16 code units per MyStem request |
+| `positionPolicy` | `COMPACT` |
+
+`COMPACT` ignores skipped separator/other tokens when computing Lucene position
+increments. `PRESERVE_SKIPPED_TOKENS` adds position gaps for skipped tokens.
 
 ## Runtime Choice
 
-For indexing, prefer a pooled MyStem client. A reusable single process client is not intended for concurrent analyzer use. One-shot clients are safe but usually slower for large indexing jobs.
+For indexing, use a pooled MyStem client so several indexing threads can analyze
+fields concurrently. A reusable single-process client is intended for one caller
+at a time and should not be shared by concurrent Lucene analysis. One-shot clients
+are safe but usually slower for large indexing jobs.
 
-The Lucene tokenizer handles multiline fields by replacing CR/LF with spaces before calling the JSON-line client and preserving offsets in the original field. The default field limit is `MystemLuceneTokenizer.DEFAULT_MAX_INPUT_CHARS`; use a constructor with `maxInputChars` or `MystemLuceneAnalysisOptions` for a stricter policy.
+For query analysis, use the same tokenization policy as indexing. Low-QPS services
+can use one-shot or a small pool; high-QPS services should share a pooled client
+for the analyzer lifecycle.
+
+The Lucene tokenizer handles multiline fields by replacing CR/LF with spaces before
+calling a JSON-line MyStem client and preserving offsets in the original field.

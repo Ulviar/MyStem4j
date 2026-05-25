@@ -1,15 +1,37 @@
 # Getting Started
 
-This tutorial prepares a MyStem executable with the Gradle plugin and sends one request through the runtime.
+This tutorial creates a minimal Gradle project that downloads MyStem, runs a smoke
+probe, and sends one request through `mystem4j-runtime`.
 
-## 1. Check Dependency Access
+## 1. Configure Plugin And Dependency Repositories
 
-The runtime depends on `com.github.ulviar:icli:0.1.0`. Until iCLI is available from a public Maven repository, configure one of these before a clean build:
+Create `settings.gradle.kts`:
 
-- publish iCLI `0.1.0` to Maven Local;
-- or provide GitHub Packages credentials through `gpr.user`/`gpr.key` or `GITHUB_ACTOR`/`GITHUB_TOKEN`.
+```kotlin
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
 
-## 2. Configure the Gradle Plugin
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = "mystem4j-example"
+```
+
+`gradlePluginPortal()` is enough when the Gradle plugin is published there.
+`mavenCentral()` lets Gradle resolve the plugin marker when it is published with
+the Maven artifacts.
+
+## 2. Configure The Build
+
+Create `build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -17,8 +39,16 @@ plugins {
     id("io.github.ulviar.mystem4j") version "0.1.0"
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
 }
 
 mystem4j {
@@ -27,39 +57,78 @@ mystem4j {
     acceptYandexMystemLicense.set(true)
     configureTests.set(true)
 }
+
+tasks.test {
+    useJUnitPlatform()
+}
 ```
 
-`download` and `acceptYandexMystemLicense` are separate opt-ins. The plugin will not download MyStem unless both are enabled.
+`download` allows the plugin to fetch the MyStem archive. `acceptYandexMystemLicense`
+is a separate opt-in: set it to `true` only after reviewing and accepting
+<https://yandex.ru/legal/mystem/ru/> for your project.
 
-## 3. Prepare and Probe MyStem
+`configureTests` wires the prepared executable into every Gradle `Test` task through
+the `mystem4j.executable` system property and the `MYSTEM_PATH` environment variable.
 
-```bash
-./gradlew mystemProbe
-```
+## 3. Add A Smoke Test
 
-The plugin downloads the platform archive, stores it under `build/mystem/downloads`, extracts the executable under `build/mystem/bin/<platform>`, and runs a JSON smoke request.
-
-## 4. Use the Runtime
+Create `src/test/java/example/MystemSmokeTest.java`:
 
 ```java
+package example;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.github.ulviar.mystem4j.Mystem;
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.MystemOptions;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
 import io.github.ulviar.mystem4j.MystemRawResult;
 import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
 
-try (MystemClient client = Mystem.builder()
-        .executable(Path.of("/path/to/prepared/mystem"))
-        .options(MystemOptions.builder()
-                .format(MystemOutputFormat.JSON)
-                .grammarInfo(true)
-                .disambiguate(true)
-                .build())
-        .build()) {
-    MystemRawResult result = client.analyze("Мама мыла раму.");
-    System.out.println(result.output());
+class MystemSmokeTest {
+    @Test
+    void analyzesRussianText() {
+        Path executable = Path.of(System.getProperty("mystem4j.executable"));
+
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .options(MystemOptions.builder()
+                        .format(MystemOutputFormat.JSON)
+                        .grammarInfo(true)
+                        .disambiguate(true)
+                        .build())
+                .build()) {
+            MystemRawResult result = client.analyze("Мама мыла раму.");
+            System.out.println(result.output());
+            assertTrue(result.output().contains("\"lex\":\"мама\""));
+        }
+    }
 }
 ```
 
-For tests configured through `configureTests.set(true)`, the plugin sets `mystem4j.executable` and `MYSTEM_PATH` for Gradle `Test` tasks.
+## 4. Run It
+
+```bash
+./gradlew test
+```
+
+The first run downloads the platform archive, verifies its checksum, extracts the
+executable under `build/mystem/bin/<platform>`, probes it, and then runs the test.
+
+Expected output shape:
+
+```json
+[{"analysis":[{"lex":"мама","gr":"S,..."}],"text":"Мама"}, ...]
+```
+
+The exact grammar string is MyStem data. The important part for this tutorial is
+that the runtime returns one raw MyStem JSON line.
+
+## Next Steps
+
+- Use [runtime clients](../how-to/use-runtime-clients.md) directly when raw MyStem output is enough.
+- Use [model parsing](../how-to/parse-mystem-output.md) when you need Java objects, lemmas, grammar, and offsets.
+- Use [Lucene integration](../how-to/use-lucene-analyzer.md) when MyStem should be part of an analyzer pipeline.
+- Use [Kotlin DSL](../how-to/use-kotlin-dsl.md) from Kotlin code.

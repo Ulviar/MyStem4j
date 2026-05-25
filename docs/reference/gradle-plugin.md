@@ -2,7 +2,19 @@
 
 Plugin id: `io.github.ulviar.mystem4j`
 
-Artifact: `mystem4j-gradle-plugin`
+Maven artifact: `io.github.ulviar.mystem4j:mystem4j-gradle-plugin:0.1.0`
+
+```kotlin
+plugins {
+    id("io.github.ulviar.mystem4j") version "0.1.0"
+}
+```
+
+```groovy
+plugins {
+    id 'io.github.ulviar.mystem4j' version '0.1.0'
+}
+```
 
 ## Extension
 
@@ -19,21 +31,23 @@ mystem4j {
 | --- | --- | --- |
 | `version` | `3.1` | supported MyStem version |
 | `targetOs` | current OS | `linux`, `macos`, or `windows` |
-| `baseUrl` | official MyStem CDN | base URL used when `archiveUrl` is unset |
+| `baseUrl` | `https://download.cdn.yandex.net/mystem` | base URL used when `archiveUrl` is unset |
 | `archiveUrl` | unset | full archive URL override |
 | `sha256` | built in for official archives | expected archive checksum |
 | `maxArchiveBytes` | `104857600` | maximum downloaded archive size |
 | `maxProbeOutputBytes` | `65536` | maximum captured stdout/stderr bytes for `mystemProbe` |
 | `cacheDirectory` | Gradle user home `caches/mystem4j` | shared checksum cache for downloaded archives |
 | `download` | `false` | explicit opt-in for network download |
-| `acceptYandexMystemLicense` | `false` | explicit license acceptance for download |
+| `acceptYandexMystemLicense` | `false` | explicit confirmation that the project accepts the Yandex MyStem license before download |
 | `configureTests` | `false` | wire prepared executable into Gradle `Test` tasks |
 | `prepareDistribution` | `false` | opt-in copy for application distribution |
 | `distributionDirectory` | `build/mystem/distribution` | target directory for distribution copy |
 
-Review the MyStem license before enabling `acceptYandexMystemLicense`: <https://yandex.ru/legal/mystem/ru/>.
+Review the MyStem license before enabling `acceptYandexMystemLicense`:
+<https://yandex.ru/legal/mystem/ru/>.
 
-Official archives use built-in SHA-256 values. Custom `http` and `https` `archiveUrl` values must set `sha256`.
+Official archive URLs are built by appending the archive name to `baseUrl`. Custom
+`http` and `https` `archiveUrl` values must set `sha256`.
 
 ## Tasks
 
@@ -42,10 +56,13 @@ Official archives use built-in SHA-256 values. Custom `http` and `https` `archiv
 | `mystemDownload` | downloads or reuses the platform archive and writes it into `build/mystem/downloads` |
 | `mystemExtract` | extracts the executable into `build/mystem/bin/<platform>` |
 | `mystemProbe` | runs a JSON smoke request against the prepared executable |
-| `mystemPrepareTestRuntime` | writes test runtime properties and supplies the executable path |
+| `mystemPrepareTestRuntime` | prepares the executable path for Gradle `Test` tasks |
 | `mystemPrepareDistribution` | copies the executable into `distributionDirectory` when enabled |
 
 ## Supported Archives
+
+The checksum values are embedded in MyStem4j `0.1.0` and are used to verify official
+downloads.
 
 | Target OS | Archive | Executable | SHA-256 |
 | --- | --- | --- | --- |
@@ -64,14 +81,16 @@ When `configureTests` is enabled, each Gradle `Test` task gets:
 
 ## Cache Metadata
 
-`mystemDownload` writes a metadata sidecar next to the project-local archive. The project-local archive is reused only
-when these values match:
+`mystemDownload` writes a metadata sidecar next to the project-local archive. The
+project-local archive is reused only when these values match:
 
 - version;
 - archive URL;
 - expected sha256 value.
 
-The archive content must match the expected checksum whenever a checksum is configured or supplied by the built-in distribution metadata.
+The archive content must match the expected checksum whenever a checksum is
+configured or supplied by built-in distribution metadata.
 
-When a checksum is available, downloaded archives are also stored under `cacheDirectory` with a file lock. This cache is
-shared between builds and projects, while extraction outputs remain under the current project's `build` directory.
+When a checksum is available, downloaded archives are also stored under
+`cacheDirectory` with a file lock. This cache is shared between builds and projects,
+while extraction outputs remain under the current project's `build` directory.

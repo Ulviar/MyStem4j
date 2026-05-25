@@ -2,15 +2,24 @@
 
 Package: `io.github.ulviar.mystem4j.lucene`
 
-Artifact: `mystem4j-lucene`
+Artifact: `io.github.ulviar.mystem4j:mystem4j-lucene:0.1.0`
 
 ## Compatibility
 
-The module currently depends on Lucene `10.4.0` and requires Java 21.
+The module depends on Lucene `10.4.0` and requires Java 21. Keep the Lucene version
+used by the application compatible with `10.4.x`.
 
 ## Analyzer
 
 `MystemLuceneAnalyzer` extends Lucene `Analyzer`.
+
+Recommended constructor for most applications:
+
+```java
+new MystemLuceneAnalyzer(MystemClient client)
+```
+
+Use this when the caller owns and closes the `MystemClient`.
 
 Constructors:
 
@@ -24,9 +33,11 @@ new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions optio
 new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose, MystemLuceneAnalysisOptions analysisOptions)
 ```
 
-The supplied `MystemClient` must return JSON output. For concurrent indexing, use one-shot or pooled runtime clients.
+The supplied `MystemClient` must return JSON output. For concurrent indexing, use
+one-shot or pooled runtime clients. Pooled clients are usually faster for indexing.
 
-The analyzer does not close the client by default. Use the constructor with `closeClientOnClose=true` when the analyzer should own the client.
+The analyzer does not close the client by default. Use a constructor with
+`closeClientOnClose=true` when the analyzer should own the client.
 
 ## Tokenizer
 
@@ -52,16 +63,25 @@ The tokenizer:
 - converts model tokens through `mystem4j-tokenization`;
 - emits Lucene `CharTermAttribute`, `OffsetAttribute`, `PositionIncrementAttribute`, `TypeAttribute`, and `KeywordAttribute`.
 
-Multiple forms of one search token are emitted at the same offsets. The first form uses the current token position
-increment; additional forms have position increment `0`.
+Multiple forms of one search token are emitted at the same offsets. The first form
+uses the current token position increment; additional forms have position increment
+`0`.
 
-`SEPARATOR` and `OTHER` search-token types are not emitted to the Lucene token stream.
+`SEPARATOR` and `OTHER` search-token types are not emitted to the Lucene token
+stream.
+
+## Analysis Options
 
 `MystemLuceneAnalysisOptions` controls:
 
-- `maxInputChars`;
-- `maxChunkChars`;
-- `positionPolicy`.
+- `maxInputChars`, default `1_000_000`;
+- `maxChunkChars`, default `32_768`;
+- `positionPolicy`, default `COMPACT`.
 
-`MystemLucenePositionPolicy.COMPACT` keeps previous behavior: skipped `SEPARATOR` and `OTHER` tokens do not add Lucene
-position gaps. `PRESERVE_SKIPPED_TOKENS` increments the next emitted token position for each skipped token.
+`MystemLuceneAnalysisOptions.defaults()` returns the default values.
+`MystemLuceneAnalysisOptions.withMaxInputChars(value)` changes only the field
+length limit and keeps default chunking and position behavior.
+
+`MystemLucenePositionPolicy.COMPACT` does not add Lucene position gaps for skipped
+`SEPARATOR` and `OTHER` tokens. `PRESERVE_SKIPPED_TOKENS` increments the next
+emitted token position for each skipped token.

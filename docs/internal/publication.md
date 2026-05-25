@@ -1,6 +1,7 @@
-# Publication Reference
+# Publication Notes
 
-MyStem4j publishes each module as a Maven artifact under group `io.github.ulviar.mystem4j`.
+This page is for maintainers. User-facing artifact and API information lives in
+`docs/reference`.
 
 ## Java Baseline
 
@@ -18,10 +19,11 @@ Each module publication provides:
 - source JAR;
 - Javadoc JAR.
 
-Library JARs provide explicit JPMS descriptors. The Gradle plugin artifact keeps a stable
-`Automatic-Module-Name` manifest entry because Gradle plugins are loaded through Gradle's plugin classpath.
+Library JARs provide explicit JPMS descriptors. The Gradle plugin artifact keeps a
+stable `Automatic-Module-Name` manifest entry because Gradle plugins are loaded
+through Gradle's plugin classpath.
 
-## Quality Gates
+## Release Gates
 
 `check` includes:
 
@@ -59,17 +61,15 @@ Update the API baseline only after reviewing intentional public API changes:
 ./gradlew apiSurfaceCheck -Pmystem4j.updateApiBaseline=true
 ```
 
-## License Boundary
-
-MyStem4j artifacts use the Apache License, Version 2.0.
-
-The native MyStem binary is licensed separately by Yandex and is not bundled into MyStem4j artifacts.
-
 ## Release Checklist
 
 The default project version is `0.1.0`.
 
-Maven Central release also still needs signing and repository credentials.
+Before publishing MyStem4j artifacts to a public repository, make sure every
+transitive runtime dependency, including `com.github.ulviar:icli:0.1.0`, is already
+available from a repository that normal consumers can resolve.
+
+Maven Central release also needs signing and repository credentials.
 
 Run real MyStem integration checks before release:
 
@@ -77,7 +77,8 @@ Run real MyStem integration checks before release:
 ./gradlew realMystemTest -Dmystem4j.executable=/path/to/mystem
 ```
 
-Run the exhaustive Unicode offset stress gate when changing Unicode preprocessing or MyStem offset alignment:
+Run the exhaustive Unicode offset stress gate when changing Unicode preprocessing
+or MyStem offset alignment:
 
 ```bash
 ./gradlew realMystemUnicodeStress -Dmystem4j.executable=/path/to/mystem

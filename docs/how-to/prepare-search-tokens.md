@@ -1,8 +1,9 @@
 # Prepare Search Tokens
 
-Use `mystem4j-tokenization` when parsed MyStem model objects should become search-oriented tokens before a Lucene layer.
+Use `mystem4j-tokenization` when parsed MyStem model objects should become tokens
+for a custom search pipeline or for code that runs before a Lucene adapter.
 
-## Add the Module
+## Add The Module
 
 ```kotlin
 dependencies {
@@ -11,32 +12,87 @@ dependencies {
 }
 ```
 
-## Tokenize a Parsed Document
+## Tokenize A Parsed Document
 
 ```java
+import io.github.ulviar.mystem4j.model.MystemDocument;
+import io.github.ulviar.mystem4j.model.MystemJsonParser;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchToken;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
+import io.github.ulviar.mystem4j.tokenization.MystemTokenForm;
+import java.util.List;
+import java.util.stream.Collectors;
+
+String originalText = "Мама мыла раму";
+String json = """
+        [
+          {"analysis":[{"lex":"мама","gr":"S,жен,од=им,ед"}],"text":"Мама"},
+          {"analysis":[{"lex":"мыть","gr":"V,несов,пе=прош,ед,изъяв,жен"}],"text":"мыла"},
+          {"analysis":[{"lex":"рама","gr":"S,жен,неод=вин,ед"}],"text":"раму"}
+        ]
+        """;
+
 MystemDocument document = new MystemJsonParser().parse(originalText, json);
 List<MystemSearchToken> tokens = new MystemSearchTokenizer().tokenize(document);
+
+for (MystemSearchToken token : tokens) {
+    String forms = token.forms().stream()
+            .map(MystemTokenForm::text)
+            .collect(Collectors.joining(", "));
+    System.out.printf("%s [%d,%d] %s%n",
+            token.text(), token.startOffset(), token.endOffset(), forms);
+}
 ```
 
-The default tokenizer is conservative. It preserves safe offsets, gaps, lemmas, suffixes, and fallback forms, but does not merge or expose URL/email/currency/number entities as semantic token types.
+Example output shape:
 
-Enable entity-aware behavior explicitly when the target search application needs these signals:
+```text
+Мама [0,4] мама
+мыла [5,9] мыть
+раму [10,14] рама
+```
+
+Exact forms depend on MyStem output and tokenizer options.
+
+## Choose A Policy
+
+The no-argument tokenizer uses `MystemSearchTokenizerOptions.conservative()`.
+Conservative tokenization keeps safe offsets, gap recovery, lemmas, suffix forms,
+and fallback forms, but it does not classify numbers or merge URL/email entities.
+
+Use `search()` when you want number and currency token types without URL/email
+merging:
+
+```java
+MystemSearchTokenizer tokenizer =
+        new MystemSearchTokenizer(MystemSearchTokenizerOptions.search());
+```
+
+Use `entityAware()` only when the application needs full URL/email grouping and
+currency form expansion:
 
 ```java
 MystemSearchTokenizer tokenizer =
         new MystemSearchTokenizer(MystemSearchTokenizerOptions.entityAware());
-List<MystemSearchToken> tokens = tokenizer.tokenize(document);
 ```
 
 Each `MystemSearchToken` contains:
 
-- original-text surface;
+- source text;
 - Java UTF-16 start/end offsets;
-- forms for search;
-- a coarse token type.
+- one or more forms for search;
+- a coarse token type such as `WORD`, `NUMBER`, `URL`, `EMAIL`, or `CURRENCY`.
 
-The tokenizer always handles offset-sensitive MyStem quirks such as soft hyphen ranges, `+`/`++`/`#` suffixes, omitted gaps, and exceptional diacritic removal. URL/email grouping and currency form expansion are policy-controlled options.
+## Offset Safety
 
-If MyStem output omits non-copy input fragments, the tokenizer synthesizes gap tokens from the original text. This allows URL punctuation, email `@`, currencies, and numbers to survive even when the MyStem request was not made with `copyInput`.
+The tokenizer requires known offsets. If the parsed model contains `-1` offsets,
+tokenization fails because Lucene and most search engines cannot safely emit a
+token without valid start/end positions.
 
-Unknown model offsets are rejected because Lucene cannot safely emit a token without valid offsets.
+MyStem can omit some input fragments from JSON output depending on its options. The
+tokenizer synthesizes gap tokens from the original text so punctuation, URL glue,
+email `@`, currency signs, and similar fragments can still be handled. Handling for
+soft hyphens, lemma suffixes such as `+`, `++`, and `#`, and selected fallback-form
+normalization is built in; applications only choose whether to enable semantic
+entity enrichment.

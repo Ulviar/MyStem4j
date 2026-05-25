@@ -1,71 +1,77 @@
 # Architecture
 
-MyStem4j is split into layers so that Lucene integration can be built on top of a reliable CLI runtime instead of mixing process management with tokenization.
+MyStem4j is split into small layers so applications can use only the part they
+need. The Lucene integration is built on top of the same runtime and model layers
+that are available to non-Lucene users.
 
-## Current Milestone
+## Module Layers
 
-The implemented milestone contains:
+- `mystem4j-runtime` starts MyStem processes and returns raw MyStem output.
+- `mystem4j-model` parses MyStem JSON into Java model objects and aligns token offsets.
+- `mystem4j-tokenization` converts parsed model objects into search-oriented tokens.
+- `mystem4j-lucene` adapts search tokens to Lucene `Analyzer` and `Tokenizer` APIs.
+- `mystem4j-kotlin` adds Kotlin DSL helpers over the runtime API.
+- `mystem4j-gradle-plugin` prepares the native MyStem executable during builds.
 
-- `mystem4j-runtime` - process execution and raw MyStem output;
-- `mystem4j-model` - JSON postprocessing, grammar parsing, token offset alignment, and Unicode preparation;
-- `mystem4j-tokenization` - search-token preparation above model objects;
-- `mystem4j-lucene` - Lucene analyzer/tokenizer integration;
-- `mystem4j-kotlin` - Kotlin DSL over the runtime;
-- `mystem4j-gradle-plugin` - MyStem binary preparation for build/test/distribution workflows.
+The runtime has no Lucene dependency and does not parse MyStem output into model
+objects. The model layer has no process-management code. The tokenization layer has
+no Lucene dependency. This keeps the lower modules usable in applications that do
+not use Lucene.
 
-The runtime has no Lucene dependency and does not parse MyStem output into morphology objects. The model layer is the first postprocessing layer above raw CLI output. The tokenization layer is Lucene-free and prepares forms/coarse token types. The Lucene layer adapts those prepared tokens to Lucene attributes.
+## MyStem Binary Boundary
+
+MyStem is a native executable with its own license. MyStem4j artifacts do not
+bundle it. Runtime clients accept an executable path or resolve one from
+configuration. The Gradle plugin is the only MyStem4j component that downloads
+MyStem, and it requires explicit license acceptance before doing so.
 
 ## Unicode And Offsets
 
-Lucene offsets are Java UTF-16 offsets, so the model layer treats UTF-16 code units as the public coordinate system. MyStem may classify unusual Unicode code points differently from the JVM. The model layer therefore separates two concerns:
+Lucene offsets are Java UTF-16 offsets. For example, the Java string
+`"а😀б"` has length `4` because the emoji uses two UTF-16 code units. MyStem4j
+therefore treats Java UTF-16 indices as the public coordinate system.
 
-- `MystemTextPreprocessor` prepares unsafe input for MyStem while retaining a mapping back to the original Java string;
-- `MystemJsonParser` aligns MyStem output against either the original text or prepared text and returns offsets in original-text coordinates.
-
-The test suite has fast exhaustive UTF-16 invariants for the model code and opt-in real-MyStem stress tests for empirical compatibility with the native binary.
+`MystemTextPreprocessor` prepares input that may be unsafe for MyStem, such as
+unpaired surrogate code units or control characters, while keeping a mapping back
+to the caller's original Java string. `MystemJsonParser` then aligns MyStem token
+text against the original or prepared text and returns offsets in original-text
+coordinates when the prepared-text overload is used.
 
 ## Search Tokenization
 
-MyStem output is not yet a Lucene token stream. It may drop soft hyphens from surface text, attach `+` or `#` to lemmas but not token text, and omit non-copy fragments from JSON output.
+MyStem JSON is not yet a search token stream. It can omit punctuation when `copyInput`
+is disabled, return lemmas that differ from token text, or represent some surface
+forms in a way that is awkward for search. `mystem4j-tokenization` converts
+`MystemDocument` values into tokens with original offsets and search forms.
 
-`mystem4j-tokenization` converts `MystemDocument` into search-oriented tokens while preserving original offsets. Offset safety, gap synthesis, suffix recovery, and fallback forms are baseline behavior. Semantic enrichment such as number token types, URL/email merging, and currency expansion is controlled by `MystemSearchTokenizerOptions` so applications can choose a conservative morphology pipeline or a richer entity-aware search pipeline.
-
-## Why MyStem Is External
-
-MyStem is distributed as a native CLI binary with its own license. The runtime accepts an executable path and stays offline-friendly. The Gradle plugin is the only component that can download MyStem, and it requires explicit license acceptance.
+Offset safety, gap synthesis, suffix recovery, and fallback forms are baseline
+behavior. Semantic enrichment such as number token types, URL/email merging, and
+currency expansion is controlled by `MystemSearchTokenizerOptions`, so applications
+can choose a conservative morphology pipeline or a richer entity-aware pipeline.
 
 ## Process Modes
 
-One-shot mode is the most general mode. It supports every MyStem format because the process exits and EOF defines response boundaries.
+One-shot mode starts a new MyStem process per request. It supports JSON, XML, and
+text output because process exit defines the response boundary.
 
-Reusable and pooled modes are limited to JSON line framing. MyStem 3.1 returns JSON for a single line request as one output line, so the runtime can safely read one response per request. Multiline input is rejected in these modes until a more explicit framing strategy is added.
-
-Pooled mode is the expected base for high-throughput Lucene integration because it avoids per-token or per-document process startup costs while keeping request handling synchronous.
+Reusable and pooled modes keep MyStem processes open and use JSON-line framing:
+one input line maps to one JSON output line. These modes are JSON-only and reject
+raw multiline input. Pooled mode is the expected base for high-throughput indexing
+because it avoids process startup for every field while allowing concurrent callers.
 
 ## Error Model
 
-The runtime wraps iCLI and process failures in `MystemException` subclasses. The goal is to separate startup failures, timeouts, process exits, protocol failures, pool exhaustion, output limits, closed clients, and invalid options so callers can make stable retry/fallback decisions.
-
-Protocol session failures keep a bounded transcript where iCLI provides one. For process exits this transcript is also used to preserve stderr-like diagnostic content.
-
-## Gradle Preparation
-
-The plugin prepares a project-local MyStem binary:
-
-1. choose the platform archive;
-2. download with explicit opt-in and license acceptance;
-3. reuse the shared checksum cache and project-local archive when metadata matches;
-4. extract the executable;
-5. run a JSON smoke probe;
-6. optionally wire the executable into tests or copy it for application distribution.
-
-Downloaded archives with known SHA-256 checksums are reused through a shared Gradle user-home cache. Extraction outputs remain project-local under `build/mystem`.
+Runtime failures are mapped to `MystemException` subclasses. Callers can distinguish
+executable resolution failures, startup failures, request timeouts, non-zero MyStem
+exits, protocol failures, output limits, pool exhaustion, closed clients, and invalid
+options.
 
 ## Lucene Layer
 
-The Lucene layer builds on the runtime, model, and tokenization modules without changing process management:
+`MystemLuceneTokenizer` reads Lucene field text, prepares offset-sensitive input,
+calls a JSON MyStem client, parses model objects, prepares search tokens, and emits
+Lucene attributes. `MystemLuceneAnalyzer` wires that tokenizer into Lucene's
+`Analyzer` API.
 
-- `MystemLuceneTokenizer` reads Lucene input in bounded chunks, prepares unsafe Unicode, calls a JSON MyStem client, parses model objects, prepares search tokens, and emits Lucene attributes.
-- `MystemLuceneAnalyzer` wires the tokenizer into Lucene's `Analyzer` API.
-
-The layer depends on Lucene 10.x and the project baseline is Java 21.
+The Lucene module depends on Lucene `10.4.0` and follows the project Java 21
+baseline.
