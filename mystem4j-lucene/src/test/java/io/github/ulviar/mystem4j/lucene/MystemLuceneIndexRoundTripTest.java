@@ -3,6 +3,8 @@ package io.github.ulviar.mystem4j.lucene;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.io.IOException;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
@@ -10,6 +12,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.util.LuceneTestCase;
@@ -35,19 +38,19 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
     }
 
     public void testIndexesMultilineFieldsWithJsonLineCompatibleClient() throws IOException {
-        FakeMystemClient client = new FakeMystemClient(input -> switch (input) {
-            case "Мамы" -> """
-                    [{"analysis":[{"lex":"мама","gr":"S"}],"text":"Мамы"}]
-                    """;
-            case "Папы" -> """
-                    [{"analysis":[{"lex":"папа","gr":"S"}],"text":"Папы"}]
-                    """;
-            default -> {
-                if (input.indexOf('\n') >= 0 || input.indexOf('\r') >= 0) {
-                    throw new AssertionError("client received multiline input: " + input);
-                }
-                yield "[]";
+        FakeMystemClient client = new FakeMystemClient(input -> {
+            if (input.indexOf('\n') >= 0 || input.indexOf('\r') >= 0) {
+                throw new AssertionError("client received multiline input: " + input);
             }
+            if (!"Мамы Папы".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [
+                      {"analysis":[{"lex":"мама","gr":"S"}],"text":"Мамы"},
+                      {"analysis":[{"lex":"папа","gr":"S"}],"text":"Папы"}
+                    ]
+                    """;
         });
 
         try (Analyzer analyzer = new MystemLuceneAnalyzer(client);
@@ -76,6 +79,24 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
             assertHitCount(directory, "раз", 1);
             assertHitCount(directory, "c++", 1);
             assertHitCount(directory, "c", 1);
+            assertPhraseHitCount(directory, "раз++", "c++", 1);
+            assertPhraseHitCount(directory, "раз", "c", 1);
+            assertPhraseHitCount(directory, "раз++", "c", 1);
+        }
+    }
+
+    public void testQueryTimeAnalyzerMatchesIndexedLemmas() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> switch (input) {
+            case "Мамы", "Мамами" -> """
+                    [{"analysis":[{"lex":"мама","gr":"S"}],"text":"%s"}]
+                    """.formatted(input);
+            default -> "[]";
+        });
+
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client);
+                Directory directory = indexOne(analyzer, "Мамы")) {
+            assertAnalyzedQueryHitCount(directory, analyzer, "Мамами", 1);
+            assertAnalyzedQueryHitCount(directory, analyzer, "Папами", 0);
         }
     }
 
@@ -127,6 +148,40 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
         try (DirectoryReader reader = DirectoryReader.open(directory)) {
             IndexSearcher searcher = newSearcher(reader);
             assertEquals(expected, searcher.count(new TermQuery(new Term(FIELD, term))));
+        }
+    }
+
+    private static void assertPhraseHitCount(Directory directory, String firstTerm, String secondTerm, int expected)
+            throws IOException {
+        try (DirectoryReader reader = DirectoryReader.open(directory)) {
+            IndexSearcher searcher = newSearcher(reader);
+            PhraseQuery query = new PhraseQuery.Builder()
+                    .add(new Term(FIELD, firstTerm), 0)
+                    .add(new Term(FIELD, secondTerm), 1)
+                    .build();
+            assertEquals(expected, searcher.count(query));
+        }
+    }
+
+    private static void assertAnalyzedQueryHitCount(
+            Directory directory, Analyzer analyzer, String queryText, int expected) throws IOException {
+        String term = firstAnalyzedTerm(analyzer, queryText);
+        try (DirectoryReader reader = DirectoryReader.open(directory)) {
+            IndexSearcher searcher = newSearcher(reader);
+            assertEquals(expected, searcher.count(new TermQuery(new Term(FIELD, term))));
+        }
+    }
+
+    private static String firstAnalyzedTerm(Analyzer analyzer, String text) throws IOException {
+        try (TokenStream stream = analyzer.tokenStream(FIELD, text)) {
+            CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
+            stream.reset();
+            if (!stream.incrementToken()) {
+                return "";
+            }
+            String result = term.toString();
+            stream.end();
+            return result;
         }
     }
 }

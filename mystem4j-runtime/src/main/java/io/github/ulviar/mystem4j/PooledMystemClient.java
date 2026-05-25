@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 final class PooledMystemClient implements MystemClient {
     private final PooledProtocolSession<String, String> pool;
@@ -15,6 +16,7 @@ final class PooledMystemClient implements MystemClient {
     private final MystemOptions options;
     private final Duration requestTimeout;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final ReentrantReadWriteLock closeLock = new ReentrantReadWriteLock();
 
     PooledMystemClient(
             PooledProtocolSession<String, String> pool,
@@ -29,48 +31,68 @@ final class PooledMystemClient implements MystemClient {
 
     @Override
     public MystemRawResult analyze(String text) {
-        ensureOpen();
-        Objects.requireNonNull(text, "text");
-        validateJsonLineInput(text);
-        long started = System.nanoTime();
+        closeLock.readLock().lock();
         try {
-            String output = pool.request(text, requestTimeout);
-            Duration elapsed = Duration.ofNanos(System.nanoTime() - started);
-            int inputBytes = text.getBytes(options.encoding().charset()).length;
-            MystemRequestStats stats = new MystemRequestStats(
-                    elapsed,
-                    MystemExecutionMode.POOL,
-                    text.length(),
-                    inputBytes,
-                    output.length(),
-                    output.getBytes(options.encoding().charset()).length,
-                    OptionalInt.empty(),
-                    false);
-            return new MystemRawResult(text, output, options.format(), stats);
-        } catch (ProtocolSessionException error) {
-            throw MystemProtocolFailureMapper.map(error);
-        } catch (PooledProtocolSessionException error) {
-            throw MystemProtocolFailureMapper.map(error);
+            ensureOpen();
+            Objects.requireNonNull(text, "text");
+            MystemJsonLineProtocol.validateRequest(text);
+            long started = System.nanoTime();
+            try {
+                String output = pool.request(text, requestTimeout);
+                Duration elapsed = Duration.ofNanos(System.nanoTime() - started);
+                int inputBytes = text.getBytes(options.encoding().charset()).length;
+                MystemRequestStats stats = new MystemRequestStats(
+                        elapsed,
+                        MystemExecutionMode.POOL,
+                        text.length(),
+                        inputBytes,
+                        output.length(),
+                        output.getBytes(options.encoding().charset()).length,
+                        OptionalInt.empty(),
+                        false);
+                return new MystemRawResult(text, output, options.format(), stats);
+            } catch (ProtocolSessionException error) {
+                throw MystemProtocolFailureMapper.map(error);
+            } catch (PooledProtocolSessionException error) {
+                throw MystemProtocolFailureMapper.map(error);
+            }
+        } finally {
+            closeLock.readLock().unlock();
         }
     }
 
     @Override
     public MystemFileContentResult analyzeFile(Path input) {
-        ensureOpen();
-        return fileClient.analyzeFile(input);
+        closeLock.readLock().lock();
+        try {
+            ensureOpen();
+            return fileClient.analyzeFile(input);
+        } finally {
+            closeLock.readLock().unlock();
+        }
     }
 
     @Override
     public MystemFileResult analyzeFile(Path input, Path output) {
-        ensureOpen();
-        return fileClient.analyzeFile(input, output);
+        closeLock.readLock().lock();
+        try {
+            ensureOpen();
+            return fileClient.analyzeFile(input, output);
+        } finally {
+            closeLock.readLock().unlock();
+        }
     }
 
     @Override
     public void close() {
-        if (closed.compareAndSet(false, true)) {
-            pool.close();
-            fileClient.close();
+        closeLock.writeLock().lock();
+        try {
+            if (closed.compareAndSet(false, true)) {
+                pool.close();
+                fileClient.close();
+            }
+        } finally {
+            closeLock.writeLock().unlock();
         }
     }
 
@@ -80,9 +102,4 @@ final class PooledMystemClient implements MystemClient {
         }
     }
 
-    private static void validateJsonLineInput(String text) {
-        if (text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) {
-            throw new MystemInvalidOptionsException("Reusable MyStem JSON line protocol rejects multiline input.");
-        }
-    }
 }

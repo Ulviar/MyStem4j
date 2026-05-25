@@ -1,6 +1,8 @@
 pluginManagement {
     repositories {
-        mavenLocal()
+        if (providers.gradleProperty("mystem4j.useMavenLocal").map(String::toBoolean).orElse(false).get()) {
+            mavenLocal()
+        }
         gradlePluginPortal()
         mavenCentral()
     }
@@ -9,7 +11,9 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        mavenLocal()
+        if (providers.gradleProperty("mystem4j.useMavenLocal").map(String::toBoolean).orElse(false).get()) {
+            mavenLocal()
+        }
         mavenCentral()
     }
 }

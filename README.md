@@ -24,7 +24,7 @@ MyStem4j does not bundle MyStem and does not download it from the runtime librar
 
 The runtime depends on `com.github.ulviar:icli:0.1.0`. Until iCLI is published to a public Maven repository, fresh builds need one of these:
 
-- iCLI `0.1.0` published to Maven Local.
+- iCLI `0.1.0` published to Maven Local and `-Pmystem4j.useMavenLocal=true`.
 - GitHub Packages credentials configured through `gpr.user`/`gpr.key` Gradle properties or `GITHUB_ACTOR`/`GITHUB_TOKEN`.
 
 ## Quick Start
@@ -37,8 +37,6 @@ plugins {
 
 dependencies {
     implementation("io.github.ulviar.mystem4j:mystem4j-runtime:<version>")
-    implementation("io.github.ulviar.mystem4j:mystem4j-model:<version>")
-    implementation("io.github.ulviar.mystem4j:mystem4j-tokenization:<version>")
     implementation("io.github.ulviar.mystem4j:mystem4j-lucene:<version>") // optional Lucene integration
     implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:<version>") // optional Kotlin DSL
 }
@@ -80,6 +78,7 @@ The documentation is organized with Diataxis:
 - [Getting started tutorial](docs/tutorials/getting-started.md)
 - [Prepare MyStem with Gradle](docs/how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](docs/how-to/use-runtime-clients.md)
+- [Use Kotlin DSL](docs/how-to/use-kotlin-dsl.md)
 - [Parse MyStem output](docs/how-to/parse-mystem-output.md)
 - [Prepare search tokens](docs/how-to/prepare-search-tokens.md)
 - [Use Lucene analyzer](docs/how-to/use-lucene-analyzer.md)
@@ -87,22 +86,18 @@ The documentation is organized with Diataxis:
 - [Model API reference](docs/reference/model-api.md)
 - [Tokenization API reference](docs/reference/tokenization-api.md)
 - [Lucene API reference](docs/reference/lucene-api.md)
+- [Kotlin API reference](docs/reference/kotlin-api.md)
 - [Gradle plugin reference](docs/reference/gradle-plugin.md)
-- [Publication reference](docs/reference/publication.md)
 - [Architecture explanation](docs/explanation/architecture.md)
-- [Runtime component specification](docs/specs/mystem-runtime-spec.md)
-- [Model component specification](docs/specs/mystem-model-spec.md)
-- [Tokenization component specification](docs/specs/mystem-tokenization-spec.md)
-- [Lucene component specification](docs/specs/mystem-lucene-spec.md)
 
-## Local Smoke Sample
+## License
 
-The sample in `samples/mystem-plugin-smoke` resolves the plugin from Maven Local and can be used after publishing the local snapshot:
+MyStem4j is licensed under the Apache License, Version 2.0. The native MyStem binary is licensed separately by Yandex and is not bundled into MyStem4j artifacts.
+
+## Local Development
+
+Local builds that consume iCLI from Maven Local must opt in explicitly:
 
 ```bash
-./gradlew :mystem4j-gradle-plugin:publishToMavenLocal
-cd samples/mystem-plugin-smoke
-../../gradlew mystemProbe \
-  -Pmystem4j.download=true \
-  -Pmystem4j.acceptYandexMystemLicense=true
+./gradlew test -Pmystem4j.useMavenLocal=true
 ```

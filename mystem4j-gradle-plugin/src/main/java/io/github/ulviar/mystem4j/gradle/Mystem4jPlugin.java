@@ -23,6 +23,15 @@ public class Mystem4jPlugin implements Plugin<Project> {
         Provider<String> archiveUrl = project.provider(() -> extension.getArchiveUrl().isPresent()
                 ? extension.getArchiveUrl().get()
                 : distribution.get().archiveUrl(extension.getBaseUrl().get()));
+        Provider<String> expectedSha256 = project.provider(() -> {
+            if (extension.getSha256().isPresent()) {
+                return extension.getSha256().get();
+            }
+            if (extension.getArchiveUrl().isPresent()) {
+                return "";
+            }
+            return distribution.get().sha256();
+        });
         Provider<RegularFile> archiveFile = project.getLayout()
                 .getBuildDirectory()
                 .file(distribution.map(value -> "mystem/downloads/" + value.archiveName()));
@@ -41,7 +50,8 @@ public class Mystem4jPlugin implements Plugin<Project> {
                     task.getDownload().set(extension.getDownload());
                     task.getAcceptYandexMystemLicense().set(extension.getAcceptYandexMystemLicense());
                     task.getArchiveUrl().set(archiveUrl);
-                    task.getExpectedSha256().set(extension.getSha256());
+                    task.getExpectedSha256().set(expectedSha256);
+                    task.getMaxArchiveBytes().set(extension.getMaxArchiveBytes());
                     task.getArchiveFile().set(archiveFile);
                     task.getMetadataFile().set(metadataFile);
                 });
@@ -65,6 +75,7 @@ public class Mystem4jPlugin implements Plugin<Project> {
                     task.getExecutableFile().set(extract.flatMap(MystemExtractTask::getExecutableFile));
                     task.getTimeoutSeconds().convention(10);
                     task.getSmokeInput().convention("мама");
+                    task.getMaxOutputBytes().set(extension.getMaxProbeOutputBytes());
                 });
 
         TaskProvider<MystemPrepareRuntimeTask> prepareTestRuntime = project.getTasks()
@@ -87,21 +98,17 @@ public class Mystem4jPlugin implements Plugin<Project> {
                     task.getPrepareDistribution().set(extension.getPrepareDistribution());
                     task.getExecutableFile().set(extract.flatMap(MystemExtractTask::getExecutableFile));
                     task.getDistributionDirectory().set(extension.getDistributionDirectory());
-                });
+        });
 
-        project.afterEvaluate(ignored -> {
-            if (extension.getConfigureTests().get()) {
-                Provider<String> preparedExecutable =
-                        executableFile.map(file -> file.getAsFile().getAbsolutePath());
-                project.getTasks().withType(Test.class).configureEach(test -> {
-                    String executablePath = preparedExecutable.get();
-                    test.dependsOn(prepareTestRuntime);
-                    test.getInputs().property(EXECUTABLE_PROPERTY, executablePath);
-                    test.getInputs().file(executableFile);
-                    test.systemProperty(EXECUTABLE_PROPERTY, executablePath);
-                    test.environment(EXECUTABLE_ENV, executablePath);
-                });
-            }
+        Provider<String> preparedExecutable = executableFile.map(file -> file.getAsFile().getAbsolutePath());
+        Provider<String> configuredExecutable =
+                project.provider(() -> extension.getConfigureTests().get() ? preparedExecutable.get() : null);
+        project.getTasks().withType(Test.class).configureEach(test -> {
+            test.dependsOn(project.provider(() -> extension.getConfigureTests().get() ? prepareTestRuntime.get() : null));
+            test.getInputs().property(EXECUTABLE_PROPERTY, configuredExecutable).optional(true);
+            test.getInputs().file(executableFile).optional();
+            test.systemProperty(EXECUTABLE_PROPERTY, configuredExecutable);
+            test.environment(EXECUTABLE_ENV, configuredExecutable);
         });
     }
 }

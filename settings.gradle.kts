@@ -2,26 +2,30 @@ pluginManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
-        mavenLocal()
+        if (providers.gradleProperty("mystem4j.useMavenLocal").map(String::toBoolean).orElse(false).get()) {
+            mavenLocal()
+        }
     }
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        mavenLocal()
-        maven {
-            name = "GitHubPackagesIcli"
-            url = uri("https://maven.pkg.github.com/Ulviar/iCLI")
-            credentials {
-                username =
-                    providers.gradleProperty("gpr.user")
-                        .orElse(providers.environmentVariable("GITHUB_ACTOR"))
-                        .orNull
-                password =
-                    providers.gradleProperty("gpr.key")
-                        .orElse(providers.environmentVariable("GITHUB_TOKEN"))
-                        .orNull
+        if (providers.gradleProperty("mystem4j.useMavenLocal").map(String::toBoolean).orElse(false).get()) {
+            mavenLocal()
+        }
+        val githubPackagesUser = providers.gradleProperty("gpr.user")
+            .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+        val githubPackagesToken = providers.gradleProperty("gpr.key")
+            .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+        if (githubPackagesUser.isPresent && githubPackagesToken.isPresent) {
+            maven {
+                name = "GitHubPackagesIcli"
+                url = uri("https://maven.pkg.github.com/Ulviar/iCLI")
+                credentials {
+                    username = githubPackagesUser.get()
+                    password = githubPackagesToken.get()
+                }
             }
         }
         mavenCentral()

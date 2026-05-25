@@ -13,9 +13,7 @@ final class JsonLineMystemAdapter implements ProtocolAdapter<String, String> {
 
     @Override
     public void writeRequest(String request, ProtocolWriter writer) {
-        if (request.indexOf('\n') >= 0 || request.indexOf('\r') >= 0) {
-            throw new MystemInvalidOptionsException("Reusable MyStem JSON line protocol rejects multiline input.");
-        }
+        MystemJsonLineProtocol.validateRequest(request);
         writer.writeLine(request);
         writer.flush();
     }

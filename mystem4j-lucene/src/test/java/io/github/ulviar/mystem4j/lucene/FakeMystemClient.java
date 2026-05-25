@@ -16,6 +16,7 @@ final class FakeMystemClient implements MystemClient {
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private final Function<String, String> output;
     private boolean closed;
+    private int closeCount;
 
     FakeMystemClient(Function<String, String> output) {
         this.output = output;
@@ -60,10 +61,15 @@ final class FakeMystemClient implements MystemClient {
     @Override
     public void close() {
         closed = true;
+        closeCount++;
     }
 
     boolean isClosed() {
         return closed;
+    }
+
+    int closeCount() {
+        return closeCount;
     }
 
     private static String jsonString(String value) {

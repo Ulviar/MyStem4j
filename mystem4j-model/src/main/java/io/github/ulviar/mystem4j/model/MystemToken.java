@@ -12,6 +12,9 @@ public record MystemToken(String text, int startOffset, int endOffset, List<Myst
         if (startOffset < -1 || endOffset < -1) {
             throw new IllegalArgumentException("offsets must be non-negative or -1 when unknown");
         }
+        if ((startOffset == -1) != (endOffset == -1)) {
+            throw new IllegalArgumentException("offsets must be both known or both unknown");
+        }
         if (startOffset >= 0 && endOffset < startOffset) {
             throw new IllegalArgumentException("endOffset must be greater than or equal to startOffset");
         }

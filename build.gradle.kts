@@ -24,6 +24,7 @@ val automaticModuleNames = mapOf(
     "mystem4j-kotlin" to "io.github.ulviar.mystem4j.kotlin",
     "mystem4j-gradle-plugin" to "io.github.ulviar.mystem4j.gradle.plugin"
 )
+val realMystemExecutable = providers.systemProperty("mystem4j.executable").orElse("")
 
 allprojects {
     group = "io.github.ulviar.mystem4j"
@@ -76,6 +77,12 @@ subprojects {
                             name.set("Ulviar")
                         }
                     }
+                    licenses {
+                        license {
+                            name.set("Apache License, Version 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        }
+                    }
                     scm {
                         connection.set("scm:git:$projectUrl.git")
                         developerConnection.set("scm:git:$projectUrl.git")
@@ -83,6 +90,23 @@ subprojects {
                     }
                 }
             }
+        }
+    }
+}
+
+tasks.register("realMystemTest") {
+    group = "verification"
+    description = "Runs test suites with real MyStem integration tests enabled."
+    inputs.property("mystem4j.executable", realMystemExecutable)
+    dependsOn(
+        ":mystem4j-runtime:test",
+        ":mystem4j-model:test",
+        ":mystem4j-tokenization:test",
+        ":mystem4j-lucene:test"
+    )
+    doFirst {
+        if (realMystemExecutable.get().isBlank()) {
+            throw GradleException("Set -Dmystem4j.executable=/path/to/mystem to run real MyStem integration tests.")
         }
     }
 }

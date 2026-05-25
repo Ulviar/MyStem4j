@@ -44,6 +44,9 @@ public abstract class MystemDownloadTask extends DefaultTask {
     @Optional
     public abstract Property<String> getExpectedSha256();
 
+    @Input
+    public abstract Property<Long> getMaxArchiveBytes();
+
     @OutputFile
     public abstract RegularFileProperty getArchiveFile();
 
@@ -64,6 +67,9 @@ public abstract class MystemDownloadTask extends DefaultTask {
         Path archive = getArchiveFile().get().getAsFile().toPath();
         Path metadata = getMetadataFile().get().getAsFile().toPath();
         String expectedSha256 = getExpectedSha256().getOrNull();
+        long maxArchiveBytes = getMaxArchiveBytes().get();
+        URI archiveUri = URI.create(getArchiveUrl().get());
+        validateDownloadRequest(archiveUri, expectedSha256, maxArchiveBytes);
         if (Files.exists(archive)
                 && metadataMatches(metadata, getVersion().get(), getArchiveUrl().get(), expectedSha256)
                 && matchesExpectedSha256(archive, expectedSha256)) {
@@ -76,7 +82,7 @@ public abstract class MystemDownloadTask extends DefaultTask {
             Files.createDirectories(metadata.getParent());
             Path temporaryArchive = archive.resolveSibling(archive.getFileName() + ".part");
             Files.deleteIfExists(temporaryArchive);
-            downloadTo(URI.create(getArchiveUrl().get()), temporaryArchive);
+            downloadTo(archiveUri, temporaryArchive, maxArchiveBytes);
             if (!matchesExpectedSha256(temporaryArchive, expectedSha256)) {
                 Files.deleteIfExists(temporaryArchive);
                 throw new GradleException("Downloaded MyStem archive checksum does not match expected sha256.");
@@ -84,17 +90,66 @@ public abstract class MystemDownloadTask extends DefaultTask {
             moveReplacing(temporaryArchive, archive);
             writeMetadata(metadata, getVersion().get(), getArchiveUrl().get(), expectedSha256);
             getLogger().lifecycle("Downloaded MyStem {} to {}", getVersion().get(), archive);
+        } catch (GradleException error) {
+            try {
+                Files.deleteIfExists(archive.resolveSibling(archive.getFileName() + ".part"));
+            } catch (IOException ignored) {
+                error.addSuppressed(ignored);
+            }
+            throw error;
         } catch (IOException error) {
+            try {
+                Files.deleteIfExists(archive.resolveSibling(archive.getFileName() + ".part"));
+            } catch (IOException ignored) {
+                error.addSuppressed(ignored);
+            }
             throw new GradleException("Failed to download MyStem archive from " + getArchiveUrl().get(), error);
         }
     }
 
-    private static void downloadTo(URI uri, Path destination) throws IOException {
+    private static void validateDownloadRequest(URI uri, String expectedSha256, long maxArchiveBytes) {
+        if (maxArchiveBytes <= 0) {
+            throw new GradleException("maxArchiveBytes must be positive.");
+        }
+        String scheme = uri.getScheme();
+        if (scheme == null) {
+            throw new GradleException("MyStem archive URL must include a scheme: " + uri);
+        }
+        String normalizedScheme = scheme.toLowerCase(java.util.Locale.ROOT);
+        if (!"https".equals(normalizedScheme) && !"http".equals(normalizedScheme) && !"file".equals(normalizedScheme)) {
+            throw new GradleException("Unsupported MyStem archive URL scheme: " + scheme);
+        }
+        if (("https".equals(normalizedScheme) || "http".equals(normalizedScheme))
+                && normalizeSha256(expectedSha256).isBlank()) {
+            throw new GradleException("Remote MyStem downloads require an expected sha256 checksum.");
+        }
+    }
+
+    private static void downloadTo(URI uri, Path destination, long maxArchiveBytes) throws IOException {
         URLConnection connection = uri.toURL().openConnection();
         connection.setConnectTimeout(30_000);
         connection.setReadTimeout(30_000);
+        long contentLength = connection.getContentLengthLong();
+        if (contentLength > maxArchiveBytes) {
+            throw new GradleException("MyStem archive is larger than maxArchiveBytes: " + contentLength);
+        }
         try (InputStream input = connection.getInputStream()) {
-            Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
+            copyWithLimit(input, destination, maxArchiveBytes);
+        }
+    }
+
+    private static void copyWithLimit(InputStream input, Path destination, long maxArchiveBytes) throws IOException {
+        byte[] buffer = new byte[16 * 1024];
+        long total = 0;
+        try (OutputStream output = Files.newOutputStream(destination)) {
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxArchiveBytes) {
+                    throw new GradleException("MyStem archive exceeded maxArchiveBytes: " + maxArchiveBytes);
+                }
+                output.write(buffer, 0, read);
+            }
         }
     }
 
@@ -128,7 +183,11 @@ public abstract class MystemDownloadTask extends DefaultTask {
         if (expectedSha256 == null || expectedSha256.isBlank()) {
             return "";
         }
-        return expectedSha256.trim().toLowerCase();
+        String normalized = expectedSha256.trim().toLowerCase();
+        if (!normalized.matches("[0-9a-f]{64}")) {
+            throw new GradleException("expectedSha256 must be a 64-character lowercase or uppercase hex SHA-256 value.");
+        }
+        return normalized;
     }
 
     private static boolean matchesExpectedSha256(Path file, String expectedSha256) {

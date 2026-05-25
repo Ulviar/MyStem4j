@@ -17,6 +17,7 @@ mystem4j {
 ```
 
 The plugin supports MyStem `3.1` only. It selects one of the official archives for `linux`, `macos`, or `windows`.
+Official archives are verified with built-in SHA-256 checksums.
 
 ## Use an Internal Mirror
 
@@ -29,7 +30,7 @@ mystem4j {
 }
 ```
 
-`sha256` is optional, but recommended for CI and mirrors. If it is set, the download task verifies the archive before replacing the cached file.
+Custom remote archives must set `sha256`. The download task verifies the archive before replacing the cached file.
 
 ## Wire MyStem Into Tests
 

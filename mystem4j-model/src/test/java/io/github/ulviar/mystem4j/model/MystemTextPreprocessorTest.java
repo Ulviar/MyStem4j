@@ -38,6 +38,18 @@ class MystemTextPreprocessorTest {
     }
 
     @Test
+    void replacesLineSeparatorsForJsonLineProtocol() {
+        MystemPreparedText prepared = MystemTextPreprocessor.prepareJsonLine("a\r\nb\nc");
+
+        assertEquals("a  b c", prepared.text());
+        assertEquals(3, prepared.issues().size());
+        assertEquals(MystemTextIssueType.CONTROL_CHARACTER, prepared.issues().get(0).type());
+        assertEquals(2, prepared.originalOffsetFor(2));
+        assertEquals(4, prepared.originalOffsetFor(4));
+        assertEquals(6, prepared.originalOffsetFor(6));
+    }
+
+    @Test
     void replacesUnicodeNoncharactersWithSpaces() {
         MystemPreparedText prepared = MystemTextPreprocessor.prepare("a\uDBFF\uDFFFb\uFDD0c");
 

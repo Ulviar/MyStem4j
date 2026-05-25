@@ -23,7 +23,7 @@ public final class MystemJsonParser {
         this(new JsonFactory());
     }
 
-    public MystemJsonParser(JsonFactory jsonFactory) {
+    MystemJsonParser(JsonFactory jsonFactory) {
         this.jsonFactory = Objects.requireNonNull(jsonFactory, "jsonFactory");
     }
 

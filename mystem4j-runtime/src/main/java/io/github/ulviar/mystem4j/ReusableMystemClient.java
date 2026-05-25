@@ -29,7 +29,7 @@ final class ReusableMystemClient implements MystemClient {
     public synchronized MystemRawResult analyze(String text) {
         ensureOpen();
         Objects.requireNonNull(text, "text");
-        validateJsonLineInput(text);
+        MystemJsonLineProtocol.validateRequest(text);
         long started = System.nanoTime();
         try {
             String output = session.request(text, requestTimeout);
@@ -51,19 +51,19 @@ final class ReusableMystemClient implements MystemClient {
     }
 
     @Override
-    public MystemFileContentResult analyzeFile(Path input) {
+    public synchronized MystemFileContentResult analyzeFile(Path input) {
         ensureOpen();
         return fileClient.analyzeFile(input);
     }
 
     @Override
-    public MystemFileResult analyzeFile(Path input, Path output) {
+    public synchronized MystemFileResult analyzeFile(Path input, Path output) {
         ensureOpen();
         return fileClient.analyzeFile(input, output);
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         if (closed.compareAndSet(false, true)) {
             session.close();
             fileClient.close();
@@ -76,9 +76,4 @@ final class ReusableMystemClient implements MystemClient {
         }
     }
 
-    private static void validateJsonLineInput(String text) {
-        if (text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) {
-            throw new MystemInvalidOptionsException("Reusable MyStem JSON line protocol rejects multiline input.");
-        }
-    }
 }

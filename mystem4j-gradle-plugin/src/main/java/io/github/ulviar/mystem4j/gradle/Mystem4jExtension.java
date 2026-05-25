@@ -14,6 +14,8 @@ public class Mystem4jExtension {
     private final Property<String> baseUrl;
     private final Property<String> archiveUrl;
     private final Property<String> sha256;
+    private final Property<Long> maxArchiveBytes;
+    private final Property<Integer> maxProbeOutputBytes;
     private final Property<String> targetOs;
     private final DirectoryProperty distributionDirectory;
 
@@ -27,6 +29,8 @@ public class Mystem4jExtension {
         baseUrl = objects.property(String.class).convention("https://download.cdn.yandex.net/mystem");
         archiveUrl = objects.property(String.class);
         sha256 = objects.property(String.class);
+        maxArchiveBytes = objects.property(Long.class).convention(100L * 1024L * 1024L);
+        maxProbeOutputBytes = objects.property(Integer.class).convention(64 * 1024);
         targetOs = objects.property(String.class).convention(MystemDistribution.currentOs());
         distributionDirectory = objects.directoryProperty();
     }
@@ -61,6 +65,14 @@ public class Mystem4jExtension {
 
     public Property<String> getSha256() {
         return sha256;
+    }
+
+    public Property<Long> getMaxArchiveBytes() {
+        return maxArchiveBytes;
+    }
+
+    public Property<Integer> getMaxProbeOutputBytes() {
+        return maxProbeOutputBytes;
     }
 
     public Property<String> getTargetOs() {

@@ -8,7 +8,7 @@ import java.util.Objects;
  */
 public record MystemDocument(String originalText, List<MystemToken> tokens, List<MystemTextIssue> issues) {
     public MystemDocument {
-        originalText = originalText == null ? "" : originalText;
+        originalText = Objects.requireNonNull(originalText, "originalText");
         tokens = List.copyOf(Objects.requireNonNull(tokens, "tokens"));
         issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
     }

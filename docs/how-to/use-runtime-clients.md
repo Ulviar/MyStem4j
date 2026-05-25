@@ -45,7 +45,7 @@ try (MystemClient client = Mystem.builder()
 }
 ```
 
-Pooled clients are intended for concurrent use. Options are fixed for the whole pool.
+Pooled clients are intended for concurrent use. Options are fixed for the whole pool. Like reusable sessions, pooled clients reject text containing `\r` or `\n`.
 
 ## File Requests
 

@@ -22,6 +22,8 @@ When no explicit executable is configured, resolution uses:
 | Reusable session | `session()` | `JSON` only | one long-lived process |
 | Pool | `pooled(...)` | `JSON` only | multiple long-lived processes |
 
+Reusable session and pooled clients use one JSON response line as a protocol frame. `analyze(String)` rejects text containing `\r` or `\n`; use one-shot mode or split/prepare multiline input before calling these modes.
+
 ## Main Types
 
 - `Mystem` - static entry point: `Mystem.builder()`.
@@ -69,6 +71,8 @@ When no explicit executable is configured, resolution uses:
 - `maxResponseChars(int)`;
 - `maxResponseBytes(int)`;
 - `includeInputInDiagnostics(boolean)`.
+
+`includeInputInDiagnostics(false)` is the default. Session and pool protocol diagnostics never include stdout transcript text in exception messages; `MystemProcessException.stderr()` is populated only from stderr transcript lines.
 
 ## Exceptions
 

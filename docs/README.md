@@ -10,6 +10,7 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 
 - [Prepare MyStem with Gradle](how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](how-to/use-runtime-clients.md)
+- [Use Kotlin DSL](how-to/use-kotlin-dsl.md)
 - [Parse MyStem output](how-to/parse-mystem-output.md)
 - [Prepare search tokens](how-to/prepare-search-tokens.md)
 - [Use Lucene analyzer](how-to/use-lucene-analyzer.md)
@@ -20,16 +21,9 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 - [Model API](reference/model-api.md)
 - [Tokenization API](reference/tokenization-api.md)
 - [Lucene API](reference/lucene-api.md)
+- [Kotlin API](reference/kotlin-api.md)
 - [Gradle plugin](reference/gradle-plugin.md)
-- [Publication](reference/publication.md)
 
 ## Explanation
 
 - [Architecture](explanation/architecture.md)
-
-## Specifications
-
-- [MyStem runtime component specification](specs/mystem-runtime-spec.md)
-- [MyStem model component specification](specs/mystem-model-spec.md)
-- [MyStem tokenization component specification](specs/mystem-tokenization-spec.md)
-- [MyStem Lucene component specification](specs/mystem-lucene-spec.md)

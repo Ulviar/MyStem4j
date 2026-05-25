@@ -11,14 +11,16 @@ final class MystemDistribution {
     private final String archiveName;
     private final String archiveType;
     private final String executableName;
+    private final String sha256;
 
     private MystemDistribution(
-            String version, String os, String archiveName, String archiveType, String executableName) {
+            String version, String os, String archiveName, String archiveType, String executableName, String sha256) {
         this.version = version;
         this.os = os;
         this.archiveName = archiveName;
         this.archiveType = archiveType;
         this.executableName = executableName;
+        this.sha256 = sha256;
     }
 
     static MystemDistribution forOs(String targetOs, String version) {
@@ -30,11 +32,26 @@ final class MystemDistribution {
         String normalizedOs = normalizeOs(targetOs);
         return switch (normalizedOs) {
             case "windows" -> new MystemDistribution(
-                    version, normalizedOs, "mystem-3.1-win-64bit.zip", "zip", "mystem.exe");
+                    version,
+                    normalizedOs,
+                    "mystem-3.1-win-64bit.zip",
+                    "zip",
+                    "mystem.exe",
+                    "03cdbe2c01661eb449e84771817096161203553fca4bca934dc17f1bc9e53bc8");
             case "linux" -> new MystemDistribution(
-                    version, normalizedOs, "mystem-3.1-linux-64bit.tar.gz", "tar.gz", "mystem");
+                    version,
+                    normalizedOs,
+                    "mystem-3.1-linux-64bit.tar.gz",
+                    "tar.gz",
+                    "mystem",
+                    "4696f4ea8ce3ecda24ef5e8dfe7e4b16cfa5f1844edfcca31c34d636b73c0a62");
             case "macos" -> new MystemDistribution(
-                    version, normalizedOs, "mystem-3.1-macosx.tar.gz", "tar.gz", "mystem");
+                    version,
+                    normalizedOs,
+                    "mystem-3.1-macosx.tar.gz",
+                    "tar.gz",
+                    "mystem",
+                    "346e576ada01cc7c63414a9d91f6733bd418f496f073d13a4812aec3628e5693");
             default -> throw new GradleException(
                     "Unsupported MyStem target OS " + targetOs + ". Supported values: linux, macos, windows");
         };
@@ -67,6 +84,10 @@ final class MystemDistribution {
 
     String executableName() {
         return executableName;
+    }
+
+    String sha256() {
+        return sha256;
     }
 
     private static String normalizeOs(String os) {

@@ -3,6 +3,7 @@ package io.github.ulviar.mystem4j.lucene;
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.lucene.analysis.Analyzer;
 
 /**
@@ -15,6 +16,8 @@ public final class MystemLuceneAnalyzer extends Analyzer {
     private final MystemClient client;
     private final MystemSearchTokenizerOptions options;
     private final boolean closeClientOnClose;
+    private final int maxInputChars;
+    private final AtomicBoolean closedClient = new AtomicBoolean();
 
     /**
      * Creates an analyzer with conservative tokenization options.
@@ -36,6 +39,17 @@ public final class MystemLuceneAnalyzer extends Analyzer {
     }
 
     /**
+     * Creates an analyzer with explicit tokenization options and input size limit.
+     *
+     * @param client MyStem client configured for JSON output
+     * @param options search tokenization policy
+     * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
+     */
+    public MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars) {
+        this(client, options, false, maxInputChars);
+    }
+
+    /**
      * Creates an analyzer with explicit tokenization options and client ownership policy.
      *
      * @param client MyStem client configured for JSON output
@@ -44,20 +58,37 @@ public final class MystemLuceneAnalyzer extends Analyzer {
      */
     public MystemLuceneAnalyzer(
             MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose) {
+        this(client, options, closeClientOnClose, MystemLuceneTokenizer.DEFAULT_MAX_INPUT_CHARS);
+    }
+
+    /**
+     * Creates an analyzer with explicit tokenization options, ownership policy, and input size limit.
+     *
+     * @param client MyStem client configured for JSON output
+     * @param options search tokenization policy
+     * @param closeClientOnClose whether {@link #close()} should close the supplied client
+     * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
+     */
+    public MystemLuceneAnalyzer(
+            MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose, int maxInputChars) {
         this.client = Objects.requireNonNull(client, "client");
         this.options = Objects.requireNonNull(options, "options");
+        if (maxInputChars <= 0) {
+            throw new IllegalArgumentException("maxInputChars must be positive");
+        }
         this.closeClientOnClose = closeClientOnClose;
+        this.maxInputChars = maxInputChars;
     }
 
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
-        return new TokenStreamComponents(new MystemLuceneTokenizer(client, options));
+        return new TokenStreamComponents(new MystemLuceneTokenizer(client, options, maxInputChars));
     }
 
     @Override
     public void close() {
         super.close();
-        if (closeClientOnClose) {
+        if (closeClientOnClose && closedClient.compareAndSet(false, true)) {
             client.close();
         }
     }

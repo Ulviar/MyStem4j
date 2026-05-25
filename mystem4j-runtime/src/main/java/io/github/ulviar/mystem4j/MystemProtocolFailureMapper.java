@@ -23,12 +23,12 @@ final class MystemProtocolFailureMapper {
             case REQUEST_TOO_LARGE -> new MystemInvalidOptionsException(error.getMessage());
             case RESPONSE_TOO_LARGE, OUTPUT_BACKLOG_OVERFLOW -> new MystemOutputLimitException(error.getMessage());
             case PROCESS_EXITED -> new MystemProcessException(
-                    messageWithTranscript(error),
+                    messageWithSafeTranscript(error),
                     error.exitCode(),
                     stderrFromTranscript(error.transcript()),
                     error);
             case EOF, BROKEN_PIPE, DECODE_ERROR, PROTOCOL_DECODER_FAILED, FAILURE ->
-                    new MystemProtocolException(messageWithTranscript(error), error);
+                    new MystemProtocolException(messageWithSafeTranscript(error), error);
         };
     }
 
@@ -41,23 +41,21 @@ final class MystemProtocolFailureMapper {
         };
     }
 
-    private static String messageWithTranscript(ProtocolSessionException error) {
+    private static String messageWithSafeTranscript(ProtocolSessionException error) {
         ProtocolTranscript transcript = error.transcript();
-        String text = transcript.text();
-        if (text.isBlank()) {
+        String stderr = stderrFromTranscript(transcript);
+        String flags = transcriptFlags(transcript);
+        if (stderr.isBlank() && flags.isBlank()) {
             return error.getMessage();
         }
-        StringBuilder message = new StringBuilder(error.getMessage()).append(". transcript: ");
-        if (transcript.truncated()) {
-            message.append("[truncated] ");
+        StringBuilder message = new StringBuilder(error.getMessage());
+        if (!flags.isBlank()) {
+            message.append(". transcript ").append(flags);
         }
-        if (transcript.malformed()) {
-            message.append("[malformed] ");
+        if (!stderr.isBlank()) {
+            message.append(". stderr: ").append(stderr);
         }
-        if (transcript.redacted()) {
-            message.append("[redacted] ");
-        }
-        return message.append(trim(text)).toString();
+        return message.toString();
     }
 
     private static String stderrFromTranscript(ProtocolTranscript transcript) {
@@ -70,10 +68,21 @@ final class MystemProtocolFailureMapper {
                 stderr.append(line.substring("stderr: ".length()));
             }
         }
-        if (stderr.isEmpty()) {
-            return trim(transcript.text());
-        }
         return trim(stderr.toString());
+    }
+
+    private static String transcriptFlags(ProtocolTranscript transcript) {
+        StringBuilder flags = new StringBuilder();
+        if (transcript.truncated()) {
+            flags.append("[truncated] ");
+        }
+        if (transcript.malformed()) {
+            flags.append("[malformed] ");
+        }
+        if (transcript.redacted()) {
+            flags.append("[redacted] ");
+        }
+        return flags.toString().trim();
     }
 
     private static String trim(String text) {

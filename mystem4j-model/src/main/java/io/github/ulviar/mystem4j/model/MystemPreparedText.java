@@ -13,20 +13,72 @@ public record MystemPreparedText(
         text = Objects.requireNonNull(text, "text");
         mappings = List.copyOf(Objects.requireNonNull(mappings, "mappings"));
         issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
+        validateMappings(originalText, text, mappings);
     }
 
     public int originalOffsetFor(int preparedOffset) {
         if (preparedOffset < 0 || preparedOffset > text.length()) {
             throw new IllegalArgumentException("preparedOffset is out of range: " + preparedOffset);
         }
-        for (MystemOffsetMapping mapping : mappings) {
-            if (preparedOffset == mapping.preparedEnd()) {
-                return mapping.originalEnd();
-            }
-            if (preparedOffset >= mapping.preparedStart() && preparedOffset < mapping.preparedEnd()) {
-                return Math.min(mapping.originalEnd(), mapping.originalStart() + preparedOffset - mapping.preparedStart());
+        if (preparedOffset == text.length()) {
+            return originalText.length();
+        }
+        int low = 0;
+        int high = mappings.size() - 1;
+        while (low <= high) {
+            int middle = (low + high) >>> 1;
+            MystemOffsetMapping mapping = mappings.get(middle);
+            if (preparedOffset < mapping.preparedStart()) {
+                high = middle - 1;
+            } else if (preparedOffset >= mapping.preparedEnd()) {
+                low = middle + 1;
+            } else {
+                int shifted = mapping.originalStart() + preparedOffset - mapping.preparedStart();
+                return Math.min(mapping.originalEnd(), shifted);
             }
         }
-        return originalText.length();
+        throw new IllegalStateException("validated prepared text does not cover offset " + preparedOffset);
+    }
+
+    private static void validateMappings(String originalText, String text, List<MystemOffsetMapping> mappings) {
+        if (text.isEmpty() || originalText.isEmpty()) {
+            if (!mappings.isEmpty()) {
+                throw new IllegalArgumentException("empty prepared or original text must not have offset mappings");
+            }
+            if (text.length() != originalText.length()) {
+                throw new IllegalArgumentException("empty prepared text and original text must match");
+            }
+            return;
+        }
+        int expectedPreparedStart = 0;
+        int expectedOriginalStart = 0;
+        for (MystemOffsetMapping mapping : mappings) {
+            if (mapping.preparedStart() != expectedPreparedStart) {
+                throw new IllegalArgumentException("offset mappings must cover prepared text without gaps");
+            }
+            if (mapping.originalStart() != expectedOriginalStart) {
+                throw new IllegalArgumentException("offset mappings must cover original text without gaps");
+            }
+            if (mapping.preparedStart() == mapping.preparedEnd()) {
+                throw new IllegalArgumentException("offset mappings must not contain empty prepared ranges");
+            }
+            if (mapping.originalStart() == mapping.originalEnd()) {
+                throw new IllegalArgumentException("offset mappings must not contain empty original ranges");
+            }
+            if (mapping.preparedEnd() > text.length()) {
+                throw new IllegalArgumentException("offset mapping exceeds prepared text length");
+            }
+            if (mapping.originalEnd() > originalText.length()) {
+                throw new IllegalArgumentException("offset mapping exceeds original text length");
+            }
+            expectedPreparedStart = mapping.preparedEnd();
+            expectedOriginalStart = mapping.originalEnd();
+        }
+        if (expectedPreparedStart != text.length()) {
+            throw new IllegalArgumentException("offset mappings must cover prepared text");
+        }
+        if (expectedOriginalStart != originalText.length()) {
+            throw new IllegalArgumentException("offset mappings must cover original text");
+        }
     }
 }

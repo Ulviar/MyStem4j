@@ -6,11 +6,7 @@ Artifact: `mystem4j-lucene`
 
 ## Compatibility
 
-The module currently depends on Lucene `10.4.0`.
-
-Reason: MyStem4j targets Java 21, which matches Lucene 10.x requirements.
-
-Lucene analysis tests use `lucene-test-framework` and `BaseTokenStreamTestCase`. The test runtime includes JUnit Vintage so Lucene's JUnit4/randomizedtesting infrastructure runs under Gradle's JUnit Platform setup.
+The module currently depends on Lucene `10.4.0` and requires Java 21.
 
 ## Analyzer
 
@@ -21,7 +17,9 @@ Constructors:
 ```java
 new MystemLuceneAnalyzer(MystemClient client)
 new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options)
+new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars)
 new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose)
+new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions options, boolean closeClientOnClose, int maxInputChars)
 ```
 
 The supplied `MystemClient` must return JSON output. For concurrent indexing, use one-shot or pooled runtime clients.
@@ -37,13 +35,14 @@ Constructors:
 ```java
 new MystemLuceneTokenizer(MystemClient client)
 new MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options)
+new MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars)
 ```
 
 The tokenizer:
 
 - reads the full Lucene input `Reader`;
-- splits CR/LF-delimited input into JSON-line-compatible MyStem requests while preserving offsets in the original field;
-- prepares unsafe Unicode input before sending it to MyStem;
+- rejects input longer than `maxInputChars`;
+- prepares unsafe Unicode and replaces CR/LF with spaces before sending text to JSON-line MyStem clients;
 - calls the MyStem JSON client;
 - parses MyStem output through `mystem4j-model`;
 - converts model tokens through `mystem4j-tokenization`;

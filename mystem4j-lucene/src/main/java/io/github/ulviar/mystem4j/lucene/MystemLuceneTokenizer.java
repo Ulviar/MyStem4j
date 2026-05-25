@@ -31,9 +31,12 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
  * MyStem and emits offsets in coordinates of the original Lucene input.
  */
 public final class MystemLuceneTokenizer extends Tokenizer {
+    public static final int DEFAULT_MAX_INPUT_CHARS = 1_000_000;
+
     private final MystemClient client;
     private final MystemJsonParser parser;
     private final MystemSearchTokenizer searchTokenizer;
+    private final int maxInputChars;
     private final CharTermAttribute termAttribute = addAttribute(CharTermAttribute.class);
     private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
     private final PositionIncrementAttribute positionIncrementAttribute =
@@ -60,55 +63,48 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      * @param options search tokenization policy
      */
     public MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options) {
-        this(client, new MystemJsonParser(), new MystemSearchTokenizer(options));
+        this(client, options, DEFAULT_MAX_INPUT_CHARS);
     }
 
-    MystemLuceneTokenizer(MystemClient client, MystemJsonParser parser, MystemSearchTokenizer searchTokenizer) {
+    /**
+     * Creates a tokenizer with explicit tokenization options and input size limit.
+     *
+     * @param client MyStem client configured for JSON output
+     * @param options search tokenization policy
+     * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
+     */
+    public MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars) {
+        this(client, new MystemJsonParser(), new MystemSearchTokenizer(options), maxInputChars);
+    }
+
+    MystemLuceneTokenizer(
+            MystemClient client, MystemJsonParser parser, MystemSearchTokenizer searchTokenizer, int maxInputChars) {
         this.client = Objects.requireNonNull(client, "client");
         this.parser = Objects.requireNonNull(parser, "parser");
         this.searchTokenizer = Objects.requireNonNull(searchTokenizer, "searchTokenizer");
+        if (maxInputChars <= 0) {
+            throw new IllegalArgumentException("maxInputChars must be positive");
+        }
+        this.maxInputChars = maxInputChars;
     }
 
     @Override
     public void reset() throws IOException {
         super.reset();
-        String originalText = readFully(input);
+        String originalText = readFully(input, maxInputChars);
         finalOffset = correctOffset(originalText.length());
-        emissions = analyzeSegments(originalText);
+        emissions = analyze(originalText);
         emissionIndex = 0;
     }
 
-    private List<LuceneEmission> analyzeSegments(String originalText) {
-        ArrayList<LuceneEmission> result = new ArrayList<>();
-        int segmentStart = 0;
-        int index = 0;
-        while (index < originalText.length()) {
-            char character = originalText.charAt(index);
-            if (character == '\r' || character == '\n') {
-                appendSegmentEmissions(originalText, segmentStart, index, result);
-                index++;
-                if (character == '\r' && index < originalText.length() && originalText.charAt(index) == '\n') {
-                    index++;
-                }
-                segmentStart = index;
-            } else {
-                index++;
-            }
+    private List<LuceneEmission> analyze(String originalText) {
+        if (originalText.isEmpty()) {
+            return List.of();
         }
-        appendSegmentEmissions(originalText, segmentStart, originalText.length(), result);
-        return List.copyOf(result);
-    }
-
-    private void appendSegmentEmissions(
-            String originalText, int startOffset, int endOffset, List<LuceneEmission> result) {
-        if (startOffset == endOffset) {
-            return;
-        }
-        String segment = originalText.substring(startOffset, endOffset);
-        MystemPreparedText preparedText = MystemTextPreprocessor.prepare(segment);
+        MystemPreparedText preparedText = MystemTextPreprocessor.prepareJsonLine(originalText);
         MystemRawResult rawResult = client.analyze(preparedText.text());
         MystemDocument document = parser.parse(preparedText, rawResult.output());
-        result.addAll(flatten(searchTokenizer.tokenize(document), startOffset));
+        return flatten(searchTokenizer.tokenize(document));
     }
 
     @Override
@@ -132,17 +128,20 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         offsetAttribute.setOffset(finalOffset, finalOffset);
     }
 
-    private static String readFully(Reader reader) throws IOException {
+    private static String readFully(Reader reader, int maxInputChars) throws IOException {
         char[] buffer = new char[4096];
         StringBuilder result = new StringBuilder();
         int read;
         while ((read = reader.read(buffer)) != -1) {
+            if (result.length() + read > maxInputChars) {
+                throw new IOException("Lucene field exceeds MyStem tokenizer maxInputChars: " + maxInputChars);
+            }
             result.append(buffer, 0, read);
         }
         return result.toString();
     }
 
-    private static List<LuceneEmission> flatten(List<MystemSearchToken> tokens, int offsetShift) {
+    private static List<LuceneEmission> flatten(List<MystemSearchToken> tokens) {
         ArrayList<LuceneEmission> result = new ArrayList<>();
         for (MystemSearchToken token : tokens) {
             if (!isSearchBearing(token.type())) {
@@ -152,8 +151,8 @@ public final class MystemLuceneTokenizer extends Tokenizer {
             for (MystemTokenForm form : token.forms()) {
                 result.add(new LuceneEmission(
                         form.text(),
-                        token.startOffset() + offsetShift,
-                        token.endOffset() + offsetShift,
+                        token.startOffset(),
+                        token.endOffset(),
                         typeName(token.type()),
                         form.keyword(),
                         positionIncrement));

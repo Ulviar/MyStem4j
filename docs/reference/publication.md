@@ -13,18 +13,27 @@ Each module publication provides:
 - artifact name and description;
 - project URL;
 - developer metadata;
+- Apache License, Version 2.0 metadata;
 - SCM metadata;
 - source JAR;
 - Javadoc JAR.
 
 Each JAR also has a stable `Automatic-Module-Name` manifest entry.
 
+## License Boundary
+
+MyStem4j artifacts use the Apache License, Version 2.0.
+
+The native MyStem binary is licensed separately by Yandex and is not bundled into MyStem4j artifacts.
+
 ## Release Blockers
 
-Before publishing outside local/internal repositories, choose and add the project license:
-
-- add a root `LICENSE` file;
-- add matching Maven POM license metadata;
-- document how that project license relates to the separately licensed native MyStem binary.
+The default project version is still `0.1.0-SNAPSHOT`; set a release version with `-Pmystem4j.version=<version>` before publishing release artifacts.
 
 Maven Central release also still needs signing and repository credentials.
+
+Run real MyStem integration checks before release:
+
+```bash
+./gradlew realMystemTest -Dmystem4j.executable=/path/to/mystem
+```

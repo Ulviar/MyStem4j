@@ -1,6 +1,8 @@
 package io.github.ulviar.mystem4j.gradle;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -32,11 +34,18 @@ public abstract class MystemProbeTask extends DefaultTask {
     @Input
     public abstract Property<String> getSmokeInput();
 
+    @Input
+    public abstract Property<Integer> getMaxOutputBytes();
+
     @TaskAction
     public void probe() {
         Path executable = getExecutableFile().get().getAsFile().toPath();
         String smokeInput = getSmokeInput().get();
         int timeoutSeconds = getTimeoutSeconds().get();
+        int maxOutputBytes = getMaxOutputBytes().get();
+        if (maxOutputBytes <= 0) {
+            throw new GradleException("maxOutputBytes must be positive.");
+        }
         Process process;
         try {
             ProcessBuilder processBuilder =
@@ -46,8 +55,8 @@ public abstract class MystemProbeTask extends DefaultTask {
             throw new GradleException("Failed to start MyStem executable: " + executable, error);
         }
 
-        CompletableFuture<String> stdout = readAsync(process.getInputStream());
-        CompletableFuture<String> stderr = readAsync(process.getErrorStream());
+        CompletableFuture<String> stdout = readAsync(process.getInputStream(), maxOutputBytes);
+        CompletableFuture<String> stderr = readAsync(process.getErrorStream(), maxOutputBytes);
 
         try {
             process.getOutputStream().write((smokeInput + System.lineSeparator()).getBytes(StandardCharsets.UTF_8));
@@ -81,14 +90,29 @@ public abstract class MystemProbeTask extends DefaultTask {
         }
     }
 
-    private static CompletableFuture<String> readAsync(java.io.InputStream input) {
+    private static CompletableFuture<String> readAsync(InputStream input, int maxOutputBytes) {
         return CompletableFuture.supplyAsync(() -> {
             try (input) {
-                return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+                return new String(readWithLimit(input, maxOutputBytes), StandardCharsets.UTF_8);
             } catch (IOException error) {
                 throw new GradleException("Failed to read MyStem probe output.", error);
             }
         });
+    }
+
+    private static byte[] readWithLimit(InputStream input, int maxOutputBytes) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(maxOutputBytes, 8192));
+        byte[] buffer = new byte[4096];
+        int total = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > maxOutputBytes) {
+                throw new GradleException("MyStem probe output exceeded maxOutputBytes: " + maxOutputBytes);
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
     }
 
     private static String await(CompletableFuture<String> output) {

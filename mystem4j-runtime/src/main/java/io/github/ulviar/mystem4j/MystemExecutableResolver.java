@@ -13,19 +13,33 @@ final class MystemExecutableResolver {
     private MystemExecutableResolver() {}
 
     static Path resolve(Optional<Path> explicitExecutable, boolean searchPath) {
+        return resolve(
+                explicitExecutable,
+                searchPath,
+                System.getProperty(EXECUTABLE_PROPERTY),
+                System.getenv(EXECUTABLE_ENV),
+                System.getenv("PATH"),
+                System.getProperty("os.name", ""));
+    }
+
+    static Path resolve(
+            Optional<Path> explicitExecutable,
+            boolean searchPath,
+            String property,
+            String environment,
+            String pathValue,
+            String osName) {
         if (explicitExecutable.isPresent()) {
             return requireExecutable(explicitExecutable.get(), "explicit executable");
         }
-        String property = System.getProperty(EXECUTABLE_PROPERTY);
         if (property != null && !property.isBlank()) {
             return requireExecutable(Path.of(property), "system property " + EXECUTABLE_PROPERTY);
         }
-        String environment = System.getenv(EXECUTABLE_ENV);
         if (environment != null && !environment.isBlank()) {
             return requireExecutable(Path.of(environment), "environment variable " + EXECUTABLE_ENV);
         }
         if (searchPath) {
-            return findInPath().orElseThrow(() -> new MystemExecutableNotFoundException(
+            return findInPath(pathValue, osName).orElseThrow(() -> new MystemExecutableNotFoundException(
                     "MyStem executable was not found. Configure executable path, "
                             + EXECUTABLE_PROPERTY
                             + ", "
@@ -36,20 +50,19 @@ final class MystemExecutableResolver {
                 "MyStem executable was not configured and PATH search is disabled.");
     }
 
-    private static Optional<Path> findInPath() {
-        String pathValue = System.getenv("PATH");
+    private static Optional<Path> findInPath(String pathValue, String osName) {
         if (pathValue == null || pathValue.isBlank()) {
             return Optional.empty();
         }
         return Arrays.stream(pathValue.split(File.pathSeparator))
                 .filter(entry -> !entry.isBlank())
-                .map(entry -> Path.of(entry).resolve(executableName()))
+                .map(entry -> Path.of(entry).resolve(executableName(osName)))
                 .filter(Files::isExecutable)
                 .findFirst();
     }
 
-    private static String executableName() {
-        String os = System.getProperty("os.name", "").toLowerCase();
+    private static String executableName(String osName) {
+        String os = osName.toLowerCase();
         return os.contains("win") ? "mystem.exe" : "mystem";
     }
 

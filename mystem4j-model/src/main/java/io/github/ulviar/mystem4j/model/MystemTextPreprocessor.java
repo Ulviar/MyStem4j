@@ -11,6 +11,23 @@ public final class MystemTextPreprocessor {
     private MystemTextPreprocessor() {}
 
     public static MystemPreparedText prepare(String text) {
+        return prepare(text, false);
+    }
+
+    /**
+     * Prepares text for MyStem JSON-line protocol by replacing line separators with spaces.
+     *
+     * <p>Reusable and pooled MyStem clients use one stdout line as one response frame, so raw CR/LF characters cannot
+     * be sent through that protocol. Offsets in the returned prepared text still map to the original string.
+     *
+     * @param text source text
+     * @return prepared text with CR/LF replaced
+     */
+    public static MystemPreparedText prepareJsonLine(String text) {
+        return prepare(text, true);
+    }
+
+    private static MystemPreparedText prepare(String text, boolean replaceLineSeparators) {
         Objects.requireNonNull(text, "text");
         StringBuilder prepared = new StringBuilder(text.length());
         ArrayList<MystemOffsetMapping> mappings = new ArrayList<>();
@@ -53,6 +70,17 @@ public final class MystemTextPreprocessor {
                 prepared.append(' ');
                 issues.add(new MystemTextIssue(
                         MystemTextIssueType.NONCHARACTER, "Unicode noncharacter replaced with space", index, 1));
+                mappings.add(new MystemOffsetMapping(preparedStart, prepared.length(), index, index + 1));
+                index++;
+                continue;
+            }
+            if (replaceLineSeparators && (value == '\n' || value == '\r')) {
+                prepared.append(' ');
+                issues.add(new MystemTextIssue(
+                        MystemTextIssueType.CONTROL_CHARACTER,
+                        "Line separator replaced with space for JSON-line protocol",
+                        index,
+                        1));
                 mappings.add(new MystemOffsetMapping(preparedStart, prepared.length(), index, index + 1));
                 index++;
                 continue;

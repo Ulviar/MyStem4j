@@ -29,6 +29,64 @@ class MystemProbeTaskTest {
                 .toFile());
         task.getTimeoutSeconds().set(5);
         task.getSmokeInput().set("мама");
+        task.getMaxOutputBytes().set(1024);
+
+        assertThrows(GradleException.class, task::probe);
+    }
+
+    @Test
+    void acceptsMystemLikeJsonProbeOutput() throws IOException {
+        Project project = ProjectBuilder.builder().build();
+        MystemProbeTask task = project.getTasks().register("mystemProbeSuccess", MystemProbeTask.class).get();
+        task.getExecutableFile().set(script(
+                        "mystem-success",
+                        """
+                        #!/bin/sh
+                        while IFS= read -r input; do
+                          printf '[{"text":"%s"}]\\n' "$input"
+                        done
+                        """)
+                .toFile());
+        task.getTimeoutSeconds().set(5);
+        task.getSmokeInput().set("мама");
+        task.getMaxOutputBytes().set(1024);
+
+        task.probe();
+    }
+
+    @Test
+    void rejectsNonZeroExitCode() throws IOException {
+        Project project = ProjectBuilder.builder().build();
+        MystemProbeTask task = project.getTasks().register("mystemProbeFailure", MystemProbeTask.class).get();
+        task.getExecutableFile().set(script(
+                        "mystem-failure",
+                        """
+                        #!/bin/sh
+                        echo "bad mystem" >&2
+                        exit 7
+                        """)
+                .toFile());
+        task.getTimeoutSeconds().set(5);
+        task.getSmokeInput().set("мама");
+        task.getMaxOutputBytes().set(1024);
+
+        assertThrows(GradleException.class, task::probe);
+    }
+
+    @Test
+    void rejectsOutputLargerThanLimit() throws IOException {
+        Project project = ProjectBuilder.builder().build();
+        MystemProbeTask task = project.getTasks().register("mystemProbeLargeOutput", MystemProbeTask.class).get();
+        task.getExecutableFile().set(script(
+                        "mystem-large-output",
+                        """
+                        #!/bin/sh
+                        printf '0123456789'
+                        """)
+                .toFile());
+        task.getTimeoutSeconds().set(5);
+        task.getSmokeInput().set("мама");
+        task.getMaxOutputBytes().set(4);
 
         assertThrows(GradleException.class, task::probe);
     }

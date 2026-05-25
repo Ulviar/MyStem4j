@@ -20,8 +20,6 @@ MystemDocument parse(MystemPreparedText preparedText, String json)
 
 One-shot/file MyStem output for multiline input may contain multiple top-level JSON arrays. The parser accepts that stream shape and concatenates the parsed tokens in order.
 
-The implementation uses Jackson Core's streaming parser. It does not depend on `jackson-databind`.
-
 ## Document Model
 
 - `MystemDocument` - original text, parsed tokens, and non-fatal text issues.
@@ -30,7 +28,7 @@ The implementation uses Jackson Core's streaming parser. It does not depend on `
 - `MystemGrammar` - raw grammar string, optional part of speech, common grammemes, and variants.
 - `MystemGrammarVariant` - grammemes for one inflection alternative.
 
-Unknown token offsets are represented as `-1`.
+Unknown token offsets are represented as `-1`. A token must have either both offsets known or both offsets unknown.
 
 ## Grammar Parsing
 
@@ -46,12 +44,16 @@ The first left-side item is treated as part of speech. Remaining left-side items
 
 `MystemTextPreprocessor.prepare(String)` returns `MystemPreparedText`.
 
+`MystemTextPreprocessor.prepareJsonLine(String)` also replaces CR/LF with spaces for reusable JSON-line clients.
+
 `MystemPreparedText` contains:
 
 - original text;
 - prepared text;
 - offset mappings from prepared text to original text;
 - non-fatal issues.
+
+Offset mappings in `MystemPreparedText` must be contiguous, monotonic, and cover both prepared and original text.
 
 Issue types:
 

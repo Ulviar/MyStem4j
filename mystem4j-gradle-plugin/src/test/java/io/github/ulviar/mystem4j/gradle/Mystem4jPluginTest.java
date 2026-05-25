@@ -86,6 +86,41 @@ class Mystem4jPluginTest {
                 .build();
     }
 
+    @Test
+    void testRuntimeWiringIsConfigurationCacheCompatible() throws IOException {
+        Path archive = fakeWindowsArchive();
+        Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
+        Files.writeString(
+                temporaryDirectory.resolve("build.gradle.kts"),
+                """
+                plugins {
+                    java
+                    id("io.github.ulviar.mystem4j")
+                }
+
+                mystem4j {
+                    targetOs.set("windows")
+                    archiveUrl.set("%s")
+                    download.set(true)
+                    acceptYandexMystemLicense.set(true)
+                    configureTests.set(true)
+                }
+                """
+                        .formatted(archive.toUri()),
+                StandardCharsets.UTF_8);
+
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("test", "--configuration-cache", "--stacktrace")
+                .build();
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("test", "--configuration-cache", "--stacktrace")
+                .build();
+    }
+
     private Path fakeWindowsArchive() throws IOException {
         Path executable = temporaryDirectory.resolve("archive-content/mystem.exe");
         Path archive = temporaryDirectory.resolve("mystem.zip");

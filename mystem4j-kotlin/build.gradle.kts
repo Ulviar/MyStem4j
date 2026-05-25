@@ -7,6 +7,7 @@ plugins {
 
 kotlin {
     jvmToolchain(21)
+    explicitApi()
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
     }

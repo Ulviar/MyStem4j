@@ -90,20 +90,20 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
     }
 
-    public void testSplitsMultilineInputForJsonLineCompatibleClients() throws IOException {
-        FakeMystemClient client = new FakeMystemClient(input -> switch (input) {
-            case "A" -> """
-                    [{"analysis":[],"text":"A"}]
-                    """;
-            case "B" -> """
-                    [{"analysis":[],"text":"B"}]
-                    """;
-            default -> {
-                if (input.indexOf('\n') >= 0 || input.indexOf('\r') >= 0) {
-                    throw new AssertionError("client received multiline input: " + input);
-                }
-                yield "[]";
+    public void testPreparesMultilineInputForJsonLineCompatibleClients() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> {
+            if (input.indexOf('\n') >= 0 || input.indexOf('\r') >= 0) {
+                throw new AssertionError("client received multiline input: " + input);
             }
+            if (!"A B".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [
+                      {"analysis":[],"text":"A"},
+                      {"analysis":[],"text":"B"}
+                    ]
+                    """;
         });
         try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
             assertAnalyzesTo(
@@ -180,7 +180,14 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
 
     public void testRandomDataDoesNotBreakTokenStreamLifecycle() throws IOException {
         try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.echo())) {
-            checkRandomData(random(), analyzer, 50, 64, false, false);
+            checkRandomData(random(), analyzer, 200, 256, false, false);
+        }
+    }
+
+    public void testRejectsOversizedFieldsBeforeCallingClient() {
+        FakeMystemClient client = FakeMystemClient.echo();
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), 4)) {
+            expectThrows(IOException.class, () -> assertAnalyzesTo(analyzer, "12345", new String[0]));
         }
     }
 
@@ -198,6 +205,16 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), true).close();
 
         assertTrue(client.isClosed());
+    }
+
+    public void testAnalyzerClosesOwnedClientOnlyOnce() {
+        FakeMystemClient client = FakeMystemClient.echo();
+        Analyzer analyzer = new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), true);
+
+        analyzer.close();
+        analyzer.close();
+
+        assertEquals(1, client.closeCount());
     }
 
     private static void assertKeywordFlags(Analyzer analyzer, String text, boolean... expected) throws IOException {
