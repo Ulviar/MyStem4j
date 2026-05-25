@@ -17,18 +17,17 @@ dependencies {
 One-shot mode starts a new MyStem process for each request. It supports `JSON`,
 `XML`, and `TEXT` output formats.
 
+Install or prepare MyStem separately, then pass its executable path with
+`.executable(Path.of(...))`. If `.executable(...)` is omitted, the runtime resolves
+MyStem from `mystem4j.executable`, then `MYSTEM_PATH`, then `PATH`.
+
 ```java
 import io.github.ulviar.mystem4j.Mystem;
 import io.github.ulviar.mystem4j.MystemClient;
-import io.github.ulviar.mystem4j.MystemFileContentResult;
-import io.github.ulviar.mystem4j.MystemFileResult;
 import io.github.ulviar.mystem4j.MystemOptions;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
-import io.github.ulviar.mystem4j.MystemProbe;
-import io.github.ulviar.mystem4j.MystemProbeResult;
 import io.github.ulviar.mystem4j.MystemRawResult;
 import java.nio.file.Path;
-import java.time.Duration;
 
 try (MystemClient client = Mystem.builder()
         .executable(Path.of("/path/to/mystem"))
@@ -66,9 +65,10 @@ try (MystemClient client = Mystem.builder()
 
 Reusable mode supports JSON only. It uses one input line as one request and one
 output line as one response, so `analyze(String)` rejects text containing `\r` or
-`\n`. Use one-shot mode for multiline input, or call
-`MystemTextPreprocessor.prepareJsonLine` before sending text that must go through a
-JSON-line client.
+`\n`. Use one-shot mode for raw multiline input. If a multiline request must go
+through a JSON-line client and you need offsets in the original text, use the
+preprocessing flow from [Parse MyStem output](parse-mystem-output.md); that flow
+requires `mystem4j-model`.
 
 ## Pooled Sessions
 
@@ -76,6 +76,8 @@ Pooled mode keeps several JSON-line MyStem processes open and is intended for
 concurrent callers such as indexing services.
 
 ```java
+import java.time.Duration;
+
 try (MystemClient client = Mystem.builder()
         .executable(Path.of("/path/to/mystem"))
         .options(MystemOptions.builder()
@@ -95,12 +97,19 @@ try (MystemClient client = Mystem.builder()
 Options are fixed for the whole pool. Like reusable sessions, pooled clients accept
 JSON only and reject raw multiline text.
 
+One-shot and pooled clients can be shared by concurrent callers until `close()` is
+called. Reusable session clients serialize requests through one MyStem process; use
+them for one caller at a time, not for concurrent indexing or request fan-out.
+
 ## File Requests
 
-Use file requests when the input or output is large enough that you do not want to
-keep all output in JVM memory.
+Use file requests when the input is already on disk or when the output should be
+written directly to a file.
 
 ```java
+import io.github.ulviar.mystem4j.MystemFileContentResult;
+import io.github.ulviar.mystem4j.MystemFileResult;
+
 try (MystemClient client = Mystem.builder()
         .executable(Path.of("/path/to/mystem"))
         .build()) {
@@ -111,13 +120,17 @@ try (MystemClient client = Mystem.builder()
 }
 ```
 
-`analyzeFile(input, output)` uses MyStem's native `mystem [options] input output`
-mode and writes directly to the output path. Input and output must be different
-paths.
+`analyzeFile(input)` captures stdout as a Java string. `analyzeFile(input, output)`
+uses MyStem's native `mystem [options] input output` mode and writes directly to the
+output path without keeping the full output in JVM memory. Input and output must be
+different paths.
 
 ## Probe An Executable
 
 ```java
+import io.github.ulviar.mystem4j.MystemProbe;
+import io.github.ulviar.mystem4j.MystemProbeResult;
+
 MystemProbeResult probe = MystemProbe.probe(Path.of("/path/to/mystem"));
 System.out.println(probe.output());
 ```

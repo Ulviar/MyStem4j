@@ -6,3 +6,4 @@ User-facing documentation lives in `docs/tutorials`, `docs/how-to`, `docs/refere
 - [Publication notes](publication.md)
 - [Release checklist](release-checklist.md)
 - [Memory leak testing](memory-leak-testing.md)
+- [Scenario-based audits](scenario-audits.md)

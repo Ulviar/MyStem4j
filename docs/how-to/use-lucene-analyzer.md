@@ -64,22 +64,55 @@ recovery, lemmas, suffix forms, and fallback forms, but it does not merge URL/em
 entities or expose currency/number token types. Printed terms should include lemma
 forms such as `мама`, `мыть`, and `рама`.
 
-## Use Entity-Aware Tokenization
+## Choose Tokenization Policy
+
+| Policy | Use when |
+| --- | --- |
+| `conservative()` | you need morphology and safe offsets, without entity classification |
+| `search()` | you need number and currency token types, but not URL/email grouping |
+| `entityAware()` | you need URL/email grouping and expanded currency forms |
+
+Example with the middle `search()` policy:
+
+```java
+try (MystemClient client = Mystem.builder()
+        .executable(Path.of("/path/to/mystem"))
+        .options(MystemOptions.builder()
+                .format(MystemOutputFormat.JSON)
+                .grammarInfo(true)
+                .disambiguate(true)
+                .build())
+        .pooled()
+        .build();
+     Analyzer analyzer = new MystemLuceneAnalyzer(
+             client,
+             MystemSearchTokenizerOptions.search())) {
+    // Use analyzer for indexing or query analysis.
+}
+```
 
 Use entity-aware tokenization only when the application needs URL/email grouping,
 number token types, currency token types, and currency form expansion.
 
 ```java
-boolean closeClientOnClose = true;
-
-Analyzer analyzer = new MystemLuceneAnalyzer(
-        client,
-        MystemSearchTokenizerOptions.entityAware(),
-        closeClientOnClose);
+try (MystemClient client = Mystem.builder()
+        .executable(Path.of("/path/to/mystem"))
+        .options(MystemOptions.builder()
+                .format(MystemOutputFormat.JSON)
+                .grammarInfo(true)
+                .disambiguate(true)
+                .build())
+        .pooled()
+        .build();
+     Analyzer analyzer = new MystemLuceneAnalyzer(
+             client,
+             MystemSearchTokenizerOptions.entityAware())) {
+    // Use analyzer for indexing or query analysis.
+}
 ```
 
-`closeClientOnClose=true` means `analyzer.close()` also closes the supplied
-`MystemClient`.
+This example keeps client ownership explicit: the try-with-resources block closes
+the analyzer and then the client.
 
 ## Set Field Limits And Position Policy
 
@@ -92,10 +125,21 @@ MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
         maxChunkChars,
         MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
 
-Analyzer analyzer = new MystemLuceneAnalyzer(
-        client,
-        MystemSearchTokenizerOptions.conservative(),
-        analysisOptions);
+try (MystemClient client = Mystem.builder()
+        .executable(Path.of("/path/to/mystem"))
+        .options(MystemOptions.builder()
+                .format(MystemOutputFormat.JSON)
+                .grammarInfo(true)
+                .disambiguate(true)
+                .build())
+        .pooled()
+        .build();
+     Analyzer analyzer = new MystemLuceneAnalyzer(
+             client,
+             MystemSearchTokenizerOptions.conservative(),
+             analysisOptions)) {
+    // Use analyzer for indexing or query analysis.
+}
 ```
 
 Defaults are:
@@ -107,7 +151,10 @@ Defaults are:
 | `positionPolicy` | `COMPACT` |
 
 `COMPACT` ignores skipped separator/other tokens when computing Lucene position
-increments. `PRESERVE_SKIPPED_TOKENS` adds position gaps for skipped tokens.
+increments. Choose it when phrase/proximity queries should behave as if punctuation
+and other skipped fragments were not present. `PRESERVE_SKIPPED_TOKENS` adds
+position gaps for skipped tokens. Choose it when phrase/proximity queries should
+respect skipped fragments in the original text.
 
 ## Runtime Choice
 

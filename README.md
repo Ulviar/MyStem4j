@@ -26,8 +26,8 @@ MyStem links:
 - MyStem documentation: <https://yandex.ru/dev/mystem/>
 - MyStem license: <https://yandex.ru/legal/mystem/ru/>
 
-Normal users declare MyStem4j modules only. Runtime implementation dependencies are
-transitive dependencies of the published artifacts.
+Declare MyStem4j modules directly. Supporting runtime libraries are transitive
+dependencies of those modules.
 
 ## Modules
 
@@ -48,6 +48,25 @@ Lucene applications do not need to declare those modules separately.
 
 The shortest end-to-end setup is a Gradle test. The plugin downloads MyStem, probes
 it, and passes the executable path to the test as `mystem4j.executable`.
+
+`settings.gradle.kts`:
+
+```kotlin
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+```
+
+`build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -126,6 +145,19 @@ Run:
 
 The output is one MyStem JSON array line. Exact grammar tags can change with MyStem
 dictionary data, but the result should contain a lemma such as `мама`.
+
+For application code outside tests, use `implementation` instead of
+`testImplementation` and pass an explicit executable path or configure
+`mystem4j.executable`, `MYSTEM_PATH`, or `PATH`:
+
+```kotlin
+dependencies {
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+}
+```
+
+See [Use runtime clients](docs/how-to/use-runtime-clients.md) for the direct
+application-code path.
 
 ## Documentation
 

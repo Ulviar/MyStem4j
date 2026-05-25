@@ -35,6 +35,8 @@ new MystemLuceneAnalyzer(MystemClient client, MystemSearchTokenizerOptions optio
 
 The supplied `MystemClient` must return JSON output. For concurrent indexing, use
 one-shot or pooled runtime clients. Pooled clients are usually faster for indexing.
+Do not share a reusable single-process session across concurrent analyzer calls; it
+serializes work through one MyStem process and is intended for one caller at a time.
 
 The analyzer does not close the client by default. Use a constructor with
 `closeClientOnClose=true` when the analyzer should own the client.
@@ -83,5 +85,7 @@ stream.
 length limit and keeps default chunking and position behavior.
 
 `MystemLucenePositionPolicy.COMPACT` does not add Lucene position gaps for skipped
-`SEPARATOR` and `OTHER` tokens. `PRESERVE_SKIPPED_TOKENS` increments the next
-emitted token position for each skipped token.
+`SEPARATOR` and `OTHER` tokens. It is suitable when phrase/proximity queries should
+ignore skipped punctuation-like fragments. `PRESERVE_SKIPPED_TOKENS` increments the
+next emitted token position for each skipped token, which makes phrase/proximity
+queries respect skipped fragments in the original text.

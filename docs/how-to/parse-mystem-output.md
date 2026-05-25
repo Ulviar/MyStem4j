@@ -22,6 +22,12 @@ dependencies {
 }
 ```
 
+For token text, lemmas, grammar, and part of speech, use MyStem JSON output with
+grammar information enabled: `--format json -i`, or
+`MystemOptions.builder().format(JSON).grammarInfo(true)`. `disambiguate(true)` is
+not required for parsing, but is usually useful when the application wants MyStem's
+contextual best analysis.
+
 ## Parse A Runtime Result
 
 ```java
@@ -34,6 +40,7 @@ import io.github.ulviar.mystem4j.model.MystemAnalysis;
 import io.github.ulviar.mystem4j.model.MystemDocument;
 import io.github.ulviar.mystem4j.model.MystemJsonParser;
 import io.github.ulviar.mystem4j.model.MystemPreparedText;
+import io.github.ulviar.mystem4j.model.MystemTextIssueType;
 import io.github.ulviar.mystem4j.model.MystemTextPreprocessor;
 import io.github.ulviar.mystem4j.model.MystemToken;
 import java.nio.file.Path;
@@ -50,18 +57,28 @@ try (MystemClient client = Mystem.builder()
         .build()) {
     MystemRawResult raw = client.analyze("Мама мыла раму.");
     MystemDocument document = parser.parse(raw.input(), raw.output());
+    boolean hasUnsafeOffsets = document.issues().stream()
+            .anyMatch(issue -> issue.type() == MystemTextIssueType.UNMATCHED_TOKEN)
+            || document.tokens().stream().anyMatch(token -> !token.hasKnownOffsets());
+    if (hasUnsafeOffsets) {
+        throw new IllegalStateException("MyStem output could not be aligned to the original text.");
+    }
 
     for (MystemToken token : document.tokens()) {
         String lemma = token.analyses().stream()
                 .findFirst()
                 .map(MystemAnalysis::lemma)
                 .orElse("<no lemma>");
+        String grammar = token.analyses().stream()
+                .findFirst()
+                .map(analysis -> analysis.grammar().raw())
+                .orElse("<no grammar>");
         String partOfSpeech = token.analyses().stream()
                 .findFirst()
                 .flatMap(analysis -> analysis.grammar().partOfSpeech())
                 .orElse("<no part of speech>");
-        System.out.printf("%s [%d,%d] lemma=%s pos=%s%n",
-                token.text(), token.startOffset(), token.endOffset(), lemma, partOfSpeech);
+        System.out.printf("%s [%d,%d] lemma=%s grammar=%s pos=%s%n",
+                token.text(), token.startOffset(), token.endOffset(), lemma, grammar, partOfSpeech);
     }
 }
 ```
@@ -102,9 +119,11 @@ MystemJsonParser parser = new MystemJsonParser();
 
 try (MystemClient client = Mystem.builder()
         .executable(Path.of("/path/to/mystem"))
-        .options(MystemOptions.builder()
-                .format(MystemOutputFormat.JSON)
-                .build())
+                .options(MystemOptions.builder()
+                        .format(MystemOutputFormat.JSON)
+                        .grammarInfo(true)
+                        .disambiguate(true)
+                        .build())
         .session()
         .build()) {
     MystemRawResult raw = client.analyze(prepared.text());
