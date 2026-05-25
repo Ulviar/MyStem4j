@@ -21,6 +21,7 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 - [Tokenization API](reference/tokenization-api.md)
 - [Lucene API](reference/lucene-api.md)
 - [Gradle plugin](reference/gradle-plugin.md)
+- [Publication](reference/publication.md)
 
 ## Explanation
 

@@ -13,6 +13,7 @@
 
 - принимать готовый `MystemClient`, настроенный на JSON output;
 - читать Lucene `Reader` целиком для одного анализа поля;
+- разбивать CR/LF-delimited input на JSON-line-compatible MyStem requests без потери original offsets;
 - применять `MystemTextPreprocessor` перед вызовом MyStem;
 - парсить JSON через `MystemJsonParser` с mapping обратно к original offsets;
 - использовать `MystemSearchTokenizer` и `MystemSearchTokenizerOptions`;
@@ -97,3 +98,4 @@ Baseline:
 - Unit tests проходят без реального MyStem через fake client.
 - Analyzer/tokenizer tests используют `BaseTokenStreamTestCase`.
 - Offsets в Lucene token stream соответствуют исходному input, включая input, подготовленный `MystemTextPreprocessor`, и Lucene `CharFilter` offset correction.
+- Multiline fields не передаются в JSON-line clients одним запросом; offsets остаются в координатах исходного Lucene field.

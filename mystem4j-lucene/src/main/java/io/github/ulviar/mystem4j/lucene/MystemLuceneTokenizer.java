@@ -74,11 +74,41 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         super.reset();
         String originalText = readFully(input);
         finalOffset = correctOffset(originalText.length());
-        MystemPreparedText preparedText = MystemTextPreprocessor.prepare(originalText);
+        emissions = analyzeSegments(originalText);
+        emissionIndex = 0;
+    }
+
+    private List<LuceneEmission> analyzeSegments(String originalText) {
+        ArrayList<LuceneEmission> result = new ArrayList<>();
+        int segmentStart = 0;
+        int index = 0;
+        while (index < originalText.length()) {
+            char character = originalText.charAt(index);
+            if (character == '\r' || character == '\n') {
+                appendSegmentEmissions(originalText, segmentStart, index, result);
+                index++;
+                if (character == '\r' && index < originalText.length() && originalText.charAt(index) == '\n') {
+                    index++;
+                }
+                segmentStart = index;
+            } else {
+                index++;
+            }
+        }
+        appendSegmentEmissions(originalText, segmentStart, originalText.length(), result);
+        return List.copyOf(result);
+    }
+
+    private void appendSegmentEmissions(
+            String originalText, int startOffset, int endOffset, List<LuceneEmission> result) {
+        if (startOffset == endOffset) {
+            return;
+        }
+        String segment = originalText.substring(startOffset, endOffset);
+        MystemPreparedText preparedText = MystemTextPreprocessor.prepare(segment);
         MystemRawResult rawResult = client.analyze(preparedText.text());
         MystemDocument document = parser.parse(preparedText, rawResult.output());
-        emissions = flatten(searchTokenizer.tokenize(document));
-        emissionIndex = 0;
+        result.addAll(flatten(searchTokenizer.tokenize(document), startOffset));
     }
 
     @Override
@@ -112,7 +142,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         return result.toString();
     }
 
-    private static List<LuceneEmission> flatten(List<MystemSearchToken> tokens) {
+    private static List<LuceneEmission> flatten(List<MystemSearchToken> tokens, int offsetShift) {
         ArrayList<LuceneEmission> result = new ArrayList<>();
         for (MystemSearchToken token : tokens) {
             if (!isSearchBearing(token.type())) {
@@ -122,8 +152,8 @@ public final class MystemLuceneTokenizer extends Tokenizer {
             for (MystemTokenForm form : token.forms()) {
                 result.add(new LuceneEmission(
                         form.text(),
-                        token.startOffset(),
-                        token.endOffset(),
+                        token.startOffset() + offsetShift,
+                        token.endOffset() + offsetShift,
                         typeName(token.type()),
                         form.keyword(),
                         positionIncrement));

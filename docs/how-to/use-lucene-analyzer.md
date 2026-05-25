@@ -47,3 +47,5 @@ The third constructor argument makes the analyzer close the supplied client when
 ## Runtime Choice
 
 For indexing, prefer a pooled MyStem client. A reusable single process client is not intended for concurrent analyzer use. One-shot clients are safe but usually slower for large indexing jobs.
+
+The Lucene tokenizer handles multiline fields by sending each CR/LF-delimited segment as a separate MyStem request and preserving offsets in the original field. This keeps pooled JSON-line clients usable for ordinary multiline Lucene fields.

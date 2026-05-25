@@ -1,22 +1,11 @@
 package io.github.ulviar.mystem4j.lucene;
 
-import io.github.ulviar.mystem4j.MystemClient;
-import io.github.ulviar.mystem4j.MystemExecutionMode;
-import io.github.ulviar.mystem4j.MystemFileContentResult;
-import io.github.ulviar.mystem4j.MystemFileResult;
-import io.github.ulviar.mystem4j.MystemOutputFormat;
-import io.github.ulviar.mystem4j.MystemRawResult;
-import io.github.ulviar.mystem4j.MystemRequestStats;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalInt;
-import java.util.function.Function;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharFilter;
 import org.apache.lucene.analysis.TokenStream;
@@ -25,7 +14,7 @@ import org.apache.lucene.tests.analysis.BaseTokenStreamTestCase;
 
 public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     public void testEmitsFormsOffsetsPositionsTypesAndKeywordFlags() throws IOException {
-        FakeClient client = new FakeClient(input -> {
+        FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"Раз++ C++".equals(input)) {
                 return "[]";
             }
@@ -50,7 +39,7 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     }
 
     public void testDefaultAnalyzerUsesConservativeSemanticPolicy() throws IOException {
-        FakeClient client = new FakeClient(input -> {
+        FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"10# $ https://example.com".equals(input)) {
                 return "[]";
             }
@@ -77,7 +66,7 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     }
 
     public void testPreparesUnsafeInputAndKeepsOriginalOffsets() throws IOException {
-        FakeClient client = new FakeClient(input -> {
+        FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"A B".equals(input)) {
                 return "[]";
             }
@@ -101,8 +90,35 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
     }
 
+    public void testSplitsMultilineInputForJsonLineCompatibleClients() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> switch (input) {
+            case "A" -> """
+                    [{"analysis":[],"text":"A"}]
+                    """;
+            case "B" -> """
+                    [{"analysis":[],"text":"B"}]
+                    """;
+            default -> {
+                if (input.indexOf('\n') >= 0 || input.indexOf('\r') >= 0) {
+                    throw new AssertionError("client received multiline input: " + input);
+                }
+                yield "[]";
+            }
+        });
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "A\nB",
+                    new String[] {"a", "b"},
+                    new int[] {0, 2},
+                    new int[] {1, 3},
+                    new String[] {"word", "word"},
+                    new int[] {1, 1});
+        }
+    }
+
     public void testAnalyzerCanReuseComponentsForMultipleInputs() throws IOException {
-        FakeClient client = new FakeClient(input -> """
+        FakeMystemClient client = new FakeMystemClient(input -> """
                 [{"analysis":[],"text":"%s"}]
                 """.formatted(input));
         try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
@@ -126,7 +142,7 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     }
 
     public void testOffsetsAreCorrectedThroughLuceneCharFilters() throws IOException {
-        FakeClient client = new FakeClient(input -> {
+        FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"Alpha".equals(input)) {
                 return "[]";
             }
@@ -157,15 +173,31 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     }
 
     public void testEmptyInputProducesNoTokens() throws IOException {
-        try (Analyzer analyzer = new MystemLuceneAnalyzer(new EchoClient())) {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.echo())) {
             assertAnalyzesTo(analyzer, "", new String[0], new int[0], new int[0], new String[0], new int[0]);
         }
     }
 
     public void testRandomDataDoesNotBreakTokenStreamLifecycle() throws IOException {
-        try (Analyzer analyzer = new MystemLuceneAnalyzer(new EchoClient())) {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.echo())) {
             checkRandomData(random(), analyzer, 50, 64, false, false);
         }
+    }
+
+    public void testAnalyzerDoesNotCloseClientByDefault() {
+        FakeMystemClient client = FakeMystemClient.echo();
+
+        new MystemLuceneAnalyzer(client).close();
+
+        assertFalse(client.isClosed());
+    }
+
+    public void testAnalyzerCanOwnClientWhenRequested() {
+        FakeMystemClient client = FakeMystemClient.echo();
+
+        new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), true).close();
+
+        assertTrue(client.isClosed());
     }
 
     private static void assertKeywordFlags(Analyzer analyzer, String text, boolean... expected) throws IOException {
@@ -188,8 +220,6 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
         return List.copyOf(result);
     }
-
-    private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
 
     private static final class DropFirstCharacterFilter extends CharFilter {
         private String filtered;
@@ -233,88 +263,5 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
             }
             filtered = result.isEmpty() ? "" : result.substring(1);
         }
-    }
-
-    private static class FakeClient implements MystemClient {
-        private final Function<String, String> output;
-
-        private FakeClient(Function<String, String> output) {
-            this.output = output;
-        }
-
-        @Override
-        public MystemRawResult analyze(String text) {
-            String rawOutput = output.apply(text);
-            return new MystemRawResult(
-                    text,
-                    rawOutput,
-                    MystemOutputFormat.JSON,
-                    new MystemRequestStats(
-                            Duration.ZERO,
-                            MystemExecutionMode.ONE_SHOT_TEXT,
-                            text.length(),
-                            -1,
-                            rawOutput.length(),
-                            -1,
-                            OptionalInt.empty(),
-                            false));
-        }
-
-        @Override
-        public MystemFileContentResult analyzeFile(Path input) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public MystemFileResult analyzeFile(Path input, Path output) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void close() {}
-    }
-
-    private static final class EchoClient extends FakeClient {
-        private EchoClient() {
-            super(input -> input.isEmpty()
-                    ? "[]"
-                    : """
-                    [{"analysis":[],"text":%s}]
-                    """.formatted(jsonString(input)));
-        }
-    }
-
-    private static String jsonString(String value) {
-        StringBuilder result = new StringBuilder(value.length() + 2);
-        result.append('"');
-        for (int index = 0; index < value.length(); index++) {
-            char character = value.charAt(index);
-            switch (character) {
-                case '"' -> result.append("\\\"");
-                case '\\' -> result.append("\\\\");
-                case '\b' -> result.append("\\b");
-                case '\f' -> result.append("\\f");
-                case '\n' -> result.append("\\n");
-                case '\r' -> result.append("\\r");
-                case '\t' -> result.append("\\t");
-                default -> {
-                    if (character < 0x20) {
-                        appendUnicodeEscape(result, character);
-                    } else {
-                        result.append(character);
-                    }
-                }
-            }
-        }
-        result.append('"');
-        return result.toString();
-    }
-
-    private static void appendUnicodeEscape(StringBuilder result, char character) {
-        result.append("\\u");
-        result.append(HEX_DIGITS[(character >>> 12) & 0xF]);
-        result.append(HEX_DIGITS[(character >>> 8) & 0xF]);
-        result.append(HEX_DIGITS[(character >>> 4) & 0xF]);
-        result.append(HEX_DIGITS[character & 0xF]);
     }
 }

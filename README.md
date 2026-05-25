@@ -15,6 +15,8 @@ This repository currently contains the lower layers of the project: a runtime ov
 
 ## Important Prerequisites
 
+MyStem4j targets Java 21. Build and runtime environments must provide JDK 21 or newer.
+
 MyStem4j does not bundle MyStem and does not download it from the runtime library. Downloading is handled only by the Gradle plugin and requires explicit acceptance of the Yandex MyStem license:
 
 - MyStem docs: <https://yandex.ru/dev/mystem/>
@@ -86,6 +88,7 @@ The documentation is organized with Diataxis:
 - [Tokenization API reference](docs/reference/tokenization-api.md)
 - [Lucene API reference](docs/reference/lucene-api.md)
 - [Gradle plugin reference](docs/reference/gradle-plugin.md)
+- [Publication reference](docs/reference/publication.md)
 - [Architecture explanation](docs/explanation/architecture.md)
 - [Runtime component specification](docs/specs/mystem-runtime-spec.md)
 - [Model component specification](docs/specs/mystem-model-spec.md)

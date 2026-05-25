@@ -42,6 +42,7 @@ new MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions opti
 The tokenizer:
 
 - reads the full Lucene input `Reader`;
+- splits CR/LF-delimited input into JSON-line-compatible MyStem requests while preserving offsets in the original field;
 - prepares unsafe Unicode input before sending it to MyStem;
 - calls the MyStem JSON client;
 - parses MyStem output through `mystem4j-model`;

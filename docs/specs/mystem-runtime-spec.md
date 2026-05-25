@@ -34,7 +34,7 @@
 2. `mystem4j-kotlin` - Kotlin-friendly API поверх runtime.
 3. `mystem4j-gradle-plugin` - подготовка MyStem binary для dev/test/build/distribution сценариев.
 4. `mystem4j-model` - парсинг, нормализация и Unicode-aware представление результата.
-5. `mystem4j-lucene` - Lucene `Analyzer`, `Tokenizer`, `TokenFilter` и фабрики.
+5. `mystem4j-lucene` - Lucene `Analyzer` и `Tokenizer` integration.
 
 Данная спецификация описывает первый milestone: `mystem4j-runtime`, Kotlin API для него и Gradle-плагин подготовки бинаря MyStem. Слои `model` и `lucene` описываются отдельно.
 

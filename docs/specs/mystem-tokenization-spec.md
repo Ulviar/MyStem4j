@@ -5,9 +5,9 @@
 
 ## Назначение
 
-`mystem4j-tokenization` преобразует `MystemDocument` в search-oriented токены, пригодные для будущего Lucene-слоя.
+`mystem4j-tokenization` преобразует `MystemDocument` в search-oriented токены, пригодные для Lucene-слоя.
 
-Компонент находится между `mystem4j-model` и будущим `mystem4j-lucene`.
+Компонент находится между `mystem4j-model` и `mystem4j-lucene`.
 
 ## Граница ответственности
 
