@@ -9,10 +9,11 @@ The implemented milestone contains:
 - `mystem4j-runtime` - process execution and raw MyStem output;
 - `mystem4j-model` - JSON postprocessing, grammar parsing, token offset alignment, and Unicode preparation;
 - `mystem4j-tokenization` - search-token preparation above model objects;
+- `mystem4j-lucene` - Lucene analyzer/tokenizer integration;
 - `mystem4j-kotlin` - Kotlin DSL over the runtime;
 - `mystem4j-gradle-plugin` - MyStem binary preparation for build/test/distribution workflows.
 
-The runtime has no Lucene dependency and does not parse MyStem output into morphology objects. The model layer is the first postprocessing layer above raw CLI output. The tokenization layer is still Lucene-free, but it prepares the forms and coarse token types expected by a later Lucene analyzer.
+The runtime has no Lucene dependency and does not parse MyStem output into morphology objects. The model layer is the first postprocessing layer above raw CLI output. The tokenization layer is Lucene-free and prepares forms/coarse token types. The Lucene layer adapts those prepared tokens to Lucene attributes.
 
 ## Unicode And Offsets
 
@@ -60,10 +61,11 @@ The plugin prepares a project-local MyStem binary:
 
 The current cache is project-local under `build/mystem`. A shared Gradle user-home cache is a future enhancement, not current behavior.
 
-## Path Toward Lucene
+## Lucene Layer
 
-The next layers can build on the runtime, model, and tokenization modules without changing process management:
+The Lucene layer builds on the runtime, model, and tokenization modules without changing process management:
 
-- Lucene layer: `Tokenizer`, `TokenFilter`, `Analyzer`, and factory classes.
+- `MystemLuceneTokenizer` reads the whole Lucene input, prepares unsafe Unicode, calls a JSON MyStem client, parses model objects, prepares search tokens, and emits Lucene attributes.
+- `MystemLuceneAnalyzer` wires the tokenizer into Lucene's `Analyzer` API.
 
-The Lucene layer should depend on parsed model objects and search-token preparation, not on raw CLI output.
+The layer depends on Lucene 9.x while the project baseline is Java 17. Lucene 10.x is a future option after moving the project baseline to Java 21.
