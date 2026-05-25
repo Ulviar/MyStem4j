@@ -18,6 +18,17 @@ tasks.withType<Test>().configureEach {
     systemProperty("mystem4j.executable", realMystemExecutable.get())
 }
 
+tasks.register<Test>("memorySmokeTest") {
+    group = "verification"
+    description = "Runs runtime process/resource release smoke tests."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    shouldRunAfter(tasks.named("test"))
+    filter {
+        includeTestsMatching("io.github.ulviar.mystem4j.MystemRuntimeResourceReleaseTest.*")
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {

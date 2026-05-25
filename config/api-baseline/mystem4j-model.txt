@@ -1,0 +1,124 @@
+# mystem4j-model
+
+## io.github.ulviar.mystem4j.model.MystemAnalysis
+Compiled from "MystemAnalysis.java"
+public final class io.github.ulviar.mystem4j.model.MystemAnalysis extends java.lang.Record {
+  public io.github.ulviar.mystem4j.model.MystemAnalysis(java.lang.String, io.github.ulviar.mystem4j.model.MystemGrammar, java.util.OptionalDouble);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String lemma();
+  public io.github.ulviar.mystem4j.model.MystemGrammar grammar();
+  public java.util.OptionalDouble weight();
+}
+
+## io.github.ulviar.mystem4j.model.MystemDocument
+Compiled from "MystemDocument.java"
+public final class io.github.ulviar.mystem4j.model.MystemDocument extends java.lang.Record {
+  public io.github.ulviar.mystem4j.model.MystemDocument(java.lang.String, java.util.List<io.github.ulviar.mystem4j.model.MystemToken>, java.util.List<io.github.ulviar.mystem4j.model.MystemTextIssue>);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String originalText();
+  public java.util.List<io.github.ulviar.mystem4j.model.MystemToken> tokens();
+  public java.util.List<io.github.ulviar.mystem4j.model.MystemTextIssue> issues();
+}
+
+## io.github.ulviar.mystem4j.model.MystemGrammar
+Compiled from "MystemGrammar.java"
+public final class io.github.ulviar.mystem4j.model.MystemGrammar extends java.lang.Record {
+  public io.github.ulviar.mystem4j.model.MystemGrammar(java.lang.String, java.util.Optional<java.lang.String>, java.util.Set<java.lang.String>, java.util.List<io.github.ulviar.mystem4j.model.MystemGrammarVariant>);
+  public java.util.Set<java.lang.String> allGrammemes();
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String raw();
+  public java.util.Optional<java.lang.String> partOfSpeech();
+  public java.util.Set<java.lang.String> commonGrammemes();
+  public java.util.List<io.github.ulviar.mystem4j.model.MystemGrammarVariant> variants();
+}
+
+## io.github.ulviar.mystem4j.model.MystemGrammarParser
+Compiled from "MystemGrammarParser.java"
+public final class io.github.ulviar.mystem4j.model.MystemGrammarParser {
+  public static io.github.ulviar.mystem4j.model.MystemGrammar parse(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.model.MystemGrammarVariant
+Compiled from "MystemGrammarVariant.java"
+public final class io.github.ulviar.mystem4j.model.MystemGrammarVariant extends java.lang.Record {
+  public io.github.ulviar.mystem4j.model.MystemGrammarVariant(java.util.Set<java.lang.String>);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.util.Set<java.lang.String> grammemes();
+}
+
+## io.github.ulviar.mystem4j.model.MystemJsonParseException
+Compiled from "MystemJsonParseException.java"
+public class io.github.ulviar.mystem4j.model.MystemJsonParseException extends java.lang.RuntimeException {
+  public io.github.ulviar.mystem4j.model.MystemJsonParseException(java.lang.String);
+  public io.github.ulviar.mystem4j.model.MystemJsonParseException(java.lang.String, java.lang.Throwable);
+}
+
+## io.github.ulviar.mystem4j.model.MystemJsonParser
+Compiled from "MystemJsonParser.java"
+public final class io.github.ulviar.mystem4j.model.MystemJsonParser {
+  public io.github.ulviar.mystem4j.model.MystemJsonParser();
+  public io.github.ulviar.mystem4j.model.MystemDocument parse(java.lang.String, java.lang.String);
+  public io.github.ulviar.mystem4j.model.MystemDocument parse(io.github.ulviar.mystem4j.model.MystemPreparedText, java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.model.MystemPreparedText
+Compiled from "MystemPreparedText.java"
+public final class io.github.ulviar.mystem4j.model.MystemPreparedText {
+  public java.lang.String originalText();
+  public java.lang.String text();
+  public java.util.List<io.github.ulviar.mystem4j.model.MystemTextIssue> issues();
+  public int originalOffsetFor(int);
+}
+
+## io.github.ulviar.mystem4j.model.MystemTextIssue
+Compiled from "MystemTextIssue.java"
+public final class io.github.ulviar.mystem4j.model.MystemTextIssue extends java.lang.Record {
+  public io.github.ulviar.mystem4j.model.MystemTextIssue(io.github.ulviar.mystem4j.model.MystemTextIssueType, java.lang.String, int, int);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public io.github.ulviar.mystem4j.model.MystemTextIssueType type();
+  public java.lang.String message();
+  public int offset();
+  public int length();
+}
+
+## io.github.ulviar.mystem4j.model.MystemTextIssueType
+Compiled from "MystemTextIssueType.java"
+public final class io.github.ulviar.mystem4j.model.MystemTextIssueType extends java.lang.Enum<io.github.ulviar.mystem4j.model.MystemTextIssueType> {
+  public static final io.github.ulviar.mystem4j.model.MystemTextIssueType UNMATCHED_TOKEN;
+  public static final io.github.ulviar.mystem4j.model.MystemTextIssueType UNPAIRED_SURROGATE;
+  public static final io.github.ulviar.mystem4j.model.MystemTextIssueType CONTROL_CHARACTER;
+  public static final io.github.ulviar.mystem4j.model.MystemTextIssueType NONCHARACTER;
+  public static io.github.ulviar.mystem4j.model.MystemTextIssueType[] values();
+  public static io.github.ulviar.mystem4j.model.MystemTextIssueType valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.model.MystemTextPreprocessor
+Compiled from "MystemTextPreprocessor.java"
+public final class io.github.ulviar.mystem4j.model.MystemTextPreprocessor {
+  public static io.github.ulviar.mystem4j.model.MystemPreparedText prepare(java.lang.String);
+  public static io.github.ulviar.mystem4j.model.MystemPreparedText prepareJsonLine(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.model.MystemToken
+Compiled from "MystemToken.java"
+public final class io.github.ulviar.mystem4j.model.MystemToken extends java.lang.Record {
+  public io.github.ulviar.mystem4j.model.MystemToken(java.lang.String, int, int, java.util.List<io.github.ulviar.mystem4j.model.MystemAnalysis>);
+  public boolean hasKnownOffsets();
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String text();
+  public int startOffset();
+  public int endOffset();
+  public java.util.List<io.github.ulviar.mystem4j.model.MystemAnalysis> analyses();
+}

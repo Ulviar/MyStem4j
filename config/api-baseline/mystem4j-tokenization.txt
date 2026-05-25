@@ -1,0 +1,71 @@
+# mystem4j-tokenization
+
+## io.github.ulviar.mystem4j.tokenization.MystemSearchToken
+Compiled from "MystemSearchToken.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchToken extends java.lang.Record {
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchToken(java.lang.String, java.util.List<io.github.ulviar.mystem4j.tokenization.MystemTokenForm>, int, int, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String text();
+  public java.util.List<io.github.ulviar.mystem4j.tokenization.MystemTokenForm> forms();
+  public int startOffset();
+  public int endOffset();
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType type();
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType
+Compiled from "MystemSearchTokenType.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType extends java.lang.Enum<io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType> {
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType WORD;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType NUMBER;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType URL;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType EMAIL;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType CURRENCY;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType SEPARATOR;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType OTHER;
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType[] values();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer
+Compiled from "MystemSearchTokenizer.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer {
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer();
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer(io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions);
+  public java.util.List<io.github.ulviar.mystem4j.tokenization.MystemSearchToken> tokenize(io.github.ulviar.mystem4j.model.MystemDocument);
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions
+Compiled from "MystemSearchTokenizerOptions.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions extends java.lang.Record {
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean);
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions conservative();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions search();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions entityAware();
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public boolean classifyNumbers();
+  public boolean mergeUrls();
+  public boolean mergeEmails();
+  public boolean classifyCurrencies();
+  public boolean expandCurrencyForms();
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemTokenForm
+Compiled from "MystemTokenForm.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemTokenForm extends java.lang.Record {
+  public io.github.ulviar.mystem4j.tokenization.MystemTokenForm(java.lang.String, boolean);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String text();
+  public boolean keyword();
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemTokenizationException
+Compiled from "MystemTokenizationException.java"
+public class io.github.ulviar.mystem4j.tokenization.MystemTokenizationException extends java.lang.RuntimeException {
+  public io.github.ulviar.mystem4j.tokenization.MystemTokenizationException(java.lang.String);
+}

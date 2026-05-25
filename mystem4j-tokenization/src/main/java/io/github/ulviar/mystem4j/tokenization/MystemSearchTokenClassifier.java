@@ -31,13 +31,14 @@ final class MystemSearchTokenClassifier {
         boolean allNumberParts = true;
         boolean containsDigit = false;
         boolean containsSeparator = false;
-        int[] codePoints = text.codePoints().toArray();
-        for (int codePoint : codePoints) {
+        for (int index = 0; index < text.length(); ) {
+            int codePoint = text.codePointAt(index);
             allWordParts = allWordParts && isWordPart(codePoint);
             containsLetterOrDigit = containsLetterOrDigit || Character.isLetterOrDigit(codePoint);
             allNumberParts = allNumberParts && isNumberPart(codePoint);
             containsDigit = containsDigit || Character.isDigit(codePoint);
             containsSeparator = containsSeparator || isSeparator(codePoint);
+            index += Character.charCount(codePoint);
         }
         if (containsSeparator) {
             result.add(MystemTokenFeature.SEPARATOR);

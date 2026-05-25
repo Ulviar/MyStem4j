@@ -1,0 +1,86 @@
+# mystem4j-gradle-plugin
+
+## io.github.ulviar.mystem4j.gradle.Mystem4jExtension
+Compiled from "Mystem4jExtension.java"
+public class io.github.ulviar.mystem4j.gradle.Mystem4jExtension {
+  public io.github.ulviar.mystem4j.gradle.Mystem4jExtension(org.gradle.api.model.ObjectFactory);
+  public org.gradle.api.provider.Property<java.lang.String> getVersion();
+  public org.gradle.api.provider.Property<java.lang.Boolean> getAcceptYandexMystemLicense();
+  public org.gradle.api.provider.Property<java.lang.Boolean> getDownload();
+  public org.gradle.api.provider.Property<java.lang.Boolean> getConfigureTests();
+  public org.gradle.api.provider.Property<java.lang.Boolean> getPrepareDistribution();
+  public org.gradle.api.provider.Property<java.lang.String> getBaseUrl();
+  public org.gradle.api.provider.Property<java.lang.String> getArchiveUrl();
+  public org.gradle.api.provider.Property<java.lang.String> getSha256();
+  public org.gradle.api.provider.Property<java.lang.Long> getMaxArchiveBytes();
+  public org.gradle.api.provider.Property<java.lang.Integer> getMaxProbeOutputBytes();
+  public org.gradle.api.provider.Property<java.lang.String> getTargetOs();
+  public org.gradle.api.file.DirectoryProperty getCacheDirectory();
+  public org.gradle.api.file.DirectoryProperty getDistributionDirectory();
+}
+
+## io.github.ulviar.mystem4j.gradle.Mystem4jPlugin
+Compiled from "Mystem4jPlugin.java"
+public class io.github.ulviar.mystem4j.gradle.Mystem4jPlugin implements org.gradle.api.Plugin<org.gradle.api.Project> {
+  public io.github.ulviar.mystem4j.gradle.Mystem4jPlugin();
+  public void apply(org.gradle.api.Project);
+  public void apply(java.lang.Object);
+}
+
+## io.github.ulviar.mystem4j.gradle.MystemDownloadTask
+Compiled from "MystemDownloadTask.java"
+public abstract class io.github.ulviar.mystem4j.gradle.MystemDownloadTask extends org.gradle.api.DefaultTask {
+  public io.github.ulviar.mystem4j.gradle.MystemDownloadTask();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getVersion();
+  public abstract org.gradle.api.provider.Property<java.lang.Boolean> getDownload();
+  public abstract org.gradle.api.provider.Property<java.lang.Boolean> getAcceptYandexMystemLicense();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getArchiveUrl();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getExpectedSha256();
+  public abstract org.gradle.api.provider.Property<java.lang.Long> getMaxArchiveBytes();
+  public abstract org.gradle.api.file.DirectoryProperty getCacheDirectory();
+  public abstract org.gradle.api.file.RegularFileProperty getArchiveFile();
+  public abstract org.gradle.api.file.RegularFileProperty getMetadataFile();
+  public void download();
+}
+
+## io.github.ulviar.mystem4j.gradle.MystemExtractTask
+Compiled from "MystemExtractTask.java"
+public abstract class io.github.ulviar.mystem4j.gradle.MystemExtractTask extends org.gradle.api.DefaultTask {
+  public io.github.ulviar.mystem4j.gradle.MystemExtractTask(org.gradle.api.file.ArchiveOperations, org.gradle.api.file.FileSystemOperations);
+  public abstract org.gradle.api.file.RegularFileProperty getArchiveFile();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getArchiveType();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getExecutableName();
+  public abstract org.gradle.api.file.RegularFileProperty getExecutableFile();
+  public void extract();
+}
+
+## io.github.ulviar.mystem4j.gradle.MystemPrepareDistributionTask
+Compiled from "MystemPrepareDistributionTask.java"
+public abstract class io.github.ulviar.mystem4j.gradle.MystemPrepareDistributionTask extends org.gradle.api.DefaultTask {
+  public io.github.ulviar.mystem4j.gradle.MystemPrepareDistributionTask();
+  public abstract org.gradle.api.provider.Property<java.lang.Boolean> getPrepareDistribution();
+  public abstract org.gradle.api.file.RegularFileProperty getExecutableFile();
+  public abstract org.gradle.api.file.DirectoryProperty getDistributionDirectory();
+  public void prepareDistribution();
+}
+
+## io.github.ulviar.mystem4j.gradle.MystemPrepareRuntimeTask
+Compiled from "MystemPrepareRuntimeTask.java"
+public abstract class io.github.ulviar.mystem4j.gradle.MystemPrepareRuntimeTask extends org.gradle.api.DefaultTask {
+  public io.github.ulviar.mystem4j.gradle.MystemPrepareRuntimeTask();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getVersion();
+  public abstract org.gradle.api.file.RegularFileProperty getExecutableFile();
+  public abstract org.gradle.api.file.RegularFileProperty getPropertiesFile();
+  public void writeRuntimeProperties();
+}
+
+## io.github.ulviar.mystem4j.gradle.MystemProbeTask
+Compiled from "MystemProbeTask.java"
+public abstract class io.github.ulviar.mystem4j.gradle.MystemProbeTask extends org.gradle.api.DefaultTask {
+  public io.github.ulviar.mystem4j.gradle.MystemProbeTask();
+  public abstract org.gradle.api.file.RegularFileProperty getExecutableFile();
+  public abstract org.gradle.api.provider.Property<java.lang.Integer> getTimeoutSeconds();
+  public abstract org.gradle.api.provider.Property<java.lang.String> getSmokeInput();
+  public abstract org.gradle.api.provider.Property<java.lang.Integer> getMaxOutputBytes();
+  public void probe();
+}

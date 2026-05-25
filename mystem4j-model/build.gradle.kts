@@ -55,6 +55,18 @@ tasks.register<Test>("realMystemUnicodeStress") {
     }
 }
 
+tasks.register<Test>("memorySmokeTest") {
+    group = "verification"
+    description = "Runs model memory-retention smoke tests."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    maxHeapSize = "96m"
+    shouldRunAfter(tasks.named("test"))
+    filter {
+        includeTestsMatching("io.github.ulviar.mystem4j.model.MystemModelMemorySmokeTest.*")
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {

@@ -4,7 +4,7 @@ Add the Kotlin helper artifact when Kotlin code should configure runtime clients
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:<version>")
+    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0")
 }
 ```
 

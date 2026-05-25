@@ -4,9 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Comparator;
+import java.util.HexFormat;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.gradle.api.Project;
@@ -121,6 +129,47 @@ class Mystem4jPluginTest {
                 .build();
     }
 
+    @Test
+    void checksummedDownloadCanReuseSharedCacheWhenOffline() throws IOException {
+        Path archive = fakeWindowsArchive();
+        String checksum = sha256(archive);
+        Path gradleHome = temporaryDirectory.resolve("gradle-home");
+        Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
+        Files.writeString(
+                temporaryDirectory.resolve("build.gradle.kts"),
+                """
+                plugins {
+                    id("io.github.ulviar.mystem4j")
+                }
+
+                mystem4j {
+                    targetOs.set("windows")
+                    archiveUrl.set("%s")
+                    sha256.set("%s")
+                    download.set(true)
+                    acceptYandexMystemLicense.set(true)
+                }
+                """
+                        .formatted(archive.toUri(), checksum),
+                StandardCharsets.UTF_8);
+
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("mystemDownload", "--gradle-user-home", gradleHome.toString(), "--stacktrace")
+                .build();
+
+        Files.delete(archive);
+        deleteRecursively(temporaryDirectory.resolve("build"));
+
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments(
+                        "mystemDownload", "--gradle-user-home", gradleHome.toString(), "--offline", "--stacktrace")
+                .build();
+    }
+
     private Path fakeWindowsArchive() throws IOException {
         Path executable = temporaryDirectory.resolve("archive-content/mystem.exe");
         Path archive = temporaryDirectory.resolve("mystem.zip");
@@ -141,5 +190,30 @@ class Mystem4jPluginTest {
             zip.closeEntry();
         }
         return archive;
+    }
+
+    private static String sha256(Path file) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = new DigestInputStream(Files.newInputStream(file), digest)) {
+                input.transferTo(OutputStream.nullOutputStream());
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (IOException error) {
+            throw new AssertionError("Failed to read " + file + " while calculating sha256.", error);
+        } catch (NoSuchAlgorithmException error) {
+            throw new AssertionError("Current JDK does not provide SHA-256.", error);
+        }
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.walk(path)) {
+            for (Path current : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(current);
+            }
+        }
     }
 }

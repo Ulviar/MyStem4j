@@ -1,0 +1,54 @@
+# mystem4j-lucene
+
+## io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions
+Compiled from "MystemLuceneAnalysisOptions.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions extends java.lang.Record {
+  public static final int DEFAULT_MAX_INPUT_CHARS;
+  public static final int DEFAULT_MAX_CHUNK_CHARS;
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy);
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions defaults();
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions withMaxInputChars(int);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public int maxInputChars();
+  public int maxChunkChars();
+  public io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy positionPolicy();
+}
+
+## io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer
+Compiled from "MystemLuceneAnalyzer.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer extends org.apache.lucene.analysis.Analyzer {
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, int);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, boolean);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, boolean, int);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, boolean, io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions);
+  public void close();
+}
+
+## io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy
+Compiled from "MystemLucenePositionPolicy.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy extends java.lang.Enum<io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy> {
+  public static final io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy COMPACT;
+  public static final io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy PRESERVE_SKIPPED_TOKENS;
+  public static io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy[] values();
+  public static io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.lucene.MystemLuceneTokenizer
+Compiled from "MystemLuceneTokenizer.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneTokenizer extends org.apache.lucene.analysis.Tokenizer {
+  public static final int DEFAULT_MAX_INPUT_CHARS;
+  public static final int DEFAULT_MAX_CHUNK_CHARS;
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneTokenizer(io.github.ulviar.mystem4j.MystemClient);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneTokenizer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneTokenizer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, int);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneTokenizer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions);
+  public void reset() throws java.io.IOException;
+  public void close() throws java.io.IOException;
+  public boolean incrementToken() throws java.io.IOException;
+  public void end() throws java.io.IOException;
+}

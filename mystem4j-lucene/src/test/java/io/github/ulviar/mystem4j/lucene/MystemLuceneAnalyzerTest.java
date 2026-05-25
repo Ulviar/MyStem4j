@@ -4,6 +4,7 @@ import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.lucene.analysis.Analyzer;
@@ -245,6 +246,34 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         assertTrue(client.requests().isEmpty());
     }
 
+    public void testTokenizerReleasesBufferedFieldDataOnClose() throws Exception {
+        String input = "A".repeat(20_000);
+        FakeMystemClient client = new FakeMystemClient(request -> """
+                [{"analysis":[],"text":"%s"}]
+                """.formatted(request));
+        MystemLuceneAnalysisOptions analysisOptions =
+                new MystemLuceneAnalysisOptions(input.length(), input.length(), MystemLucenePositionPolicy.COMPACT);
+        MystemLuceneTokenizer tokenizer =
+                new MystemLuceneTokenizer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions);
+
+        tokenizer.setReader(new StringReader(input));
+        tokenizer.reset();
+        while (tokenizer.incrementToken()) {
+            // Consume the full stream.
+        }
+        tokenizer.end();
+
+        StringBuilder pendingInput = privateField(tokenizer, "pendingInput", StringBuilder.class);
+        assertTrue(pendingInput.capacity() > 1024);
+        assertFalse(privateField(tokenizer, "emissions", List.class).isEmpty());
+
+        tokenizer.close();
+
+        assertEquals(0, pendingInput.length());
+        assertTrue("closed tokenizer should release the large input buffer", pendingInput.capacity() <= 16);
+        assertTrue(privateField(tokenizer, "emissions", List.class).isEmpty());
+    }
+
     public void testRejectsInvalidLuceneAnalysisOptions() {
         expectThrows(
                 IllegalArgumentException.class,
@@ -303,6 +332,12 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
             result.add(value);
         }
         return List.copyOf(result);
+    }
+
+    private static <T> T privateField(Object target, String name, Class<T> type) throws ReflectiveOperationException {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return type.cast(field.get(target));
     }
 
     private static final class DropFirstCharacterFilter extends CharFilter {

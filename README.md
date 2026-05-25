@@ -32,13 +32,13 @@ The runtime depends on `com.github.ulviar:icli:0.1.0`. Until iCLI is published t
 ```kotlin
 plugins {
     java
-    id("io.github.ulviar.mystem4j") version "<version>"
+    id("io.github.ulviar.mystem4j") version "0.1.0"
 }
 
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:<version>")
-    implementation("io.github.ulviar.mystem4j:mystem4j-lucene:<version>") // optional Lucene integration
-    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:<version>") // optional Kotlin DSL
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-lucene:0.1.0") // optional Lucene integration
+    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0") // optional Kotlin DSL
 }
 
 mystem4j {
@@ -75,6 +75,7 @@ val options = mystemOptions {
 The documentation is organized with Diataxis:
 
 - [Documentation index](docs/README.md)
+- [Changelog](CHANGELOG.md)
 - [Getting started tutorial](docs/tutorials/getting-started.md)
 - [Prepare MyStem with Gradle](docs/how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](docs/how-to/use-runtime-clients.md)
@@ -88,6 +89,7 @@ The documentation is organized with Diataxis:
 - [Lucene API reference](docs/reference/lucene-api.md)
 - [Kotlin API reference](docs/reference/kotlin-api.md)
 - [Gradle plugin reference](docs/reference/gradle-plugin.md)
+- [Publication reference](docs/reference/publication.md)
 - [Architecture explanation](docs/explanation/architecture.md)
 
 ## License

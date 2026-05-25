@@ -6,8 +6,8 @@ Use `mystem4j-tokenization` when parsed MyStem model objects should become searc
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-model:<version>")
-    implementation("io.github.ulviar.mystem4j:mystem4j-tokenization:<version>")
+    implementation("io.github.ulviar.mystem4j:mystem4j-model:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-tokenization:0.1.0")
 }
 ```
 

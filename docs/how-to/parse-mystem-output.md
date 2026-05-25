@@ -6,8 +6,8 @@ Use `mystem4j-model` when raw JSON from `mystem4j-runtime` should become structu
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:<version>")
-    implementation("io.github.ulviar.mystem4j:mystem4j-model:<version>")
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-model:0.1.0")
 }
 ```
 

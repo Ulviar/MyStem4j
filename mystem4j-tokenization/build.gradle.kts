@@ -18,6 +18,18 @@ tasks.withType<Test>().configureEach {
     systemProperty("mystem4j.executable", realMystemExecutable.get())
 }
 
+tasks.register<Test>("memorySmokeTest") {
+    group = "verification"
+    description = "Runs tokenization memory-retention smoke tests."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    maxHeapSize = "96m"
+    shouldRunAfter(tasks.named("test"))
+    filter {
+        includeTestsMatching("io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerMemorySmokeTest.*")
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {

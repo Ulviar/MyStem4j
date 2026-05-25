@@ -110,7 +110,23 @@ public final class MystemLuceneTokenizer extends Tokenizer {
     @Override
     public void reset() throws IOException {
         super.reset();
+        clearState(false);
+    }
+
+    @Override
+    public void close() throws IOException {
+        try {
+            super.close();
+        } finally {
+            clearState(true);
+        }
+    }
+
+    private void clearState(boolean releaseBuffers) {
         pendingInput.setLength(0);
+        if (releaseBuffers) {
+            pendingInput.trimToSize();
+        }
         emissions = List.of();
         emissionIndex = 0;
         pendingStartOffset = 0;

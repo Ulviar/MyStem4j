@@ -386,7 +386,7 @@ MyStem 3.0 и более старые версии не поддерживают
 
 ```kotlin
 plugins {
-    id("io.github.ulviar.mystem4j") version "<version>"
+    id("io.github.ulviar.mystem4j") version "0.1.0"
 }
 
 mystem4j {

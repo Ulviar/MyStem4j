@@ -134,6 +134,34 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
         }
     }
 
+    public void testPositionPolicyAffectsPhraseQueriesAcrossSkippedTokens() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> {
+            if (!"Мама Папа".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [
+                      {"analysis":[{"lex":"мама","gr":"S"}],"text":"Мама"},
+                      {"analysis":[{"lex":"папа","gr":"S"}],"text":"Папа"}
+                    ]
+                    """;
+        });
+
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client);
+                Directory directory = indexOne(analyzer, "Мама Папа")) {
+            assertPhraseHitCount(directory, "мама", "папа", 1);
+        }
+
+        MystemLuceneAnalysisOptions preserveSkippedTokens =
+                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(
+                        client, MystemSearchTokenizerOptions.conservative(), preserveSkippedTokens);
+                Directory directory = indexOne(analyzer, "Мама Папа")) {
+            assertPhraseHitCount(directory, "мама", "папа", 0);
+            assertPhraseHitCount(directory, "мама", 0, "папа", 2, 1);
+        }
+    }
+
     private static Directory indexOne(Analyzer analyzer, String text) throws IOException {
         Directory directory = newDirectory();
         try (IndexWriter writer = new IndexWriter(directory, newIndexWriterConfig(analyzer))) {
@@ -153,11 +181,17 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
 
     private static void assertPhraseHitCount(Directory directory, String firstTerm, String secondTerm, int expected)
             throws IOException {
+        assertPhraseHitCount(directory, firstTerm, 0, secondTerm, 1, expected);
+    }
+
+    private static void assertPhraseHitCount(
+            Directory directory, String firstTerm, int firstPosition, String secondTerm, int secondPosition, int expected)
+            throws IOException {
         try (DirectoryReader reader = DirectoryReader.open(directory)) {
             IndexSearcher searcher = newSearcher(reader);
             PhraseQuery query = new PhraseQuery.Builder()
-                    .add(new Term(FIELD, firstTerm), 0)
-                    .add(new Term(FIELD, secondTerm), 1)
+                    .add(new Term(FIELD, firstTerm), firstPosition)
+                    .add(new Term(FIELD, secondTerm), secondPosition)
                     .build();
             assertEquals(expected, searcher.count(query));
         }

@@ -37,6 +37,9 @@ public final class MystemPreparedText {
         if (preparedOffset < 0 || preparedOffset > text.length()) {
             throw new IllegalArgumentException("preparedOffset is out of range: " + preparedOffset);
         }
+        if (mappings.isEmpty()) {
+            return preparedOffset;
+        }
         if (preparedOffset == text.length()) {
             return originalText.length();
         }
@@ -58,14 +61,14 @@ public final class MystemPreparedText {
     }
 
     private static void validateMappings(String originalText, String text, List<MystemOffsetMapping> mappings) {
-        if (text.isEmpty() || originalText.isEmpty()) {
-            if (!mappings.isEmpty()) {
-                throw new IllegalArgumentException("empty prepared or original text must not have offset mappings");
-            }
+        if (mappings.isEmpty()) {
             if (text.length() != originalText.length()) {
-                throw new IllegalArgumentException("empty prepared text and original text must match");
+                throw new IllegalArgumentException("identity offset mapping requires equal text lengths");
             }
             return;
+        }
+        if (text.isEmpty() || originalText.isEmpty()) {
+            throw new IllegalArgumentException("empty prepared or original text must not have explicit mappings");
         }
         int expectedPreparedStart = 0;
         int expectedOriginalStart = 0;

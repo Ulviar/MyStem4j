@@ -1,0 +1,62 @@
+# mystem4j-kotlin
+
+## io.github.ulviar.mystem4j.kotlin.MystemClientDsl
+Compiled from "MystemDsl.kt"
+public final class io.github.ulviar.mystem4j.kotlin.MystemClientDsl {
+  public io.github.ulviar.mystem4j.kotlin.MystemClientDsl(io.github.ulviar.mystem4j.MystemClientBuilder);
+  public final void executable(java.nio.file.Path);
+  public final void options(io.github.ulviar.mystem4j.MystemOptions);
+  public final void searchPath(boolean);
+  public final void requestTimeout(java.time.Duration);
+  public final void idleTimeout(java.time.Duration);
+  public final void session();
+  public final void pooled(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.MystemPoolOptions$Builder, kotlin.Unit>);
+  public final void pooled();
+  public final void pooled(io.github.ulviar.mystem4j.MystemPoolOptions);
+  public final void maxRequestChars(int);
+  public final void maxRequestBytes(int);
+  public final void maxResponseBytes(int);
+  public final void maxResponseChars(int);
+  public final void includeInputInDiagnostics(boolean);
+}
+
+## io.github.ulviar.mystem4j.kotlin.MystemDslKt
+Compiled from "MystemDsl.kt"
+public final class io.github.ulviar.mystem4j.kotlin.MystemDslKt {
+  public static final io.github.ulviar.mystem4j.MystemClient mystemClient(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.kotlin.MystemClientDsl, kotlin.Unit>);
+  public static final io.github.ulviar.mystem4j.MystemOptions mystemOptions(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, kotlin.Unit>);
+  public static final io.github.ulviar.mystem4j.MystemRawResult analyzeWith(java.lang.String, io.github.ulviar.mystem4j.MystemClient);
+  public static final io.github.ulviar.mystem4j.MystemFileContentResult analyzeWith(java.nio.file.Path, io.github.ulviar.mystem4j.MystemClient);
+}
+
+## io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl
+Compiled from "MystemDsl.kt"
+public final class io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl {
+  public io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl(io.github.ulviar.mystem4j.MystemOptions$Builder);
+  public final void newLineEachWord(boolean);
+  public static void newLineEachWord$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void copyInput(boolean);
+  public static void copyInput$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void dictionaryWordsOnly(boolean);
+  public static void dictionaryWordsOnly$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void lemmaOnly(boolean);
+  public static void lemmaOnly$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void grammarInfo(boolean);
+  public static void grammarInfo$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void mergeWordForms(boolean);
+  public static void mergeWordForms$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void sentenceMarkers(boolean);
+  public static void sentenceMarkers$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void encoding(io.github.ulviar.mystem4j.MystemEncoding);
+  public final void disambiguate(boolean);
+  public static void disambiguate$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void englishGrammemes(boolean);
+  public static void englishGrammemes$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void filterGrammar(java.lang.String);
+  public final void fixlist(java.nio.file.Path);
+  public final void format(io.github.ulviar.mystem4j.MystemOutputFormat);
+  public final void generateAll(boolean);
+  public static void generateAll$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+  public final void weight(boolean);
+  public static void weight$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+}

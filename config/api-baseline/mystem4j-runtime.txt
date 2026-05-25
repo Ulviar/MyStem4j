@@ -1,0 +1,290 @@
+# mystem4j-runtime
+
+## io.github.ulviar.mystem4j.Mystem
+Compiled from "Mystem.java"
+public final class io.github.ulviar.mystem4j.Mystem {
+  public static io.github.ulviar.mystem4j.MystemClientBuilder builder();
+}
+
+## io.github.ulviar.mystem4j.MystemClient
+Compiled from "MystemClient.java"
+public interface io.github.ulviar.mystem4j.MystemClient extends java.lang.AutoCloseable {
+  public abstract io.github.ulviar.mystem4j.MystemRawResult analyze(java.lang.String);
+  public abstract io.github.ulviar.mystem4j.MystemFileContentResult analyzeFile(java.nio.file.Path);
+  public abstract io.github.ulviar.mystem4j.MystemFileResult analyzeFile(java.nio.file.Path, java.nio.file.Path);
+  public default java.util.List<io.github.ulviar.mystem4j.MystemRawResult> analyzeAll(java.util.Collection<java.lang.String>);
+  public abstract void close();
+}
+
+## io.github.ulviar.mystem4j.MystemClientBuilder
+Compiled from "MystemClientBuilder.java"
+public final class io.github.ulviar.mystem4j.MystemClientBuilder {
+  public io.github.ulviar.mystem4j.MystemClientBuilder executable(java.nio.file.Path);
+  public io.github.ulviar.mystem4j.MystemClientBuilder options(io.github.ulviar.mystem4j.MystemOptions);
+  public io.github.ulviar.mystem4j.MystemClientBuilder searchPath(boolean);
+  public io.github.ulviar.mystem4j.MystemClientBuilder requestTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.MystemClientBuilder idleTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.MystemClientBuilder session();
+  public io.github.ulviar.mystem4j.MystemClientBuilder pooled(java.util.function.Consumer<io.github.ulviar.mystem4j.MystemPoolOptions$Builder>);
+  public io.github.ulviar.mystem4j.MystemClientBuilder pooled(io.github.ulviar.mystem4j.MystemPoolOptions);
+  public io.github.ulviar.mystem4j.MystemClientBuilder pooled();
+  public io.github.ulviar.mystem4j.MystemClientBuilder maxRequestChars(int);
+  public io.github.ulviar.mystem4j.MystemClientBuilder maxRequestBytes(int);
+  public io.github.ulviar.mystem4j.MystemClientBuilder maxResponseChars(int);
+  public io.github.ulviar.mystem4j.MystemClientBuilder maxResponseBytes(int);
+  public io.github.ulviar.mystem4j.MystemClientBuilder includeInputInDiagnostics(boolean);
+  public io.github.ulviar.mystem4j.MystemClient build();
+}
+
+## io.github.ulviar.mystem4j.MystemClosedException
+Compiled from "MystemClosedException.java"
+public class io.github.ulviar.mystem4j.MystemClosedException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemClosedException(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemEncoding
+Compiled from "MystemEncoding.java"
+public final class io.github.ulviar.mystem4j.MystemEncoding extends java.lang.Enum<io.github.ulviar.mystem4j.MystemEncoding> {
+  public static final io.github.ulviar.mystem4j.MystemEncoding CP866;
+  public static final io.github.ulviar.mystem4j.MystemEncoding CP1251;
+  public static final io.github.ulviar.mystem4j.MystemEncoding KOI8_R;
+  public static final io.github.ulviar.mystem4j.MystemEncoding UTF_8;
+  public static io.github.ulviar.mystem4j.MystemEncoding[] values();
+  public static io.github.ulviar.mystem4j.MystemEncoding valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemException
+Compiled from "MystemException.java"
+public class io.github.ulviar.mystem4j.MystemException extends java.lang.RuntimeException {
+  public io.github.ulviar.mystem4j.MystemException(java.lang.String);
+  public io.github.ulviar.mystem4j.MystemException(java.lang.String, java.lang.Throwable);
+}
+
+## io.github.ulviar.mystem4j.MystemExecutableNotFoundException
+Compiled from "MystemExecutableNotFoundException.java"
+public class io.github.ulviar.mystem4j.MystemExecutableNotFoundException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemExecutableNotFoundException(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemExecutionMode
+Compiled from "MystemExecutionMode.java"
+public final class io.github.ulviar.mystem4j.MystemExecutionMode extends java.lang.Enum<io.github.ulviar.mystem4j.MystemExecutionMode> {
+  public static final io.github.ulviar.mystem4j.MystemExecutionMode ONE_SHOT_TEXT;
+  public static final io.github.ulviar.mystem4j.MystemExecutionMode ONE_SHOT_FILE;
+  public static final io.github.ulviar.mystem4j.MystemExecutionMode SESSION;
+  public static final io.github.ulviar.mystem4j.MystemExecutionMode POOL;
+  public static io.github.ulviar.mystem4j.MystemExecutionMode[] values();
+  public static io.github.ulviar.mystem4j.MystemExecutionMode valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemFileContentResult
+Compiled from "MystemFileContentResult.java"
+public final class io.github.ulviar.mystem4j.MystemFileContentResult extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemFileContentResult(java.nio.file.Path, java.lang.String, io.github.ulviar.mystem4j.MystemOutputFormat, io.github.ulviar.mystem4j.MystemRequestStats);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.nio.file.Path input();
+  public java.lang.String output();
+  public io.github.ulviar.mystem4j.MystemOutputFormat format();
+  public io.github.ulviar.mystem4j.MystemRequestStats stats();
+}
+
+## io.github.ulviar.mystem4j.MystemFileResult
+Compiled from "MystemFileResult.java"
+public final class io.github.ulviar.mystem4j.MystemFileResult extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemFileResult(java.nio.file.Path, java.nio.file.Path, io.github.ulviar.mystem4j.MystemOutputFormat, io.github.ulviar.mystem4j.MystemRequestStats);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.nio.file.Path input();
+  public java.nio.file.Path output();
+  public io.github.ulviar.mystem4j.MystemOutputFormat format();
+  public io.github.ulviar.mystem4j.MystemRequestStats stats();
+}
+
+## io.github.ulviar.mystem4j.MystemInvalidOptionsException
+Compiled from "MystemInvalidOptionsException.java"
+public class io.github.ulviar.mystem4j.MystemInvalidOptionsException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemInvalidOptionsException(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemOptions
+Compiled from "MystemOptions.java"
+public final class io.github.ulviar.mystem4j.MystemOptions extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemOptions(boolean, boolean, boolean, boolean, boolean, boolean, boolean, io.github.ulviar.mystem4j.MystemEncoding, boolean, boolean, java.util.Optional<java.lang.String>, java.util.Optional<java.nio.file.Path>, io.github.ulviar.mystem4j.MystemOutputFormat, boolean, boolean);
+  public static io.github.ulviar.mystem4j.MystemOptions$Builder builder();
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public boolean newLineEachWord();
+  public boolean copyInput();
+  public boolean dictionaryWordsOnly();
+  public boolean lemmaOnly();
+  public boolean grammarInfo();
+  public boolean mergeWordForms();
+  public boolean sentenceMarkers();
+  public io.github.ulviar.mystem4j.MystemEncoding encoding();
+  public boolean disambiguate();
+  public boolean englishGrammemes();
+  public java.util.Optional<java.lang.String> filterGrammar();
+  public java.util.Optional<java.nio.file.Path> fixlist();
+  public io.github.ulviar.mystem4j.MystemOutputFormat format();
+  public boolean generateAll();
+  public boolean weight();
+}
+
+## io.github.ulviar.mystem4j.MystemOptions$Builder
+Compiled from "MystemOptions.java"
+public final class io.github.ulviar.mystem4j.MystemOptions$Builder {
+  public io.github.ulviar.mystem4j.MystemOptions$Builder();
+  public io.github.ulviar.mystem4j.MystemOptions$Builder newLineEachWord(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder copyInput(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder dictionaryWordsOnly(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder lemmaOnly(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder grammarInfo(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder mergeWordForms(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder sentenceMarkers(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder encoding(io.github.ulviar.mystem4j.MystemEncoding);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder disambiguate(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder englishGrammemes(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder filterGrammar(java.lang.String);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder fixlist(java.nio.file.Path);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder format(io.github.ulviar.mystem4j.MystemOutputFormat);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder generateAll(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions$Builder weight(boolean);
+  public io.github.ulviar.mystem4j.MystemOptions build();
+}
+
+## io.github.ulviar.mystem4j.MystemOutputFormat
+Compiled from "MystemOutputFormat.java"
+public final class io.github.ulviar.mystem4j.MystemOutputFormat extends java.lang.Enum<io.github.ulviar.mystem4j.MystemOutputFormat> {
+  public static final io.github.ulviar.mystem4j.MystemOutputFormat TEXT;
+  public static final io.github.ulviar.mystem4j.MystemOutputFormat XML;
+  public static final io.github.ulviar.mystem4j.MystemOutputFormat JSON;
+  public static io.github.ulviar.mystem4j.MystemOutputFormat[] values();
+  public static io.github.ulviar.mystem4j.MystemOutputFormat valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemOutputLimitException
+Compiled from "MystemOutputLimitException.java"
+public class io.github.ulviar.mystem4j.MystemOutputLimitException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemOutputLimitException(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemPoolExhaustedException
+Compiled from "MystemPoolExhaustedException.java"
+public class io.github.ulviar.mystem4j.MystemPoolExhaustedException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemPoolExhaustedException(java.lang.String, java.lang.Throwable);
+}
+
+## io.github.ulviar.mystem4j.MystemPoolOptions
+Compiled from "MystemPoolOptions.java"
+public final class io.github.ulviar.mystem4j.MystemPoolOptions extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemPoolOptions(int, int, int, java.time.Duration, java.time.Duration, int, java.time.Duration, boolean);
+  public static io.github.ulviar.mystem4j.MystemPoolOptions$Builder builder();
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public int maxSize();
+  public int warmupSize();
+  public int minIdle();
+  public java.time.Duration acquireTimeout();
+  public java.time.Duration hookTimeout();
+  public int maxRequestsPerWorker();
+  public java.time.Duration maxWorkerAge();
+  public boolean backgroundReplenishment();
+}
+
+## io.github.ulviar.mystem4j.MystemPoolOptions$Builder
+Compiled from "MystemPoolOptions.java"
+public final class io.github.ulviar.mystem4j.MystemPoolOptions$Builder {
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder();
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder maxSize(int);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder warmupSize(int);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder minIdle(int);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder acquireTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder hookTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder maxRequestsPerWorker(int);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder maxWorkerAge(java.time.Duration);
+  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder backgroundReplenishment(boolean);
+  public io.github.ulviar.mystem4j.MystemPoolOptions build();
+}
+
+## io.github.ulviar.mystem4j.MystemProbe
+Compiled from "MystemProbe.java"
+public final class io.github.ulviar.mystem4j.MystemProbe {
+  public static io.github.ulviar.mystem4j.MystemProbeResult probe();
+  public static io.github.ulviar.mystem4j.MystemProbeResult probe(java.nio.file.Path);
+  public static io.github.ulviar.mystem4j.MystemProbeResult probe(java.nio.file.Path, java.time.Duration);
+}
+
+## io.github.ulviar.mystem4j.MystemProbeResult
+Compiled from "MystemProbeResult.java"
+public final class io.github.ulviar.mystem4j.MystemProbeResult extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemProbeResult(java.nio.file.Path, java.time.Duration, io.github.ulviar.mystem4j.MystemOutputFormat, java.lang.String);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.nio.file.Path executable();
+  public java.time.Duration elapsed();
+  public io.github.ulviar.mystem4j.MystemOutputFormat format();
+  public java.lang.String output();
+}
+
+## io.github.ulviar.mystem4j.MystemProcessException
+Compiled from "MystemProcessException.java"
+public class io.github.ulviar.mystem4j.MystemProcessException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemProcessException(java.lang.String, java.util.OptionalInt, java.lang.String);
+  public io.github.ulviar.mystem4j.MystemProcessException(java.lang.String, java.util.OptionalInt, java.lang.String, java.lang.Throwable);
+  public java.util.OptionalInt exitCode();
+  public java.lang.String stderr();
+}
+
+## io.github.ulviar.mystem4j.MystemProtocolException
+Compiled from "MystemProtocolException.java"
+public class io.github.ulviar.mystem4j.MystemProtocolException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemProtocolException(java.lang.String, java.lang.Throwable);
+}
+
+## io.github.ulviar.mystem4j.MystemRawResult
+Compiled from "MystemRawResult.java"
+public final class io.github.ulviar.mystem4j.MystemRawResult extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemRawResult(java.lang.String, java.lang.String, io.github.ulviar.mystem4j.MystemOutputFormat, io.github.ulviar.mystem4j.MystemRequestStats);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.lang.String input();
+  public java.lang.String output();
+  public io.github.ulviar.mystem4j.MystemOutputFormat format();
+  public io.github.ulviar.mystem4j.MystemRequestStats stats();
+}
+
+## io.github.ulviar.mystem4j.MystemRequestStats
+Compiled from "MystemRequestStats.java"
+public final class io.github.ulviar.mystem4j.MystemRequestStats extends java.lang.Record {
+  public io.github.ulviar.mystem4j.MystemRequestStats(java.time.Duration, io.github.ulviar.mystem4j.MystemExecutionMode, long, long, long, long, java.util.OptionalInt, boolean);
+  public final java.lang.String toString();
+  public final int hashCode();
+  public final boolean equals(java.lang.Object);
+  public java.time.Duration elapsed();
+  public io.github.ulviar.mystem4j.MystemExecutionMode mode();
+  public long inputChars();
+  public long inputBytes();
+  public long outputChars();
+  public long outputBytes();
+  public java.util.OptionalInt workerId();
+  public boolean workerRestarted();
+}
+
+## io.github.ulviar.mystem4j.MystemRequestTimeoutException
+Compiled from "MystemRequestTimeoutException.java"
+public class io.github.ulviar.mystem4j.MystemRequestTimeoutException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemRequestTimeoutException(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.MystemStartupException
+Compiled from "MystemStartupException.java"
+public class io.github.ulviar.mystem4j.MystemStartupException extends io.github.ulviar.mystem4j.MystemException {
+  public io.github.ulviar.mystem4j.MystemStartupException(java.lang.String, java.lang.Throwable);
+}

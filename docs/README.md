@@ -8,6 +8,7 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 
 ## How-To Guides
 
+- [Choose modules](how-to/choose-modules.md)
 - [Prepare MyStem with Gradle](how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](how-to/use-runtime-clients.md)
 - [Use Kotlin DSL](how-to/use-kotlin-dsl.md)
@@ -23,6 +24,7 @@ This documentation follows Diataxis: tutorials teach a first path, how-to guides
 - [Lucene API](reference/lucene-api.md)
 - [Kotlin API](reference/kotlin-api.md)
 - [Gradle plugin](reference/gradle-plugin.md)
+- [Publication](reference/publication.md)
 
 ## Explanation
 

@@ -21,15 +21,53 @@ Each module publication provides:
 Library JARs provide explicit JPMS descriptors. The Gradle plugin artifact keeps a stable
 `Automatic-Module-Name` manifest entry because Gradle plugins are loaded through Gradle's plugin classpath.
 
+## Quality Gates
+
+`check` includes:
+
+- `jpmsSmokeTest`;
+- `publicationMetadataCheck`;
+- `apiSurfaceCheck`.
+
+Run JMH wiring without a full benchmark run:
+
+```bash
+./gradlew :mystem4j-benchmarks:jmhCompileCheck
+```
+
+Run a short benchmark smoke test:
+
+```bash
+./gradlew :mystem4j-benchmarks:jmhSmoke
+```
+
+Run lightweight memory-retention smoke tests:
+
+```bash
+./gradlew memorySmokeTest
+```
+
+Run local release gates and publish artifacts into `build/release-dry-run-repo`:
+
+```bash
+./gradlew releaseCandidateCheck
+```
+
+Update the API baseline only after reviewing intentional public API changes:
+
+```bash
+./gradlew apiSurfaceCheck -Pmystem4j.updateApiBaseline=true
+```
+
 ## License Boundary
 
 MyStem4j artifacts use the Apache License, Version 2.0.
 
 The native MyStem binary is licensed separately by Yandex and is not bundled into MyStem4j artifacts.
 
-## Release Blockers
+## Release Checklist
 
-The default project version is still `0.1.0-SNAPSHOT`; set a release version with `-Pmystem4j.version=<version>` before publishing release artifacts.
+The default project version is `0.1.0`.
 
 Maven Central release also still needs signing and repository credentials.
 

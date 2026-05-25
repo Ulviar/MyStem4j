@@ -14,11 +14,11 @@ The runtime depends on `com.github.ulviar:icli:0.1.0`. Until iCLI is available f
 ```kotlin
 plugins {
     java
-    id("io.github.ulviar.mystem4j") version "<version>"
+    id("io.github.ulviar.mystem4j") version "0.1.0"
 }
 
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:<version>")
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
 }
 
 mystem4j {

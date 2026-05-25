@@ -3,6 +3,8 @@ package io.github.ulviar.mystem4j.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MystemTextPreprocessorTest {
@@ -35,6 +37,7 @@ class MystemTextPreprocessorTest {
         assertEquals(1, prepared.issues().size());
         assertEquals(MystemTextIssueType.CONTROL_CHARACTER, prepared.issues().get(0).type());
         assertEquals(1, prepared.issues().get(0).offset());
+        assertEquals(0, mappingCount(prepared));
     }
 
     @Test
@@ -62,5 +65,25 @@ class MystemTextPreprocessorTest {
         assertEquals(3, prepared.originalOffsetFor(2));
         assertEquals(5, prepared.originalOffsetFor(4));
         assertEquals(6, prepared.originalOffsetFor(5));
+        assertTrue(mappingCount(prepared) <= 3);
+    }
+
+    @Test
+    void doesNotMaterializeMappingsForIdentityOffsets() {
+        MystemPreparedText prepared = MystemTextPreprocessor.prepare("a".repeat(10_000));
+
+        assertEquals(0, mappingCount(prepared));
+        assertEquals(9_999, prepared.originalOffsetFor(9_999));
+        assertEquals(10_000, prepared.originalOffsetFor(10_000));
+    }
+
+    private static int mappingCount(MystemPreparedText prepared) {
+        try {
+            Field field = MystemPreparedText.class.getDeclaredField("mappings");
+            field.setAccessible(true);
+            return ((List<?>) field.get(prepared)).size();
+        } catch (ReflectiveOperationException error) {
+            throw new AssertionError(error);
+        }
     }
 }
