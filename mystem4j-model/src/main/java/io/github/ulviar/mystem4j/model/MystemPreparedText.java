@@ -20,7 +20,10 @@ public record MystemPreparedText(
             throw new IllegalArgumentException("preparedOffset is out of range: " + preparedOffset);
         }
         for (MystemOffsetMapping mapping : mappings) {
-            if (preparedOffset >= mapping.preparedStart() && preparedOffset <= mapping.preparedEnd()) {
+            if (preparedOffset == mapping.preparedEnd()) {
+                return mapping.originalEnd();
+            }
+            if (preparedOffset >= mapping.preparedStart() && preparedOffset < mapping.preparedEnd()) {
                 return Math.min(mapping.originalEnd(), mapping.originalStart() + preparedOffset - mapping.preparedStart());
             }
         }

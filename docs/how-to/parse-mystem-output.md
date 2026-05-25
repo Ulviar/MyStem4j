@@ -55,7 +55,7 @@ The parser aligns each MyStem `text` field against the original input from left 
 ```java
 MystemPreparedText prepared = MystemTextPreprocessor.prepare(input);
 MystemRawResult raw = client.analyze(prepared.text());
-MystemDocument document = parser.parse(prepared.text(), raw.output());
+MystemDocument document = parser.parse(prepared, raw.output());
 ```
 
 The preprocessor:
@@ -63,6 +63,9 @@ The preprocessor:
 - preserves valid supplementary code points;
 - replaces unpaired surrogate code units with `U+FFFD`;
 - replaces unsafe control characters with spaces;
+- replaces Unicode noncharacters with spaces;
 - records offset mappings back to the original Java string.
 
 This keeps MyStem input safer without losing the information needed to map token offsets back to the caller's text.
+
+Use the `MystemPreparedText` overload when offsets must refer to the caller's original text. Passing `prepared.text()` directly returns offsets in prepared-text coordinates.

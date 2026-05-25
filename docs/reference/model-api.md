@@ -11,9 +11,14 @@ Artifact: `mystem4j-model`
 ```java
 MystemDocument parse(MystemRawResult result)
 MystemDocument parse(String originalText, String json)
+MystemDocument parse(MystemPreparedText preparedText, String json)
 ```
 
 `parse(MystemRawResult)` requires `MystemOutputFormat.JSON`.
+
+`parse(MystemPreparedText, String)` aligns MyStem token text against prepared text and returns offsets mapped back to the original text.
+
+One-shot/file MyStem output for multiline input may contain multiple top-level JSON arrays. The parser accepts that stream shape and concatenates the parsed tokens in order.
 
 The implementation uses Jackson Core's streaming parser. It does not depend on `jackson-databind`.
 
@@ -53,7 +58,8 @@ Issue types:
 - `UNMATCHED_TOKEN`
 - `UNPAIRED_SURROGATE`
 - `CONTROL_CHARACTER`
+- `NONCHARACTER`
 
 ## Exceptions
 
-`MystemJsonParseException` is thrown when JSON cannot be parsed as a MyStem JSON array. It extends `MystemException`.
+`MystemJsonParseException` is thrown when JSON cannot be parsed as one or more MyStem JSON arrays. It extends `MystemException`.

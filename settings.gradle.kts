@@ -32,5 +32,6 @@ rootProject.name = "MyStem4j"
 
 include("mystem4j-runtime")
 include("mystem4j-model")
+include("mystem4j-tokenization")
 include("mystem4j-kotlin")
 include("mystem4j-gradle-plugin")

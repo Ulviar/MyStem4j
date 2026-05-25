@@ -55,6 +55,72 @@ class MystemJsonParserTest {
     }
 
     @Test
+    void mapsPreparedTextOffsetsBackToOriginalText() {
+        MystemPreparedText prepared = MystemTextPreprocessor.prepare("ма\u0000ма");
+
+        MystemDocument document = parser.parse(
+                prepared,
+                """
+                [
+                  {"analysis":[{"lex":"ма","gr":"S"}],"text":"ма"},
+                  {"analysis":[{"lex":"ма","gr":"S"}],"text":"ма"}
+                ]
+                """);
+
+        assertEquals("ма\u0000ма", document.originalText());
+        assertEquals(0, document.tokens().get(0).startOffset());
+        assertEquals(2, document.tokens().get(0).endOffset());
+        assertEquals(3, document.tokens().get(1).startOffset());
+        assertEquals(5, document.tokens().get(1).endOffset());
+        assertEquals(MystemTextIssueType.CONTROL_CHARACTER, document.issues().get(0).type());
+    }
+
+    @Test
+    void alignsSupplementaryCharactersUsingUtf16Offsets() {
+        String token = "до😀после";
+
+        MystemDocument document = parser.parse(
+                "x" + token + "y",
+                """
+                [{"analysis":[{"lex":"lemma","gr":"S"}],"text":"до😀после"}]
+                """);
+
+        assertEquals(1, document.tokens().get(0).startOffset());
+        assertEquals(1 + token.length(), document.tokens().get(0).endOffset());
+        assertEquals(token, document.originalText().substring(
+                document.tokens().get(0).startOffset(), document.tokens().get(0).endOffset()));
+    }
+
+    @Test
+    void parsesMultipleTopLevelArraysFromMultilineMystemOutput() {
+        MystemDocument document = parser.parse(
+                "мама\nпапа",
+                """
+                [{"analysis":[{"lex":"мама","gr":"S"}],"text":"мама"}]
+                [{"analysis":[{"lex":"папа","gr":"S"}],"text":"папа"}]
+                """);
+
+        assertEquals(2, document.tokens().size());
+        assertEquals(0, document.tokens().get(0).startOffset());
+        assertEquals(4, document.tokens().get(0).endOffset());
+        assertEquals(5, document.tokens().get(1).startOffset());
+        assertEquals(9, document.tokens().get(1).endOffset());
+    }
+
+    @Test
+    void alignsTokensWhenMystemDropsSoftHyphens() {
+        MystemDocument document = parser.parse(
+                "О\u00ADд\u00ADи\u00ADн",
+                """
+                [{"analysis":[{"lex":"один","gr":"S"}],"text":"Один"}]
+                """);
+
+        assertTrue(document.issues().isEmpty());
+        assertEquals(0, document.tokens().get(0).startOffset());
+        assertEquals(7, document.tokens().get(0).endOffset());
+    }
+
+    @Test
     void rejectsNonArrayJson() {
         assertThrows(MystemJsonParseException.class, () -> parser.parse("text", "{\"text\":\"text\"}"));
     }

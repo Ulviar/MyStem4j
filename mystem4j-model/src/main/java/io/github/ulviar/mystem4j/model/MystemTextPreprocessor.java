@@ -22,7 +22,14 @@ public final class MystemTextPreprocessor {
             char value = text.charAt(index);
             if (Character.isHighSurrogate(value)) {
                 if (index + 1 < text.length() && Character.isLowSurrogate(text.charAt(index + 1))) {
-                    prepared.append(value).append(text.charAt(index + 1));
+                    char lowSurrogate = text.charAt(index + 1);
+                    if (isUnicodeNoncharacter(Character.toCodePoint(value, lowSurrogate))) {
+                        prepared.append(' ');
+                        issues.add(new MystemTextIssue(
+                                MystemTextIssueType.NONCHARACTER, "Unicode noncharacter replaced with space", index, 2));
+                    } else {
+                        prepared.append(value).append(lowSurrogate);
+                    }
                     mappings.add(new MystemOffsetMapping(preparedStart, prepared.length(), index, index + 2));
                     index += 2;
                 } else {
@@ -38,6 +45,14 @@ public final class MystemTextPreprocessor {
                 prepared.append('\uFFFD');
                 issues.add(new MystemTextIssue(
                         MystemTextIssueType.UNPAIRED_SURROGATE, "Unpaired low surrogate", index, 1));
+                mappings.add(new MystemOffsetMapping(preparedStart, prepared.length(), index, index + 1));
+                index++;
+                continue;
+            }
+            if (isUnicodeNoncharacter(value)) {
+                prepared.append(' ');
+                issues.add(new MystemTextIssue(
+                        MystemTextIssueType.NONCHARACTER, "Unicode noncharacter replaced with space", index, 1));
                 mappings.add(new MystemOffsetMapping(preparedStart, prepared.length(), index, index + 1));
                 index++;
                 continue;
@@ -59,5 +74,9 @@ public final class MystemTextPreprocessor {
 
     private static boolean isUnsafeControl(char value) {
         return Character.isISOControl(value) && value != '\n' && value != '\r' && value != '\t';
+    }
+
+    private static boolean isUnicodeNoncharacter(int codePoint) {
+        return (codePoint >= 0xFDD0 && codePoint <= 0xFDEF) || (codePoint & 0xFFFE) == 0xFFFE;
     }
 }

@@ -8,10 +8,26 @@ The implemented milestone contains:
 
 - `mystem4j-runtime` - process execution and raw MyStem output;
 - `mystem4j-model` - JSON postprocessing, grammar parsing, token offset alignment, and Unicode preparation;
+- `mystem4j-tokenization` - search-token preparation above model objects;
 - `mystem4j-kotlin` - Kotlin DSL over the runtime;
 - `mystem4j-gradle-plugin` - MyStem binary preparation for build/test/distribution workflows.
 
-The runtime has no Lucene dependency and does not parse MyStem output into morphology objects. The model layer is the first postprocessing layer above raw CLI output.
+The runtime has no Lucene dependency and does not parse MyStem output into morphology objects. The model layer is the first postprocessing layer above raw CLI output. The tokenization layer is still Lucene-free, but it prepares the forms and coarse token types expected by a later Lucene analyzer.
+
+## Unicode And Offsets
+
+Lucene offsets are Java UTF-16 offsets, so the model layer treats UTF-16 code units as the public coordinate system. MyStem may classify unusual Unicode code points differently from the JVM. The model layer therefore separates two concerns:
+
+- `MystemTextPreprocessor` prepares unsafe input for MyStem while retaining a mapping back to the original Java string;
+- `MystemJsonParser` aligns MyStem output against either the original text or prepared text and returns offsets in original-text coordinates.
+
+The test suite has fast exhaustive UTF-16 invariants for the model code and opt-in real-MyStem stress tests for empirical compatibility with the native binary.
+
+## Search Tokenization
+
+MyStem output is not yet a Lucene token stream. It may drop soft hyphens from surface text, attach `+` or `#` to lemmas but not token text, and omit non-copy fragments from JSON output.
+
+`mystem4j-tokenization` converts `MystemDocument` into search-oriented tokens while preserving original offsets. Offset safety, gap synthesis, suffix recovery, and fallback forms are baseline behavior. Semantic enrichment such as number token types, URL/email merging, and currency expansion is controlled by `MystemSearchTokenizerOptions` so applications can choose a conservative morphology pipeline or a richer entity-aware search pipeline.
 
 ## Why MyStem Is External
 
@@ -46,9 +62,8 @@ The current cache is project-local under `build/mystem`. A shared Gradle user-ho
 
 ## Path Toward Lucene
 
-The next layers can build on the runtime and model modules without changing process management:
+The next layers can build on the runtime, model, and tokenization modules without changing process management:
 
-- Unicode/tokenization layer: normalize unusual character sequences and preserve offsets;
 - Lucene layer: `Tokenizer`, `TokenFilter`, `Analyzer`, and factory classes.
 
-The Lucene layer should depend on parsed model objects and offset-aware token streams, not on raw CLI output.
+The Lucene layer should depend on parsed model objects and search-token preparation, not on raw CLI output.

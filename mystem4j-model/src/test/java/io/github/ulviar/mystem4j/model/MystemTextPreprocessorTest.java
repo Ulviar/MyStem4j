@@ -36,4 +36,19 @@ class MystemTextPreprocessorTest {
         assertEquals(MystemTextIssueType.CONTROL_CHARACTER, prepared.issues().get(0).type());
         assertEquals(1, prepared.issues().get(0).offset());
     }
+
+    @Test
+    void replacesUnicodeNoncharactersWithSpaces() {
+        MystemPreparedText prepared = MystemTextPreprocessor.prepare("a\uDBFF\uDFFFb\uFDD0c");
+
+        assertEquals("a b c", prepared.text());
+        assertEquals(2, prepared.issues().size());
+        assertEquals(MystemTextIssueType.NONCHARACTER, prepared.issues().get(0).type());
+        assertEquals(1, prepared.issues().get(0).offset());
+        assertEquals(2, prepared.issues().get(0).length());
+        assertEquals(MystemTextIssueType.NONCHARACTER, prepared.issues().get(1).type());
+        assertEquals(3, prepared.originalOffsetFor(2));
+        assertEquals(5, prepared.originalOffsetFor(4));
+        assertEquals(6, prepared.originalOffsetFor(5));
+    }
 }
