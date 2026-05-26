@@ -1,10 +1,10 @@
-# Use Runtime Clients
+# Use runtime clients
 
 `mystem4j-runtime` starts MyStem processes and returns raw MyStem output. It does
-not parse JSON into model objects; use [Parse MyStem output](parse-mystem-output.md)
-when you need tokens, lemmas, grammar, or offsets as Java objects.
+not parse JSON into model objects. For tokens, lemmas, grammar, or offsets, use
+[Parse MyStem output](parse-mystem-output.md).
 
-## Add The Module
+## Add the module
 
 ```kotlin
 dependencies {
@@ -12,10 +12,10 @@ dependencies {
 }
 ```
 
-## One-Shot Text Requests
+## One-shot text requests
 
-One-shot mode starts a new MyStem process for each request. It supports `JSON`,
-`XML`, and `TEXT` output formats.
+One-shot clients start a fresh MyStem process per request and support `JSON`,
+`XML`, and `TEXT`.
 
 Install or prepare MyStem separately, then pass its executable path with
 `.executable(Path.of(...))`. If `.executable(...)` is omitted, the runtime resolves
@@ -45,10 +45,10 @@ try (MystemClient client = Mystem.builder()
 `MystemOptions.builder().build()` defaults to JSON and UTF-8 with all boolean
 MyStem flags disabled.
 
-## Reusable JSON-Line Session
+## Reusable JSON-line session
 
-Reusable mode keeps one MyStem process open. It is useful when one thread sends
-many small requests.
+Reusable mode keeps one MyStem process open. Use it for many small sequential
+requests from one caller.
 
 ```java
 try (MystemClient client = Mystem.builder()
@@ -70,10 +70,10 @@ through a JSON-line client and you need offsets in the original text, use the
 preprocessing flow from [Parse MyStem output](parse-mystem-output.md); that flow
 requires `mystem4j-model`.
 
-## Pooled Sessions
+## Pooled sessions
 
-Pooled mode keeps several JSON-line MyStem processes open and is intended for
-concurrent callers such as indexing services.
+Pooled mode keeps several JSON-line MyStem processes open for concurrent callers,
+for example indexing services.
 
 ```java
 import java.time.Duration;
@@ -97,14 +97,14 @@ try (MystemClient client = Mystem.builder()
 Options are fixed for the whole pool. Like reusable sessions, pooled clients accept
 JSON only and reject raw multiline text.
 
-One-shot and pooled clients can be shared by concurrent callers until `close()` is
-called. Reusable session clients serialize requests through one MyStem process; use
-them for one caller at a time, not for concurrent indexing or request fan-out.
+One-shot and pooled clients can be shared until `close()` is called. Reusable
+session clients serialize requests through one MyStem process; use them from one
+caller at a time.
 
-## File Requests
+## File requests
 
-Use file requests when the input is already on disk or when the output should be
-written directly to a file.
+File requests avoid loading large outputs into JVM memory when MyStem can write
+the result directly.
 
 ```java
 import io.github.ulviar.mystem4j.MystemFileContentResult;
@@ -125,7 +125,7 @@ uses MyStem's native `mystem [options] input output` mode and writes directly to
 output path without keeping the full output in JVM memory. Input and output must be
 different paths.
 
-## Probe An Executable
+## Probe an executable
 
 ```java
 import io.github.ulviar.mystem4j.MystemProbe;
@@ -135,6 +135,6 @@ MystemProbeResult probe = MystemProbe.probe(Path.of("/path/to/mystem"));
 System.out.println(probe.output());
 ```
 
-The probe runs one JSON request for `мама`. It succeeds when MyStem starts, exits
-cleanly, and returns output that looks like a MyStem JSON array. Startup, timeout,
-process, and protocol failures are reported as `MystemException` subclasses.
+The probe starts MyStem, sends one JSON request for `мама`, and expects a clean
+exit plus JSON-array output. Startup, timeout, process, and protocol failures are
+reported as `MystemException` subclasses.

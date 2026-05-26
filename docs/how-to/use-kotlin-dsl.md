@@ -3,7 +3,7 @@
 Use `mystem4j-kotlin` when Kotlin code should configure runtime clients or options
 directly.
 
-## Add The Module
+## Add the module
 
 ```kotlin
 dependencies {
@@ -13,7 +13,7 @@ dependencies {
 
 `mystem4j-kotlin` brings `mystem4j-runtime` transitively.
 
-## Build Options
+## Build options
 
 ```kotlin
 import io.github.ulviar.mystem4j.MystemOutputFormat
@@ -29,7 +29,7 @@ val options = mystemOptions {
 Call `englishGrammemes()` only when you want MyStem grammar tags such as part of
 speech and case names in English instead of MyStem's default Russian abbreviations.
 
-## Build A Client
+## Build a client
 
 ```kotlin
 import io.github.ulviar.mystem4j.kotlin.analyzeWith
@@ -47,7 +47,7 @@ mystemClient {
 }
 ```
 
-## Use A Pool
+## Use a pool
 
 ```kotlin
 mystemClient {

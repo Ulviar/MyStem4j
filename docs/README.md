@@ -9,10 +9,11 @@ Start here if you are new to the library:
 ## Requirements
 
 - Java 21 or newer.
-- MyStem 3.1. The native executable is not bundled in MyStem4j artifacts.
+- To parse existing JSON, declare `mystem4j-model`; no native MyStem executable is needed.
+- To run or download MyStem, use MyStem 3.1. The native executable is not bundled in MyStem4j artifacts.
 - Explicit acceptance of the Yandex MyStem license before using the Gradle plugin to download MyStem.
 
-## How-To Guides
+## How-to guides
 
 - [Prepare MyStem with Gradle](how-to/prepare-mystem-with-gradle.md)
 - [Use runtime clients](how-to/use-runtime-clients.md)

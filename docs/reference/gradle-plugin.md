@@ -40,8 +40,17 @@ mystem4j {
 | `download` | `false` | explicit opt-in for network download |
 | `acceptYandexMystemLicense` | `false` | explicit confirmation that the project accepts the Yandex MyStem license before download |
 | `configureTests` | `false` | wire prepared executable into Gradle `Test` tasks |
-| `prepareDistribution` | `false` | opt-in copy for application distribution |
-| `distributionDirectory` | `build/mystem/distribution` | target directory for distribution copy |
+
+Read-only providers:
+
+| Provider | Type | Description |
+| --- | --- | --- |
+| `downloadedArchive` | `Provider<RegularFile>` | archive produced by `mystemDownload` |
+| `preparedExecutable` | `Provider<RegularFile>` | executable produced by `mystemExtract` |
+| `executablePath` | `Provider<String>` | absolute path of `preparedExecutable` |
+
+Use `preparedExecutable` as the task input for copy/staging work. Use
+`executablePath` only when an API needs a string path.
 
 Review the MyStem license before enabling `acceptYandexMystemLicense`:
 <https://yandex.ru/legal/mystem/ru/>.
@@ -57,7 +66,9 @@ Official archive URLs are built by appending the archive name to `baseUrl`. Cust
 | `mystemExtract` | extracts the executable into `build/mystem/bin/<platform>` |
 | `mystemProbe` | runs a JSON smoke request against the prepared executable |
 | `mystemPrepareTestRuntime` | prepares the executable path for Gradle `Test` tasks |
-| `mystemPrepareDistribution` | copies the executable into `distributionDirectory` when enabled |
+
+Use `mystem4j.preparedExecutable` from your own `Copy`, `Sync`, Docker-context, or
+installer-staging tasks when packaging an application.
 
 ## Supported Archives
 

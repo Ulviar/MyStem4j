@@ -1,9 +1,9 @@
-# Use Lucene Analyzer
+# Use Lucene analyzer
 
-Use `mystem4j-lucene` when Lucene should index or query tokens produced from
-MyStem JSON output.
+Use `mystem4j-lucene` to feed MyStem-based tokens into Lucene indexing or query
+analysis.
 
-## Add The Module
+## Add the module
 
 ```kotlin
 dependencies {
@@ -14,11 +14,11 @@ dependencies {
 `mystem4j-lucene` uses Lucene `10.4.0`, requires Java 21, and exposes the runtime
 and tokenization types used by its public API.
 
-## Create An Analyzer
+## Create an analyzer
 
-The supplied MyStem client must return JSON. For indexing jobs, prefer a pooled
-client. Always close both the analyzer and the client, or let the analyzer own the
-client with `closeClientOnClose=true`.
+The MyStem client passed to the analyzer must return JSON. For indexing jobs,
+prefer a pooled client. Always close both the analyzer and the client, or let the
+analyzer own the client with `closeClientOnClose=true`.
 
 ```java
 import io.github.ulviar.mystem4j.Mystem;
@@ -59,12 +59,48 @@ try (MystemClient client = Mystem.builder()
 }
 ```
 
-The default analyzer uses conservative tokenization: it keeps safe offsets, gap
-recovery, lemmas, suffix forms, and fallback forms, but it does not merge URL/email
-entities or expose currency/number token types. Printed terms should include lemma
-forms such as `мама`, `мыть`, and `рама`.
+By default, the analyzer uses conservative tokenization: safe offsets, gap
+recovery, lemmas, suffix forms, and fallback forms; URL/email grouping and
+currency/number token types are disabled. Printed terms should include lemmas such
+as `мама`, `мыть`, and `рама`.
 
-## Choose Tokenization Policy
+## Index and query text
+
+Pass the same analyzer to Lucene indexing and query-text analysis. This example
+uses Lucene core classes only:
+
+```java
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.ByteBuffersDirectory;
+import org.apache.lucene.util.QueryBuilder;
+
+try (ByteBuffersDirectory directory = new ByteBuffersDirectory()) {
+    try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
+        Document document = new Document();
+        document.add(new TextField("body", "Мама мыла раму.", Field.Store.NO));
+        writer.addDocument(document);
+    }
+
+    Query query = new QueryBuilder(analyzer).createBooleanQuery("body", "мыла");
+    try (DirectoryReader reader = DirectoryReader.open(directory)) {
+        IndexSearcher searcher = new IndexSearcher(reader);
+        TopDocs hits = searcher.search(query, 10);
+        System.out.println(hits.totalHits.value());
+    }
+}
+```
+
+If the application uses another query builder, pass the same analyzer there too.
+
+## Choose tokenization policy
 
 | Policy | Use when |
 | --- | --- |
@@ -72,49 +108,27 @@ forms such as `мама`, `мыть`, and `рама`.
 | `search()` | you need number and currency token types, but not URL/email grouping |
 | `entityAware()` | you need URL/email grouping and expanded currency forms |
 
-Example with the middle `search()` policy:
+Inside the same lifecycle block, pass the policy to the analyzer:
 
 ```java
-try (MystemClient client = Mystem.builder()
-        .executable(Path.of("/path/to/mystem"))
-        .options(MystemOptions.builder()
-                .format(MystemOutputFormat.JSON)
-                .grammarInfo(true)
-                .disambiguate(true)
-                .build())
-        .pooled()
-        .build();
-     Analyzer analyzer = new MystemLuceneAnalyzer(
-             client,
-             MystemSearchTokenizerOptions.search())) {
-    // Use analyzer for indexing or query analysis.
-}
+Analyzer analyzer = new MystemLuceneAnalyzer(
+        client,
+        MystemSearchTokenizerOptions.search());
 ```
 
 Use entity-aware tokenization only when the application needs URL/email grouping,
 number token types, currency token types, and currency form expansion.
 
 ```java
-try (MystemClient client = Mystem.builder()
-        .executable(Path.of("/path/to/mystem"))
-        .options(MystemOptions.builder()
-                .format(MystemOutputFormat.JSON)
-                .grammarInfo(true)
-                .disambiguate(true)
-                .build())
-        .pooled()
-        .build();
-     Analyzer analyzer = new MystemLuceneAnalyzer(
-             client,
-             MystemSearchTokenizerOptions.entityAware())) {
-    // Use analyzer for indexing or query analysis.
-}
+Analyzer analyzer = new MystemLuceneAnalyzer(
+        client,
+        MystemSearchTokenizerOptions.entityAware());
 ```
 
-This example keeps client ownership explicit: the try-with-resources block closes
-the analyzer and then the client.
+Use these constructors in the try-with-resources pattern shown above. The analyzer
+closes before the client.
 
-## Set Field Limits And Position Policy
+## Set field limits and position policy
 
 ```java
 int maxInputChars = 100_000;
@@ -125,21 +139,10 @@ MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
         maxChunkChars,
         MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
 
-try (MystemClient client = Mystem.builder()
-        .executable(Path.of("/path/to/mystem"))
-        .options(MystemOptions.builder()
-                .format(MystemOutputFormat.JSON)
-                .grammarInfo(true)
-                .disambiguate(true)
-                .build())
-        .pooled()
-        .build();
-     Analyzer analyzer = new MystemLuceneAnalyzer(
-             client,
-             MystemSearchTokenizerOptions.conservative(),
-             analysisOptions)) {
-    // Use analyzer for indexing or query analysis.
-}
+Analyzer analyzer = new MystemLuceneAnalyzer(
+        client,
+        MystemSearchTokenizerOptions.conservative(),
+        analysisOptions);
 ```
 
 Defaults are:
@@ -150,22 +153,20 @@ Defaults are:
 | `maxChunkChars` | `32_768` UTF-16 code units per MyStem request |
 | `positionPolicy` | `COMPACT` |
 
-`COMPACT` ignores skipped separator/other tokens when computing Lucene position
-increments. Choose it when phrase/proximity queries should behave as if punctuation
-and other skipped fragments were not present. `PRESERVE_SKIPPED_TOKENS` adds
-position gaps for skipped tokens. Choose it when phrase/proximity queries should
-respect skipped fragments in the original text.
+Use `COMPACT` if phrase/proximity queries should ignore punctuation and skipped
+fragments. Use `PRESERVE_SKIPPED_TOKENS` if those fragments should affect positions.
 
-## Runtime Choice
+## Runtime choice
 
 For indexing, use a pooled MyStem client so several indexing threads can analyze
 fields concurrently. A reusable single-process client is intended for one caller
 at a time and should not be shared by concurrent Lucene analysis. One-shot clients
 are safe but usually slower for large indexing jobs.
 
-For query analysis, use the same tokenization policy as indexing. Low-QPS services
-can use one-shot or a small pool; high-QPS services should share a pooled client
-for the analyzer lifecycle.
+For query analysis, use the same analyzer configuration as indexing: MyStem JSON
+options, `MystemSearchTokenizerOptions`, and `MystemLuceneAnalysisOptions`. Low-QPS
+services can use one-shot or a small pool; high-QPS services should share a pooled
+client for the analyzer lifecycle.
 
 The Lucene tokenizer handles multiline fields by replacing CR/LF with spaces before
 calling a JSON-line MyStem client and preserving offsets in the original field.

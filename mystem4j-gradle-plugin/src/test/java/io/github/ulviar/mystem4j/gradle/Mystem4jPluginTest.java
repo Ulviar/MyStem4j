@@ -37,11 +37,59 @@ class Mystem4jPluginTest {
         assertFalse(extension.getDownload().get());
         assertFalse(extension.getAcceptYandexMystemLicense().get());
         assertFalse(extension.getConfigureTests().get());
+        assertNotNull(extension.getDownloadedArchive());
+        assertNotNull(extension.getPreparedExecutable());
+        assertNotNull(extension.getExecutablePath());
         assertNotNull(project.getTasks().findByName("mystemDownload"));
         assertNotNull(project.getTasks().findByName("mystemExtract"));
         assertNotNull(project.getTasks().findByName("mystemProbe"));
         assertNotNull(project.getTasks().findByName("mystemPrepareTestRuntime"));
-        assertNotNull(project.getTasks().findByName("mystemPrepareDistribution"));
+    }
+
+    @Test
+    void exposesPreparedExecutableForCustomTasksWithoutProbe() throws IOException {
+        Path archive = fakeWindowsArchive(
+                """
+                #!/bin/sh
+                exit 23
+                """);
+        Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
+        Files.writeString(
+                temporaryDirectory.resolve("build.gradle.kts"),
+                """
+                import org.gradle.api.tasks.Sync
+
+                plugins {
+                    id("io.github.ulviar.mystem4j")
+                }
+
+                mystem4j {
+                    targetOs.set("windows")
+                    archiveUrl.set("%s")
+                    download.set(true)
+                    acceptYandexMystemLicense.set(true)
+                }
+
+                tasks.register<Sync>("stageMystem") {
+                    from(mystem4j.preparedExecutable)
+                    into(layout.buildDirectory.dir("stage"))
+                }
+
+                tasks.register("verifyStage") {
+                    dependsOn("stageMystem")
+                    doLast {
+                        check(file("build/stage/mystem.exe").isFile) { "missing staged executable" }
+                    }
+                }
+                """
+                        .formatted(archive.toUri()),
+                StandardCharsets.UTF_8);
+
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("verifyStage", "--stacktrace")
+                .build();
     }
 
     @Test
@@ -171,18 +219,20 @@ class Mystem4jPluginTest {
     }
 
     private Path fakeWindowsArchive() throws IOException {
-        Path executable = temporaryDirectory.resolve("archive-content/mystem.exe");
-        Path archive = temporaryDirectory.resolve("mystem.zip");
-        Files.createDirectories(executable.getParent());
-        Files.writeString(
-                executable,
+        return fakeWindowsArchive(
                 """
                 #!/bin/sh
                 while IFS= read -r input; do
                   printf '[{"text":"%s"}]\\n' "$input"
                 done
-                """,
-                StandardCharsets.UTF_8);
+                """);
+    }
+
+    private Path fakeWindowsArchive(String executableContent) throws IOException {
+        Path executable = temporaryDirectory.resolve("archive-content/mystem.exe");
+        Path archive = temporaryDirectory.resolve("mystem.zip");
+        Files.createDirectories(executable.getParent());
+        Files.writeString(executable, executableContent, StandardCharsets.UTF_8);
         executable.toFile().setExecutable(true, false);
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive))) {
             zip.putNextEntry(new ZipEntry("mystem.exe"));

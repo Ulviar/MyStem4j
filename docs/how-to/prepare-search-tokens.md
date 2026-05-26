@@ -1,9 +1,9 @@
-# Prepare Search Tokens
+# Prepare search tokens
 
 Use `mystem4j-tokenization` when parsed MyStem model objects should become tokens
 for a custom search pipeline or for code that runs before a Lucene adapter.
 
-## Add The Module
+## Add the module
 
 ```kotlin
 dependencies {
@@ -12,7 +12,7 @@ dependencies {
 }
 ```
 
-## Tokenize A Parsed Document
+## Tokenize a parsed document
 
 ```java
 import io.github.ulviar.mystem4j.model.MystemDocument;
@@ -55,7 +55,7 @@ Example output shape:
 
 Exact forms depend on MyStem output and tokenizer options.
 
-## Choose A Policy
+## Choose a policy
 
 The no-argument tokenizer uses `MystemSearchTokenizerOptions.conservative()`.
 Conservative tokenization keeps safe offsets, gap recovery, lemmas, suffix forms,
@@ -84,7 +84,7 @@ Each `MystemSearchToken` contains:
 - one or more forms for search;
 - a coarse token type such as `WORD`, `NUMBER`, `URL`, `EMAIL`, or `CURRENCY`.
 
-## Offset Safety
+## Offset safety
 
 The tokenizer requires known offsets. If the parsed model contains `-1` offsets,
 tokenization fails because Lucene and most search engines cannot safely emit a

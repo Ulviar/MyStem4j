@@ -1,9 +1,9 @@
-# Parse MyStem Output
+# Parse MyStem output
 
-Use `mystem4j-model` when MyStem JSON should become Java objects with token text,
-lemmas, grammar data, and original Java string offsets.
+Use `mystem4j-model` to parse MyStem JSON into Java objects with token text,
+lemmas, grammar, and original string offsets.
 
-## Add The Module
+## Add the module
 
 For existing JSON:
 
@@ -13,7 +13,7 @@ dependencies {
 }
 ```
 
-For a pipeline that also runs MyStem:
+If the same code also runs MyStem:
 
 ```kotlin
 dependencies {
@@ -22,13 +22,13 @@ dependencies {
 }
 ```
 
-For token text, lemmas, grammar, and part of speech, use MyStem JSON output with
-grammar information enabled: `--format json -i`, or
-`MystemOptions.builder().format(JSON).grammarInfo(true)`. `disambiguate(true)` is
-not required for parsing, but is usually useful when the application wants MyStem's
+To get grammar and part of speech, run MyStem with JSON and grammar enabled:
+`--format json -i`, or
+`MystemOptions.builder().format(MystemOutputFormat.JSON).grammarInfo(true)`.
+`disambiguate(true)` is optional for parsing; use it when you want MyStem's
 contextual best analysis.
 
-## Parse A Runtime Result
+## Parse a runtime result
 
 ```java
 import io.github.ulviar.mystem4j.Mystem;
@@ -86,9 +86,15 @@ try (MystemClient client = Mystem.builder()
 Offsets are Java UTF-16 string offsets. This is also the offset coordinate system
 used by Lucene.
 
-## Parse JSON Directly
+## Parse JSON directly
 
 ```java
+import io.github.ulviar.mystem4j.model.MystemAnalysis;
+import io.github.ulviar.mystem4j.model.MystemDocument;
+import io.github.ulviar.mystem4j.model.MystemJsonParser;
+import io.github.ulviar.mystem4j.model.MystemTextIssueType;
+import io.github.ulviar.mystem4j.model.MystemToken;
+
 String originalText = "Мама мыла раму";
 String json = """
         [
@@ -99,6 +105,25 @@ String json = """
         """;
 
 MystemDocument document = new MystemJsonParser().parse(originalText, json);
+boolean hasUnsafeOffsets = document.issues().stream()
+        .anyMatch(issue -> issue.type() == MystemTextIssueType.UNMATCHED_TOKEN)
+        || document.tokens().stream().anyMatch(token -> !token.hasKnownOffsets());
+if (hasUnsafeOffsets) {
+    throw new IllegalStateException("MyStem output could not be aligned to the original text.");
+}
+
+for (MystemToken token : document.tokens()) {
+    MystemAnalysis analysis = token.analyses().stream()
+            .findFirst()
+            .orElse(null);
+    String lemma = analysis == null ? "<no lemma>" : analysis.lemma();
+    String grammar = analysis == null ? "<no grammar>" : analysis.grammar().raw();
+    String partOfSpeech = analysis == null
+            ? "<no part of speech>"
+            : analysis.grammar().partOfSpeech().orElse("<no part of speech>");
+    System.out.printf("%s [%d,%d] lemma=%s grammar=%s pos=%s%n",
+            token.text(), token.startOffset(), token.endOffset(), lemma, grammar, partOfSpeech);
+}
 ```
 
 The parser aligns each MyStem `text` field against the original input from left to
@@ -107,10 +132,10 @@ MyStem options. If a token cannot be aligned, its offsets are `-1` and the docum
 contains a `UNMATCHED_TOKEN` issue. Log these issues or reject the document before
 passing it to offset-sensitive code such as search tokenization or Lucene.
 
-## Prepare Text Before MyStem
+## Prepare text before MyStem
 
-Use preparation when input can contain unusual Unicode values or when a JSON-line
-client must receive text without CR/LF characters.
+Preprocess input that may contain unusual Unicode values or must be sent through a
+JSON-line client without CR/LF.
 
 ```java
 String input = "Первая строка\nвторая строка";
@@ -119,11 +144,11 @@ MystemJsonParser parser = new MystemJsonParser();
 
 try (MystemClient client = Mystem.builder()
         .executable(Path.of("/path/to/mystem"))
-                .options(MystemOptions.builder()
-                        .format(MystemOutputFormat.JSON)
-                        .grammarInfo(true)
-                        .disambiguate(true)
-                        .build())
+        .options(MystemOptions.builder()
+                .format(MystemOutputFormat.JSON)
+                .grammarInfo(true)
+                .disambiguate(true)
+                .build())
         .session()
         .build()) {
     MystemRawResult raw = client.analyze(prepared.text());
@@ -131,7 +156,7 @@ try (MystemClient client = Mystem.builder()
 }
 ```
 
-The preprocessor keeps an offset mapping back to the caller's original Java string.
-Use the `parse(MystemPreparedText, String)` overload when returned offsets must
-refer to the original text. Passing `prepared.text()` as a plain string returns
-offsets in prepared-text coordinates.
+The preprocessor keeps offsets mapped to the original Java string. Use the
+`parse(MystemPreparedText, String)` overload when returned offsets must refer to
+the original text. Passing `prepared.text()` as a plain string returns offsets in
+prepared-text coordinates.

@@ -13,7 +13,7 @@ bring supporting modules when they are part of that module's public API.
 | Configure runtime clients from Kotlin | `mystem4j-kotlin` | a MyStem executable if the client runs MyStem |
 | Download and prepare MyStem in Gradle | `io.github.ulviar.mystem4j` Gradle plugin | explicit MyStem license acceptance |
 
-## Gradle Dependencies
+## Gradle dependencies
 
 ```kotlin
 dependencies {
@@ -42,7 +42,7 @@ dependencies {
 
 `mystem4j-kotlin` brings `mystem4j-runtime` transitively.
 
-## Maven Dependencies
+## Maven dependencies
 
 ```xml
 <dependency>
@@ -55,7 +55,7 @@ dependencies {
 Use the same group and version with `mystem4j-model`, `mystem4j-tokenization`,
 `mystem4j-lucene`, or `mystem4j-kotlin`.
 
-## Gradle Plugin
+## Gradle plugin
 
 The Gradle plugin is not required to call the Java API. Use it only when the build
 should download, verify, extract, probe, or pass a MyStem executable path to tests

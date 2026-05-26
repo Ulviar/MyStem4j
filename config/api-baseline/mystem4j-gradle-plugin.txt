@@ -8,7 +8,6 @@ public class io.github.ulviar.mystem4j.gradle.Mystem4jExtension {
   public org.gradle.api.provider.Property<java.lang.Boolean> getAcceptYandexMystemLicense();
   public org.gradle.api.provider.Property<java.lang.Boolean> getDownload();
   public org.gradle.api.provider.Property<java.lang.Boolean> getConfigureTests();
-  public org.gradle.api.provider.Property<java.lang.Boolean> getPrepareDistribution();
   public org.gradle.api.provider.Property<java.lang.String> getBaseUrl();
   public org.gradle.api.provider.Property<java.lang.String> getArchiveUrl();
   public org.gradle.api.provider.Property<java.lang.String> getSha256();
@@ -16,7 +15,9 @@ public class io.github.ulviar.mystem4j.gradle.Mystem4jExtension {
   public org.gradle.api.provider.Property<java.lang.Integer> getMaxProbeOutputBytes();
   public org.gradle.api.provider.Property<java.lang.String> getTargetOs();
   public org.gradle.api.file.DirectoryProperty getCacheDirectory();
-  public org.gradle.api.file.DirectoryProperty getDistributionDirectory();
+  public org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile> getDownloadedArchive();
+  public org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile> getPreparedExecutable();
+  public org.gradle.api.provider.Provider<java.lang.String> getExecutablePath();
 }
 
 ## io.github.ulviar.mystem4j.gradle.Mystem4jPlugin
@@ -52,16 +53,6 @@ public abstract class io.github.ulviar.mystem4j.gradle.MystemExtractTask extends
   public abstract org.gradle.api.provider.Property<java.lang.String> getExecutableName();
   public abstract org.gradle.api.file.RegularFileProperty getExecutableFile();
   public void extract();
-}
-
-## io.github.ulviar.mystem4j.gradle.MystemPrepareDistributionTask
-Compiled from "MystemPrepareDistributionTask.java"
-public abstract class io.github.ulviar.mystem4j.gradle.MystemPrepareDistributionTask extends org.gradle.api.DefaultTask {
-  public io.github.ulviar.mystem4j.gradle.MystemPrepareDistributionTask();
-  public abstract org.gradle.api.provider.Property<java.lang.Boolean> getPrepareDistribution();
-  public abstract org.gradle.api.file.RegularFileProperty getExecutableFile();
-  public abstract org.gradle.api.file.DirectoryProperty getDistributionDirectory();
-  public void prepareDistribution();
 }
 
 ## io.github.ulviar.mystem4j.gradle.MystemPrepareRuntimeTask

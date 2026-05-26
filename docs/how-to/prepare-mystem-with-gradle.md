@@ -1,10 +1,11 @@
-# Prepare MyStem With Gradle
+# Prepare MyStem with Gradle
 
 Use the Gradle plugin when your build should download, verify, extract, probe, or
-pass a MyStem executable to tests. The Java runtime can also use a MyStem binary
-that you install yourself; the plugin is only a build-time convenience.
+pass a MyStem executable to tests. The plugin exposes the downloaded archive and
+prepared executable as Gradle providers, so your own packaging tasks can copy them
+where they belong.
 
-## Apply The Plugin
+## Apply the plugin
 
 ```kotlin
 plugins {
@@ -17,7 +18,7 @@ If the plugin marker is resolved from Maven Central, add `mavenCentral()` to
 `pluginManagement.repositories` in `settings.gradle.kts`. The
 [getting started tutorial](../tutorials/getting-started.md) shows a full project.
 
-## Download And Probe MyStem
+## Download and probe MyStem
 
 ```kotlin
 mystem4j {
@@ -40,7 +41,7 @@ The plugin supports MyStem `3.1` official archives for `linux`, `macos`, and
 the single macOS archive published by Yandex for MyStem 3.1; there is no separate
 ARM archive in the plugin metadata.
 
-## Wire MyStem Into Tests
+## Wire MyStem into tests
 
 ```kotlin
 mystem4j {
@@ -64,29 +65,39 @@ Path executable = Path.of(System.getProperty("mystem4j.executable"));
 
 Use this mode for integration tests and smoke tests that need a real MyStem binary.
 
-## Prepare A Distribution Copy
+## Use the prepared executable in packaging tasks
 
 ```kotlin
 mystem4j {
     download.set(true)
     acceptYandexMystemLicense.set(true)
-    prepareDistribution.set(true)
-    distributionDirectory.set(layout.buildDirectory.dir("dist/mystem"))
+}
+
+tasks.register<Sync>("stageMystem") {
+    from(mystem4j.preparedExecutable)
+    into(layout.buildDirectory.dir("staging/mystem"))
 }
 ```
 
-```bash
-./gradlew mystemPrepareDistribution
-```
+`mystem4j.preparedExecutable` is a provider backed by the `mystemExtract` task. A
+`Copy`, `Sync`, Docker-context, installer-staging, or application-distribution task
+that uses it gets the right task dependency without the plugin knowing how your
+application is packaged.
 
-This copies the prepared executable into the configured directory. It does not add
-MyStem to MyStem4j artifacts, and it does not decide whether your application may
-redistribute MyStem. Make that decision from the Yandex MyStem license and your
-application's distribution model. A common production pattern is to configure the
-application with an explicit executable path or environment variable and keep the
-native binary outside the Java artifact.
+The application still needs a runtime path: pass the staged file explicitly with
+`.executable(Path.of(...))`, set `mystem4j.executable`, or set `MYSTEM_PATH` when
+starting the application.
 
-## Use An Internal Mirror
+Use `mystem4j.downloadedArchive` if a custom packaging task needs the original
+archive instead of the extracted executable. Use `mystem4j.executablePath` only
+for APIs that need the prepared executable path as a string; use
+`mystem4j.preparedExecutable` as the file input when task dependency matters.
+
+Run `mystemProbe` separately when the prepared executable can run on the build
+machine. Packaging tasks can use `preparedExecutable` without probing, which is
+useful when preparing a binary for another target OS.
+
+## Use an internal mirror
 
 Use a mirror only when your organization does not allow direct downloads from the
 official Yandex URL.
@@ -103,7 +114,7 @@ mystem4j {
 Custom remote archives must set `sha256`. The plugin verifies the archive before
 using it.
 
-## Cache Behavior
+## Cache behavior
 
 The plugin keeps a project-local archive under `build/mystem/downloads` and the
 extracted executable under `build/mystem/bin/<platform>`. `gradle clean` removes

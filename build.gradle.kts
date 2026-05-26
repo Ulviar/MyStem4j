@@ -1,3 +1,5 @@
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
 import io.github.ulviar.mystem4j.build.ApiSurfaceCheckTask
 import io.github.ulviar.mystem4j.build.JpmsSmokeTestTask
@@ -215,8 +217,88 @@ tasks.register<ApiSurfaceCheckTask>("apiSurfaceCheck") {
     }
 }
 
+val textSanityFiles = objects.fileCollection().from(
+    fileTree(layout.projectDirectory) {
+        include("*.md")
+        include("*.properties")
+        include("*.kts")
+        include("config/**/*.txt")
+        include("docs/**/*.md")
+        include("buildSrc/src/**/*.java")
+        include("mystem4j-*/src/**/*.java")
+        include("mystem4j-*/src/**/*.kt")
+        include("mystem4j-*/build.gradle.kts")
+        include("samples/**/*.kts")
+        exclude("**/build/**")
+        exclude("**/.gradle/**")
+    }
+)
+
+tasks.register("whitespaceCheck") {
+    group = "verification"
+    description = "Checks text files for trailing whitespace and missing final newlines."
+    inputs.files(textSanityFiles)
+    doLast {
+        val failures = mutableListOf<String>()
+        textSanityFiles.files.sortedBy { it.relativeTo(rootDir).path }.forEach { file ->
+            val relativePath = file.relativeTo(rootDir).path
+            val text = Files.readString(file.toPath(), StandardCharsets.UTF_8)
+            if (text.isNotEmpty() && !text.endsWith("\n")) {
+                failures += "$relativePath: missing final newline"
+            }
+            text.lineSequence().forEachIndexed { index, line ->
+                if (line.endsWith(" ") || line.endsWith("\t")) {
+                    failures += "$relativePath:${index + 1}: trailing whitespace"
+                }
+            }
+        }
+        if (failures.isNotEmpty()) {
+            throw GradleException("Text sanity check failed:\n" + failures.joinToString("\n"))
+        }
+    }
+}
+
+val markdownFiles = objects.fileCollection().from(
+    "README.md",
+    "CHANGELOG.md",
+    fileTree("docs") {
+        include("**/*.md")
+    }
+)
+
+tasks.register("markdownLocalLinksCheck") {
+    group = "verification"
+    description = "Checks local Markdown links in README, CHANGELOG, and docs."
+    inputs.files(markdownFiles)
+    doLast {
+        val linkPattern = Regex("""\[[^\]]+]\(([^)]+)\)""")
+        val missing = mutableListOf<String>()
+        markdownFiles.files.sortedBy { it.relativeTo(rootDir).path }.forEach { file ->
+            val text = Files.readString(file.toPath(), StandardCharsets.UTF_8)
+            for (match in linkPattern.findAll(text)) {
+                val rawTarget = match.groupValues[1]
+                val targetWithoutAnchor = rawTarget.substringBefore('#')
+                if (targetWithoutAnchor.isBlank()
+                    || targetWithoutAnchor.startsWith("http://")
+                    || targetWithoutAnchor.startsWith("https://")
+                    || targetWithoutAnchor.startsWith("mailto:")
+                ) {
+                    continue
+                }
+                val target = file.parentFile.resolve(targetWithoutAnchor).normalize()
+                if (!target.exists()) {
+                    missing += "${file.relativeTo(rootDir).path}: $rawTarget"
+                }
+            }
+        }
+        if (missing.isNotEmpty()) {
+            throw GradleException("Markdown local link check failed:\n" + missing.joinToString("\n"))
+        }
+    }
+}
+
 tasks.named("check") {
-    dependsOn("jpmsSmokeTest", "publicationMetadataCheck", "apiSurfaceCheck")
+    dependsOn("jpmsSmokeTest", "publicationMetadataCheck", "apiSurfaceCheck", "whitespaceCheck", "markdownLocalLinksCheck")
 }
 
 tasks.register("publishToReleaseDryRunRepository") {

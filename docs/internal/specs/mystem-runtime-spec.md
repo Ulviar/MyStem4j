@@ -408,6 +408,7 @@ mystem4j {
 - Плагин должен не перекачивать архив, если версия, ОС, URL и checksum совпадают с локальным metadata sidecar.
 - Shared Gradle user-home cache является отдельным улучшением после первого milestone; текущая реализация допускает project-local cache в `build/mystem/downloads`.
 - Если официальные checksums недоступны, плагин должен поддерживать пользовательский `sha256` и lock-файл, но не блокировать локальный dev-сценарий.
+- Плагин должен expose-ить скачанный архив и подготовленный executable как ленивые Gradle providers, чтобы пользовательские `Copy`/`Sync`/packaging tasks сами выбирали staging layout.
 
 ### Задачи
 
@@ -417,9 +418,8 @@ mystem4j {
 - `mystemExtract` - распаковать бинарь в `build/mystem/bin/<platform>/`.
 - `mystemProbe` - проверить запуск бинаря и smoke-запрос.
 - `mystemPrepareTestRuntime` - подготовить `mystem4j.executable` для тестов.
-- `mystemPrepareDistribution` - подготовить бинарь для включения в distribution только при явном opt-in.
 
-`mystemPrepareDistribution` не должен включать бинарь MyStem в публикацию библиотеки `mystem4j-runtime`. Эта задача нужна для приложений, которые осознанно поставляют MyStem вместе с собой и самостоятельно отвечают за лицензионную сторону.
+Для application distribution плагин не должен вводить opinionated task. Вместо этого он предоставляет `downloadedArchive`, `preparedExecutable` и `executablePath`; приложения используют эти providers в собственных packaging tasks и самостоятельно отвечают за лицензионную сторону.
 
 ## Таймауты и лимиты
 
@@ -603,7 +603,7 @@ Java baseline:
 - кэширование скачанного архива;
 - отказ скачивания без `acceptYandexMystemLicense=true`;
 - настройка `Test` task через `mystem4j.executable`;
-- `mystemPrepareDistribution` только при явном opt-in.
+- возможность использовать `preparedExecutable` в пользовательской `Copy`/`Sync` task без запуска `mystemProbe`.
 
 ### Stress tests
 

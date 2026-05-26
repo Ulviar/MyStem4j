@@ -1,9 +1,9 @@
-# Getting Started
+# Getting started
 
-This tutorial creates a minimal Gradle project that downloads MyStem, runs a smoke
-probe, and sends one request through `mystem4j-runtime`.
+This tutorial builds the smallest useful Gradle setup: download MyStem, probe it,
+and send one request through `mystem4j-runtime`.
 
-## 1. Configure Plugin And Dependency Repositories
+## 1. Configure plugin and dependency repositories
 
 Create `settings.gradle.kts`:
 
@@ -25,11 +25,9 @@ dependencyResolutionManagement {
 rootProject.name = "mystem4j-example"
 ```
 
-`gradlePluginPortal()` is enough when the Gradle plugin is published there.
-`mavenCentral()` lets Gradle resolve the plugin marker when it is published with
-the Maven artifacts.
+Use both repositories so Gradle can resolve the plugin and Maven artifacts.
 
-## 2. Configure The Build
+## 2. Configure the build
 
 Create `build.gradle.kts`:
 
@@ -63,14 +61,13 @@ tasks.test {
 }
 ```
 
-`download` allows the plugin to fetch the MyStem archive. `acceptYandexMystemLicense`
-is a separate opt-in: set it to `true` only after reviewing and accepting
-<https://yandex.ru/legal/mystem/ru/> for your project.
+`acceptYandexMystemLicense` is a separate opt-in; set it to `true` only after
+reviewing and accepting <https://yandex.ru/legal/mystem/ru/> for your project.
 
 `configureTests` wires the prepared executable into every Gradle `Test` task through
 the `mystem4j.executable` system property and the `MYSTEM_PATH` environment variable.
 
-## 3. Add A Smoke Test
+## 3. Add a smoke test
 
 Create `src/test/java/example/MystemSmokeTest.java`:
 
@@ -108,25 +105,25 @@ class MystemSmokeTest {
 }
 ```
 
-## 4. Run It
+## 4. Run it
 
 ```bash
 ./gradlew test
 ```
 
-The first run downloads the platform archive, verifies its checksum, extracts the
-executable under `build/mystem/bin/<platform>`, probes it, and then runs the test.
+On the first run, the plugin downloads and verifies MyStem, prepares the executable,
+and runs the test.
 
 Expected output shape:
 
-```json
-[{"analysis":[{"lex":"мама","gr":"S,..."}],"text":"Мама"}, ...]
+```text
+[{"analysis":[{"lex":"мама","gr":"S,жен,од=им,ед"}],"text":"Мама"}]
 ```
 
-The exact grammar string is MyStem data. The important part for this tutorial is
-that the runtime returns one raw MyStem JSON line.
+The exact grammar string comes from MyStem data; for this smoke test, check that a
+raw JSON line is returned.
 
-## Next Steps
+## Next steps
 
 - Use [runtime clients](../how-to/use-runtime-clients.md) directly when raw MyStem output is enough.
 - Use [model parsing](../how-to/parse-mystem-output.md) when you need Java objects, lemmas, grammar, and offsets.

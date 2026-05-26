@@ -22,7 +22,6 @@ public class Mystem4jPlugin implements Plugin<Project> {
                         .toPath()
                         .resolve("caches/mystem4j")
                         .toFile())));
-        extension.getDistributionDirectory().convention(project.getLayout().getBuildDirectory().dir("mystem/distribution"));
 
         Provider<MystemDistribution> distribution = project.provider(
                 () -> MystemDistribution.forOs(extension.getTargetOs().get(), extension.getVersion().get()));
@@ -85,6 +84,13 @@ public class Mystem4jPlugin implements Plugin<Project> {
                     task.getMaxOutputBytes().set(extension.getMaxProbeOutputBytes());
                 });
 
+        Provider<RegularFile> downloadedArchive = download.flatMap(MystemDownloadTask::getArchiveFile);
+        Provider<RegularFile> preparedExecutableFile = extract.flatMap(MystemExtractTask::getExecutableFile);
+        Provider<String> preparedExecutablePath = executableFile.map(file -> file.getAsFile().getAbsolutePath());
+        extension.setDownloadedArchive(downloadedArchive);
+        extension.setPreparedExecutable(preparedExecutableFile);
+        extension.setExecutablePath(preparedExecutablePath);
+
         TaskProvider<MystemPrepareRuntimeTask> prepareTestRuntime = project.getTasks()
                 .register("mystemPrepareTestRuntime", MystemPrepareRuntimeTask.class, task -> {
                     task.setGroup(GROUP);
@@ -96,20 +102,8 @@ public class Mystem4jPlugin implements Plugin<Project> {
                             .getBuildDirectory()
                             .file("mystem/mystem4j-test-runtime.properties"));
                 });
-
-        project.getTasks()
-                .register("mystemPrepareDistribution", MystemPrepareDistributionTask.class, task -> {
-                    task.setGroup(GROUP);
-                    task.setDescription("Copies the prepared MyStem executable into a distribution directory.");
-                    task.dependsOn(probe);
-                    task.getPrepareDistribution().set(extension.getPrepareDistribution());
-                    task.getExecutableFile().set(extract.flatMap(MystemExtractTask::getExecutableFile));
-                    task.getDistributionDirectory().set(extension.getDistributionDirectory());
-        });
-
-        Provider<String> preparedExecutable = executableFile.map(file -> file.getAsFile().getAbsolutePath());
         Provider<String> configuredExecutable =
-                project.provider(() -> extension.getConfigureTests().get() ? preparedExecutable.get() : null);
+                project.provider(() -> extension.getConfigureTests().get() ? preparedExecutablePath.get() : null);
         project.getTasks().withType(Test.class).configureEach(test -> {
             test.dependsOn(project.provider(() -> extension.getConfigureTests().get() ? prepareTestRuntime.get() : null));
             test.getInputs().property(EXECUTABLE_PROPERTY, configuredExecutable).optional(true);
