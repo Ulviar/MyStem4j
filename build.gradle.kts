@@ -1,9 +1,9 @@
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import io.github.ulviar.mystem4j.build.ApiSurfaceCheckTask
-import io.github.ulviar.mystem4j.build.JpmsSmokeTestTask
-import io.github.ulviar.mystem4j.build.PublicationMetadataCheckTask
+import io.github.ulviar.mystem4j.buildlogic.ApiSurfaceCheckTask
+import io.github.ulviar.mystem4j.buildlogic.JpmsSmokeTestTask
+import io.github.ulviar.mystem4j.buildlogic.PublicationMetadataCheckTask
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
@@ -127,7 +127,9 @@ tasks.register("realMystemTest") {
     dependsOn(
         ":mystem4j-runtime:test",
         ":mystem4j-model:test",
+        ":mystem4j-model:realMystemTest",
         ":mystem4j-tokenization:test",
+        ":mystem4j-tokenization:realMystemTest",
         ":mystem4j-lucene:test"
     )
     doFirst {
@@ -194,11 +196,12 @@ tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
         .buildDirectory
         .file("publications/pluginMaven/pom-default.xml")
         .map { it.asFile.absolutePath })
-    getCompileDependenciesByProject().put("mystem4j-runtime", "icli")
-    getCompileDependenciesByProject().put("mystem4j-model", "jackson-core")
-    getCompileDependenciesByProject().put("mystem4j-tokenization", "mystem4j-model")
-    getCompileDependenciesByProject().put("mystem4j-lucene", "mystem4j-runtime,mystem4j-tokenization,lucene-core")
-    getCompileDependenciesByProject().put("mystem4j-kotlin", "mystem4j-runtime,kotlin-stdlib")
+    getDependencyScopesByProject().put("mystem4j-runtime", "icli:compile")
+    getDependencyScopesByProject().put("mystem4j-model", "jackson-core:compile")
+    getDependencyScopesByProject().put("mystem4j-tokenization", "mystem4j-model:compile")
+    getDependencyScopesByProject()
+        .put("mystem4j-lucene", "mystem4j-runtime:compile,mystem4j-tokenization:compile,lucene-core:compile")
+    getDependencyScopesByProject().put("mystem4j-kotlin", "mystem4j-runtime:compile,kotlin-stdlib:compile")
 }
 
 tasks.register<ApiSurfaceCheckTask>("apiSurfaceCheck") {
