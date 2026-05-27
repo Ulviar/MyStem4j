@@ -9,8 +9,12 @@ import io.github.ulviar.mystem4j.MystemOptions
 import io.github.ulviar.mystem4j.MystemOutputFormat
 import io.github.ulviar.mystem4j.MystemPoolOptions
 import io.github.ulviar.mystem4j.MystemRawResult
+import java.io.File
 import java.nio.file.Path
 import java.time.Duration
+import kotlin.jvm.JvmName
+import kotlin.time.Duration as KotlinDuration
+import kotlin.time.toJavaDuration
 
 public fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient {
     val builder = Mystem.builder()
@@ -31,8 +35,20 @@ public class MystemClientDsl internal constructor(
         builder.executable(path)
     }
 
+    public fun executable(path: String): Unit {
+        executable(Path.of(path))
+    }
+
+    public fun executable(file: File): Unit {
+        executable(file.toPath())
+    }
+
     public fun options(options: MystemOptions): Unit {
         builder.options(options)
+    }
+
+    public fun options(configure: MystemOptionsDsl.() -> Unit): Unit {
+        options(mystemOptions(configure))
     }
 
     public fun searchPath(enabled: Boolean): Unit {
@@ -43,8 +59,18 @@ public class MystemClientDsl internal constructor(
         builder.requestTimeout(timeout)
     }
 
+    @JvmName("requestTimeoutKotlinDuration")
+    public fun requestTimeout(timeout: KotlinDuration): Unit {
+        requestTimeout(timeout.toJavaDuration())
+    }
+
     public fun idleTimeout(timeout: Duration): Unit {
         builder.idleTimeout(timeout)
+    }
+
+    @JvmName("idleTimeoutKotlinDuration")
+    public fun idleTimeout(timeout: KotlinDuration): Unit {
+        idleTimeout(timeout.toJavaDuration())
     }
 
     public fun session(): Unit {
@@ -135,6 +161,14 @@ public class MystemOptionsDsl internal constructor(
         builder.fixlist(path)
     }
 
+    public fun fixlist(path: String): Unit {
+        fixlist(Path.of(path))
+    }
+
+    public fun fixlist(file: File): Unit {
+        fixlist(file.toPath())
+    }
+
     public fun format(format: MystemOutputFormat): Unit {
         builder.format(format)
     }
@@ -151,3 +185,5 @@ public class MystemOptionsDsl internal constructor(
 public fun String.analyzeWith(client: MystemClient): MystemRawResult = client.analyze(this)
 
 public fun Path.analyzeWith(client: MystemClient): MystemFileContentResult = client.analyzeFile(this)
+
+public fun File.analyzeWith(client: MystemClient): MystemFileContentResult = toPath().analyzeWith(client)

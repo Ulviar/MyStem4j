@@ -17,10 +17,15 @@ fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient
 | Kotlin DSL | Java builder |
 | --- | --- |
 | `executable(Path)` | `executable(Path)` |
+| `executable(String)` | `executable(Path)` |
+| `executable(File)` | `executable(Path)` |
 | `options(MystemOptions)` | `options(MystemOptions)` |
+| `options { ... }` | `options(MystemOptions)` |
 | `searchPath(Boolean)` | `searchPath(boolean)` |
 | `requestTimeout(Duration)` | `requestTimeout(Duration)` |
+| `requestTimeout(kotlin.time.Duration)` | `requestTimeout(Duration)` |
 | `idleTimeout(Duration)` | `idleTimeout(Duration)` |
+| `idleTimeout(kotlin.time.Duration)` | `idleTimeout(Duration)` |
 | `session()` | `session()` |
 | `pooled()` | `pooled()` |
 | `pooled(MystemPoolOptions)` | `pooled(MystemPoolOptions)` |
@@ -50,6 +55,14 @@ val options = mystemOptions {
     disambiguate()
     format(MystemOutputFormat.JSON)
 }
+
+val client = mystemClient {
+    executable("/path/to/mystem")
+    options {
+        grammarInfo()
+        disambiguate()
+    }
+}
 ```
 
 ## Extensions
@@ -57,7 +70,9 @@ val options = mystemOptions {
 ```kotlin
 fun String.analyzeWith(client: MystemClient): MystemRawResult
 fun Path.analyzeWith(client: MystemClient): MystemFileContentResult
+fun File.analyzeWith(client: MystemClient): MystemFileContentResult
 ```
 
 `String.analyzeWith` calls `client.analyze(string)`. `Path.analyzeWith` calls
-`client.analyzeFile(path)` and captures stdout as a string.
+`client.analyzeFile(path)` and captures stdout as a string. `File.analyzeWith`
+delegates to the `Path` extension.

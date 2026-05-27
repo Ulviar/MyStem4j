@@ -3,11 +3,12 @@ package io.github.ulviar.mystem4j.kotlin
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.test.assertFailsWith
 import io.github.ulviar.mystem4j.MystemOutputFormat
 import io.github.ulviar.mystem4j.MystemPoolOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.time.Duration.Companion.seconds
 import org.junit.jupiter.api.io.TempDir
 
 class MystemDslTest {
@@ -61,6 +62,28 @@ class MystemDslTest {
     }
 
     @Test
+    fun buildsClientWithNestedOptionsAndKotlinFriendlyOverloads() {
+        val executable = fakeMystem().toFile()
+        val fixlist = temporaryDirectory.resolve("fixlist.txt").toFile()
+        Files.writeString(fixlist.toPath(), "мама мама", StandardCharsets.UTF_8)
+
+        mystemClient {
+            executable(executable.absolutePath)
+            options {
+                grammarInfo()
+                fixlist(fixlist)
+                format(MystemOutputFormat.JSON)
+            }
+            requestTimeout(2.seconds)
+            idleTimeout(0.seconds)
+        }.use { client ->
+            val result = "мама".analyzeWith(client)
+
+            assertEquals("[{\"text\":\"мама\"}]\n", result.output())
+        }
+    }
+
+    @Test
     fun configuresPooledBuilderAndRejectsMultilineJsonLineRequests() {
         mystemClient {
             executable(fakeMystem())
@@ -84,7 +107,7 @@ class MystemDslTest {
         mystemClient {
             executable(fakeMystem())
         }.use { client ->
-            assertEquals("file", input.analyzeWith(client).output())
+            assertEquals("file", input.toFile().analyzeWith(client).output())
         }
     }
 

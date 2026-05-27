@@ -5,10 +5,15 @@ Compiled from "MystemDsl.kt"
 public final class io.github.ulviar.mystem4j.kotlin.MystemClientDsl {
   public io.github.ulviar.mystem4j.kotlin.MystemClientDsl(io.github.ulviar.mystem4j.MystemClientBuilder);
   public final void executable(java.nio.file.Path);
+  public final void executable(java.lang.String);
+  public final void executable(java.io.File);
   public final void options(io.github.ulviar.mystem4j.MystemOptions);
+  public final void options(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, kotlin.Unit>);
   public final void searchPath(boolean);
   public final void requestTimeout(java.time.Duration);
+  public final void requestTimeoutKotlinDuration(long);
   public final void idleTimeout(java.time.Duration);
+  public final void idleTimeoutKotlinDuration(long);
   public final void session();
   public final void pooled(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.MystemPoolOptions$Builder, kotlin.Unit>);
   public final void pooled();
@@ -27,6 +32,7 @@ public final class io.github.ulviar.mystem4j.kotlin.MystemDslKt {
   public static final io.github.ulviar.mystem4j.MystemOptions mystemOptions(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, kotlin.Unit>);
   public static final io.github.ulviar.mystem4j.MystemRawResult analyzeWith(java.lang.String, io.github.ulviar.mystem4j.MystemClient);
   public static final io.github.ulviar.mystem4j.MystemFileContentResult analyzeWith(java.nio.file.Path, io.github.ulviar.mystem4j.MystemClient);
+  public static final io.github.ulviar.mystem4j.MystemFileContentResult analyzeWith(java.io.File, io.github.ulviar.mystem4j.MystemClient);
 }
 
 ## io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl
@@ -54,6 +60,8 @@ public final class io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl {
   public static void englishGrammemes$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
   public final void filterGrammar(java.lang.String);
   public final void fixlist(java.nio.file.Path);
+  public final void fixlist(java.lang.String);
+  public final void fixlist(java.io.File);
   public final void format(io.github.ulviar.mystem4j.MystemOutputFormat);
   public final void generateAll(boolean);
   public static void generateAll$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);

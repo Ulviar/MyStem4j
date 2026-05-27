@@ -34,13 +34,15 @@ speech and case names in English instead of MyStem's default Russian abbreviatio
 ```kotlin
 import io.github.ulviar.mystem4j.kotlin.analyzeWith
 import io.github.ulviar.mystem4j.kotlin.mystemClient
-import java.nio.file.Path
-import java.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 mystemClient {
-    executable(Path.of("/path/to/mystem"))
-    options(options)
-    requestTimeout(Duration.ofSeconds(2))
+    executable("/path/to/mystem")
+    options {
+        grammarInfo()
+        disambiguate()
+    }
+    requestTimeout(2.seconds)
 }.use { client ->
     val raw = "Мама мыла раму.".analyzeWith(client)
     println(raw.output())
@@ -51,7 +53,7 @@ mystemClient {
 
 ```kotlin
 mystemClient {
-    executable(Path.of("/path/to/mystem"))
+    executable("/path/to/mystem")
     options(options)
     pooled {
         maxSize(4)
