@@ -129,8 +129,9 @@ for (MystemToken token : document.tokens()) {
 The parser aligns each MyStem `text` field against the original input from left to
 right. MyStem JSON can omit punctuation or other copied fragments depending on
 MyStem options. If a token cannot be aligned, its offsets are `-1` and the document
-contains a `UNMATCHED_TOKEN` issue. Log these issues or reject the document before
-passing it to offset-sensitive code such as search tokenization or Lucene.
+contains a `UNMATCHED_TOKEN` issue. Search tokenization can synthesize offset-safe
+fallback tokens from the original text, or you can reject these documents with
+`MystemUnmatchedTokenPolicy.FAIL`.
 
 ## Prepare text before MyStem
 

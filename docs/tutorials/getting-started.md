@@ -114,10 +114,17 @@ class MystemSmokeTest {
 On the first run, the plugin downloads and verifies MyStem, prepares the executable,
 and runs the test.
 
-Expected output shape:
+Expected output shape, formatted here for readability:
 
 ```text
-[{"analysis":[{"lex":"мама","gr":"S,жен,од=им,ед"}],"text":"Мама"}]
+[
+  {"analysis":[{"lex":"мама","gr":"S,жен,од=им,ед"}],"text":"Мама"},
+  {"text":" "},
+  {"analysis":[{"lex":"мыть","gr":"V,..."}],"text":"мыла"},
+  {"text":" "},
+  {"analysis":[{"lex":"рама","gr":"S,..."}],"text":"раму"},
+  {"text":"."}
+]
 ```
 
 The exact grammar string comes from MyStem data; for this smoke test, check that a

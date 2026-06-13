@@ -6,6 +6,8 @@ public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions 
   public static final int DEFAULT_MAX_INPUT_CHARS;
   public static final int DEFAULT_MAX_CHUNK_CHARS;
   public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy, io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy, io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy, io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy);
   public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions defaults();
   public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions withMaxInputChars(int);
   public final java.lang.String toString();
@@ -14,6 +16,8 @@ public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions 
   public int maxInputChars();
   public int maxChunkChars();
   public io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy positionPolicy();
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy clientPolicy();
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy oversizedInputPolicy();
 }
 
 ## io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer
@@ -27,6 +31,25 @@ public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer extends
   public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, boolean, int);
   public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer(io.github.ulviar.mystem4j.MystemClient, io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions, boolean, io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions);
   public void close();
+}
+
+## io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy
+Compiled from "MystemLuceneClientPolicy.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy extends java.lang.Enum<io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy> {
+  public static final io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy ALLOW_ANY;
+  public static final io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy WARN_ON_KNOWN_SLOW_CLIENTS;
+  public static final io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy REQUIRE_POOLED_OR_UNKNOWN;
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy[] values();
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy valueOf(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy
+Compiled from "MystemLuceneOversizedInputPolicy.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy extends java.lang.Enum<io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy> {
+  public static final io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy FAIL;
+  public static final io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy TRUNCATE_AT_CODE_POINT_BOUNDARY;
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy[] values();
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy valueOf(java.lang.String);
 }
 
 ## io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy

@@ -5,6 +5,7 @@ Use this checklist before publishing a MyStem4j release.
 ## Required
 
 - Confirm `gradle.properties` has the release version.
+- If dependencies changed, run `./gradlew check --write-locks -Pmystem4j.useMavenLocal=true` and review the updated lockfiles.
 - Run `./gradlew check -Pmystem4j.useMavenLocal=true`.
 - Run `./gradlew memorySmokeTest -Pmystem4j.useMavenLocal=true`.
 - Run `./gradlew javadoc javadocJar jar generatePomFileForMavenJavaPublication :mystem4j-gradle-plugin:generatePomFileForPluginMavenPublication :mystem4j-gradle-plugin:generatePomFileForMystem4jPluginMarkerMavenPublication -Pmystem4j.useMavenLocal=true`.

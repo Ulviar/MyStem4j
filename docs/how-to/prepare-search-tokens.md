@@ -17,10 +17,12 @@ dependencies {
 ```java
 import io.github.ulviar.mystem4j.model.MystemDocument;
 import io.github.ulviar.mystem4j.model.MystemJsonParser;
+import io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchToken;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import io.github.ulviar.mystem4j.tokenization.MystemTokenForm;
+import io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -86,9 +88,32 @@ Each `MystemSearchToken` contains:
 
 ## Offset safety
 
-The tokenizer requires known offsets. If the parsed model contains `-1` offsets,
-tokenization fails because Lucene and most search engines cannot safely emit a
-token without valid start/end positions.
+Search tokens always have valid Java UTF-16 offsets. If the parsed model contains
+an unaligned MyStem token with `-1` offsets, the default policy skips that model
+token and synthesizes fallback tokens from the original text.
+
+Use strict mode when a single unaligned token should reject the document:
+
+```java
+MystemSearchTokenizerOptions options = MystemSearchTokenizerOptions.entityAware()
+        .toBuilder()
+        .unmatchedTokenPolicy(MystemUnmatchedTokenPolicy.FAIL)
+        .build();
+
+MystemSearchTokenizer tokenizer = new MystemSearchTokenizer(options);
+```
+
+Use weighted lemma selection when MyStem output includes `wt` and the index should
+keep only one lemma per token:
+
+```java
+MystemSearchTokenizerOptions options = MystemSearchTokenizerOptions.conservative()
+        .toBuilder()
+        .lemmaSelectionPolicy(MystemLemmaSelectionPolicy.BEST_WEIGHT)
+        .build();
+
+MystemSearchTokenizer tokenizer = new MystemSearchTokenizer(options);
+```
 
 MyStem can omit some input fragments from JSON output depending on its options. The
 tokenizer synthesizes gap tokens from the original text so punctuation, URL glue,

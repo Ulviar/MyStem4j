@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,12 +23,38 @@ class OneShotMystemClientTest {
     void analyzesStringWithOneShotProcess() throws IOException {
         Path executable = fakeMystem();
         try (MystemClient client = Mystem.builder().executable(executable).build()) {
+            assertEquals(MystemClientExecutionProfile.ONE_SHOT_PROCESS_PER_REQUEST, client.executionProfile());
+            assertEquals(Optional.of(MystemOutputFormat.JSON), client.outputFormat());
+
             MystemRawResult result = client.analyze("Мама мыла раму.");
 
             assertEquals("[{\"text\":\"Мама мыла раму.\"}]\n", result.output());
             assertEquals(MystemOutputFormat.JSON, result.format());
             assertEquals(MystemExecutionMode.ONE_SHOT_TEXT, result.stats().mode());
         }
+    }
+
+    @Test
+    void exposesConfiguredOutputFormat() throws IOException {
+        Path executable = fakeMystem();
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .options(MystemOptions.builder().format(MystemOutputFormat.TEXT).build())
+                .build()) {
+            assertEquals(Optional.of(MystemOutputFormat.TEXT), client.outputFormat());
+        }
+    }
+
+    @Test
+    void builderRejectsUnreadableFixlist() throws IOException {
+        Path executable = fakeMystem();
+        MystemOptions options = MystemOptions.builder()
+                .fixlist(temporaryDirectory.resolve("missing.txt"))
+                .build();
+
+        assertThrows(
+                MystemInvalidOptionsException.class,
+                () -> Mystem.builder().executable(executable).options(options).build());
     }
 
     @Test
@@ -110,12 +137,7 @@ class OneShotMystemClientTest {
 
     @Test
     void mapsTimeout() throws IOException {
-        Path executable = script(
-                "sleeping-mystem",
-                """
-                #!/bin/sh
-                sleep 5
-                """);
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "sleeping-mystem", "sleep");
 
         try (MystemClient client = Mystem.builder()
                 .executable(executable)
@@ -127,13 +149,7 @@ class OneShotMystemClientTest {
 
     @Test
     void mapsExitCodeAndStderr() throws IOException {
-        Path executable = script(
-                "failing-mystem",
-                """
-                #!/bin/sh
-                echo "bad mystem" >&2
-                exit 7
-                """);
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "failing-mystem", "fail", "7", "bad mystem");
 
         try (MystemClient client = Mystem.builder().executable(executable).build()) {
             MystemProcessException error =
@@ -146,12 +162,7 @@ class OneShotMystemClientTest {
 
     @Test
     void mapsOutputLimit() throws IOException {
-        Path executable = script(
-                "large-output-mystem",
-                """
-                #!/bin/sh
-                printf '0123456789abcdefghijklmnopqrstuvwxyz'
-                """);
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "large-output-mystem", "largeOutput");
 
         try (MystemClient client = Mystem.builder().executable(executable).maxResponseBytes(8).build()) {
             assertThrows(MystemOutputLimitException.class, () -> client.analyze("text"));
@@ -159,18 +170,24 @@ class OneShotMystemClientTest {
     }
 
     @Test
-    void mapsProcessStartupFailure() throws IOException {
-        Path executable = temporaryDirectory.resolve("missing-interpreter");
-        Files.writeString(
-                executable,
-                """
-                #!/definitely/missing/interpreter
-                """,
-                StandardCharsets.UTF_8);
-        executable.toFile().setExecutable(true, false);
+    void appliesConfiguredNonUtf8EncodingToTextInputAndOutput() throws IOException {
+        Path executable = cp1251EchoMystem();
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .options(MystemOptions.builder().encoding(MystemEncoding.CP1251).build())
+                .build()) {
+            MystemRawResult result = client.analyze("Привет");
+
+            assertEquals("[{\"text\":\"Привет\"}]\n", result.output());
+        }
+    }
+
+    @Test
+    void mapsBrokenExecutableProcessFailure() throws IOException {
+        Path executable = FakeMystemExecutable.brokenExecutable(temporaryDirectory, "broken-mystem");
 
         try (MystemClient client = Mystem.builder().executable(executable).build()) {
-            assertThrows(MystemStartupException.class, () -> client.analyze("text"));
+            assertThrows(MystemProcessException.class, () -> client.analyze("text"));
         }
     }
 
@@ -187,33 +204,10 @@ class OneShotMystemClientTest {
     }
 
     private Path fakeMystem() throws IOException {
-        return script(
-                "fake-mystem",
-                """
-                #!/bin/sh
-                last=""
-                previous=""
-                for argument in "$@"; do
-                  previous="$last"
-                  last="$argument"
-                done
-                if [ -n "$previous" ] && [ -f "$previous" ]; then
-                  cp "$previous" "$last"
-                  exit 0
-                fi
-                if [ -n "$last" ] && [ -f "$last" ]; then
-                  cat "$last"
-                  exit 0
-                fi
-                input="$(cat)"
-                printf '[{"text":"%s"}]\\n' "$input"
-                """);
+        return FakeMystemExecutable.create(temporaryDirectory, "fake-mystem", "echo");
     }
 
-    private Path script(String name, String body) throws IOException {
-        Path executable = temporaryDirectory.resolve(name);
-        Files.writeString(executable, body, StandardCharsets.UTF_8);
-        executable.toFile().setExecutable(true, false);
-        return executable;
+    private Path cp1251EchoMystem() throws IOException {
+        return FakeMystemExecutable.create(temporaryDirectory, "cp1251-echo-mystem", "cp1251Echo");
     }
 }

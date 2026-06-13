@@ -81,10 +81,12 @@ class MystemOptionsTest {
     }
 
     @Test
-    void rejectsUnreadableFixlist() {
-        assertThrows(
-                MystemInvalidOptionsException.class,
-                () -> MystemOptions.builder().fixlist(temporaryDirectory.resolve("missing.txt")).build());
+    void acceptsFixlistPathWithoutTouchingFileSystem() {
+        Path missingFixlist = temporaryDirectory.resolve("missing.txt");
+
+        MystemOptions options = MystemOptions.builder().fixlist(missingFixlist).build();
+
+        assertEquals(missingFixlist, options.fixlist().orElseThrow());
     }
 
     @Test

@@ -44,4 +44,10 @@ class MystemDistributionTest {
     void rejectsUnsupportedVersion() {
         assertThrows(GradleException.class, () -> MystemDistribution.forOs("linux", "3.0"));
     }
+
+    @Test
+    void rejectsExplicitUnsupportedArchitecture() {
+        assertThrows(GradleException.class, () -> MystemDistribution.forOs("linux-aarch64", "3.1"));
+        assertThrows(GradleException.class, () -> MystemDistribution.forOs("macos arm64", "3.1"));
+    }
 }

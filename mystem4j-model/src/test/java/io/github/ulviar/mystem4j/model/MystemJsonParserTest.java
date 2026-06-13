@@ -115,6 +115,21 @@ class MystemJsonParserTest {
 
     @Test
     void rejectsNonArrayJson() {
-        assertThrows(MystemJsonParseException.class, () -> parser.parse("text", "{\"text\":\"text\"}"));
+        MystemJsonParseException error =
+                assertThrows(MystemJsonParseException.class, () -> parser.parse("text", "{\"text\":\"text\"}"));
+
+        assertTrue(error.getMessage().contains("MyStem JSON root must be an array"));
+        assertTrue(error.getMessage().contains("line"));
+        assertTrue(error.getMessage().contains("column"));
+    }
+
+    @Test
+    void reportsJsonSyntaxErrorLocation() {
+        MystemJsonParseException error =
+                assertThrows(MystemJsonParseException.class, () -> parser.parse("text", "[{\"text\":\"text\"}"));
+
+        assertTrue(error.getMessage().contains("Failed to parse MyStem JSON output"));
+        assertTrue(error.getMessage().contains("line"));
+        assertTrue(error.getMessage().contains("column"));
     }
 }

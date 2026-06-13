@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +16,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
@@ -157,6 +160,32 @@ class MystemDownloadTaskTest {
     }
 
     @Test
+    void retriesRemoteDownloadAfterTransientConnectionFailure() throws IOException {
+        Project project = ProjectBuilder.builder().build();
+        byte[] content = "retry-content".getBytes(StandardCharsets.UTF_8);
+        Path archive = temporaryDirectory.resolve("mystem.tar.gz");
+        try (FlakyHttpServer server = new FlakyHttpServer(content)) {
+            server.start();
+            MystemDownloadTask task =
+                    project.getTasks().register("mystemDownloadWithRetry", MystemDownloadTask.class).get();
+            task.getVersion().set("3.1");
+            task.getDownload().set(true);
+            task.getAcceptYandexMystemLicense().set(true);
+            task.getArchiveUrl().set(server.uri());
+            task.getExpectedSha256().set(sha256(content));
+            task.getMaxArchiveBytes().set(1024L);
+            task.getCacheDirectory().set(temporaryDirectory.resolve("cache").toFile());
+            task.getArchiveFile().set(archive.toFile());
+            task.getMetadataFile().set(temporaryDirectory.resolve("mystem.tar.gz.metadata.properties").toFile());
+
+            task.download();
+
+            assertEquals("retry-content", Files.readString(archive, StandardCharsets.UTF_8));
+            assertTrue(server.requests() >= 2);
+        }
+    }
+
+    @Test
     void rejectsArchiveLargerThanLimit() throws IOException {
         Project project = ProjectBuilder.builder().build();
         MystemDownloadTask task =
@@ -218,6 +247,92 @@ class MystemDownloadTaskTest {
             throw new AssertionError("Failed to read " + file + " while calculating sha256.", error);
         } catch (NoSuchAlgorithmException error) {
             throw new AssertionError("Current JDK does not provide SHA-256.", error);
+        }
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException error) {
+            throw new AssertionError("Current JDK does not provide SHA-256.", error);
+        }
+    }
+
+    private static final class FlakyHttpServer implements AutoCloseable {
+        private final ServerSocket serverSocket;
+        private final byte[] content;
+        private final AtomicInteger requests = new AtomicInteger();
+        private Thread serverThread;
+
+        private FlakyHttpServer(byte[] content) throws IOException {
+            this.serverSocket = new ServerSocket(0);
+            this.content = content.clone();
+        }
+
+        private void start() {
+            serverThread = new Thread(this::serve, "mystem4j-flaky-http-test");
+            serverThread.setDaemon(true);
+            serverThread.start();
+        }
+
+        private String uri() {
+            return "http://127.0.0.1:" + serverSocket.getLocalPort() + "/mystem.tar.gz";
+        }
+
+        private int requests() {
+            return requests.get();
+        }
+
+        private void serve() {
+            while (!serverSocket.isClosed() && requests.get() < 2) {
+                try (Socket socket = serverSocket.accept()) {
+                    int request = requests.incrementAndGet();
+                    drainRequestHeaders(socket);
+                    if (request == 1) {
+                        continue;
+                    }
+                    OutputStream output = socket.getOutputStream();
+                    output.write(("HTTP/1.1 200 OK\r\nContent-Length: " + content.length
+                                    + "\r\nConnection: close\r\n\r\n")
+                            .getBytes(StandardCharsets.US_ASCII));
+                    output.write(content);
+                    output.flush();
+                } catch (IOException ignored) {
+                    return;
+                }
+            }
+        }
+
+        private static void drainRequestHeaders(Socket socket) throws IOException {
+            InputStream input = socket.getInputStream();
+            int previous = -1;
+            int current;
+            int matched = 0;
+            while ((current = input.read()) != -1) {
+                if ((matched == 0 || matched == 2) && current == '\r') {
+                    matched++;
+                } else if ((matched == 1 || matched == 3) && current == '\n') {
+                    matched++;
+                    if (matched == 4) {
+                        return;
+                    }
+                } else {
+                    matched = previous == '\r' && current == '\n' ? 2 : 0;
+                }
+                previous = current;
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            serverSocket.close();
+            if (serverThread != null) {
+                try {
+                    serverThread.join(1_000L);
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
     }
 }

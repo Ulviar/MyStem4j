@@ -19,6 +19,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.DirectoryProperty;
@@ -33,6 +35,10 @@ import org.gradle.work.DisableCachingByDefault;
 
 @DisableCachingByDefault(because = "Downloads an external MyStem archive and manages its own local reuse checks.")
 public abstract class MystemDownloadTask extends DefaultTask {
+    private static final int MAX_DOWNLOAD_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MILLIS = 100L;
+    private static final ConcurrentMap<Path, Object> LOCAL_LOCKS = new ConcurrentHashMap<>();
+
     @Input
     public abstract Property<String> getVersion();
 
@@ -133,26 +139,30 @@ public abstract class MystemDownloadTask extends DefaultTask {
         Path lockFile = cachedArchive.resolveSibling(cachedArchive.getFileName() + ".lock");
         Path temporaryCacheArchive = cachedArchive.resolveSibling(cachedArchive.getFileName() + ".part");
         Files.createDirectories(cachedArchive.getParent());
-        try (FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-                FileLock ignored = channel.lock()) {
-            if (!Files.isRegularFile(cachedArchive) || !matchesExpectedSha256(cachedArchive, expectedSha256)) {
-                Files.deleteIfExists(temporaryCacheArchive);
-                try {
-                    downloadTo(archiveUri, temporaryCacheArchive, maxArchiveBytes);
-                    if (!matchesExpectedSha256(temporaryCacheArchive, expectedSha256)) {
-                        throw new GradleException("Downloaded MyStem archive checksum does not match expected sha256.");
-                    }
-                    moveReplacing(temporaryCacheArchive, cachedArchive);
-                } catch (GradleException | IOException error) {
+        Object localLock = LOCAL_LOCKS.computeIfAbsent(lockFile.toAbsolutePath().normalize(), ignored -> new Object());
+        synchronized (localLock) {
+            try (FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+                    FileLock ignored = channel.lock()) {
+                if (!Files.isRegularFile(cachedArchive) || !matchesExpectedSha256(cachedArchive, expectedSha256)) {
+                    Files.deleteIfExists(temporaryCacheArchive);
                     try {
-                        Files.deleteIfExists(temporaryCacheArchive);
-                    } catch (IOException cleanupError) {
-                        error.addSuppressed(cleanupError);
+                        downloadTo(archiveUri, temporaryCacheArchive, maxArchiveBytes);
+                        if (!matchesExpectedSha256(temporaryCacheArchive, expectedSha256)) {
+                            throw new GradleException(
+                                    "Downloaded MyStem archive checksum does not match expected sha256.");
+                        }
+                        moveReplacing(temporaryCacheArchive, cachedArchive);
+                    } catch (GradleException | IOException error) {
+                        try {
+                            Files.deleteIfExists(temporaryCacheArchive);
+                        } catch (IOException cleanupError) {
+                            error.addSuppressed(cleanupError);
+                        }
+                        throw error;
                     }
-                    throw error;
                 }
+                Files.copy(cachedArchive, destination, StandardCopyOption.REPLACE_EXISTING);
             }
-            Files.copy(cachedArchive, destination, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -175,6 +185,24 @@ public abstract class MystemDownloadTask extends DefaultTask {
     }
 
     private static void downloadTo(URI uri, Path destination, long maxArchiveBytes) throws IOException {
+        IOException lastError = null;
+        for (int attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+            try {
+                downloadOnce(uri, destination, maxArchiveBytes);
+                return;
+            } catch (IOException error) {
+                Files.deleteIfExists(destination);
+                lastError = error;
+                if (!isRemote(uri) || attempt == MAX_DOWNLOAD_ATTEMPTS) {
+                    throw error;
+                }
+                sleepBeforeRetry(error);
+            }
+        }
+        throw lastError;
+    }
+
+    private static void downloadOnce(URI uri, Path destination, long maxArchiveBytes) throws IOException {
         URLConnection connection = uri.toURL().openConnection();
         connection.setConnectTimeout(30_000);
         connection.setReadTimeout(30_000);
@@ -184,6 +212,22 @@ public abstract class MystemDownloadTask extends DefaultTask {
         }
         try (InputStream input = connection.getInputStream()) {
             copyWithLimit(input, destination, maxArchiveBytes);
+        }
+    }
+
+    private static boolean isRemote(URI uri) {
+        String scheme = uri.getScheme();
+        return "https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme);
+    }
+
+    private static void sleepBeforeRetry(IOException error) throws IOException {
+        try {
+            Thread.sleep(RETRY_DELAY_MILLIS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            IOException interruptedError = new IOException("Interrupted while retrying MyStem archive download.", interrupted);
+            interruptedError.addSuppressed(error);
+            throw interruptedError;
         }
     }
 

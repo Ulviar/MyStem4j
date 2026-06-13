@@ -16,9 +16,10 @@ and tokenization types used by its public API.
 
 ## Create an analyzer
 
-The MyStem client passed to the analyzer must return JSON. For indexing jobs,
-prefer a pooled client. Always close both the analyzer and the client, or let the
-analyzer own the client with `closeClientOnClose=true`.
+The MyStem client passed to the analyzer must return JSON. If a built-in runtime
+client is configured for `TEXT` or `XML`, analyzer creation fails immediately. For
+indexing jobs, prefer a pooled client. Always close both the analyzer and the
+client, or let the analyzer own the client with `closeClientOnClose=true`.
 
 ```java
 import io.github.ulviar.mystem4j.Mystem;
@@ -27,6 +28,8 @@ import io.github.ulviar.mystem4j.MystemOptions;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
 import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions;
 import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer;
+import io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy;
+import io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy;
 import io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.nio.file.Path;
@@ -137,7 +140,9 @@ int maxChunkChars = 16_384;
 MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
         maxInputChars,
         maxChunkChars,
-        MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+        MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS,
+        MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN,
+        MystemLuceneOversizedInputPolicy.FAIL);
 
 Analyzer analyzer = new MystemLuceneAnalyzer(
         client,
@@ -152,9 +157,19 @@ Defaults are:
 | `maxInputChars` | `1_000_000` UTF-16 code units per Lucene field |
 | `maxChunkChars` | `32_768` UTF-16 code units per MyStem request |
 | `positionPolicy` | `COMPACT` |
+| `clientPolicy` | `WARN_ON_KNOWN_SLOW_CLIENTS` |
+| `oversizedInputPolicy` | `FAIL` |
 
 Use `COMPACT` if phrase/proximity queries should ignore punctuation and skipped
 fragments. Use `PRESERVE_SKIPPED_TOKENS` if those fragments should affect positions.
+Use `REQUIRE_POOLED_OR_UNKNOWN` for indexing jobs where accidentally passing a
+one-shot or reusable-session runtime client should fail during analyzer creation.
+Use `TRUNCATE_AT_CODE_POINT_BOUNDARY` only when silently indexing a bounded prefix
+is preferable to rejecting an oversized field.
+
+Chunking prefers whitespace and never splits a UTF-16 surrogate pair. If a field
+contains one very long run without whitespace, that run can be split at a code
+point boundary; offsets still point to the original field.
 
 ## Runtime choice
 

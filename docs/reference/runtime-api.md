@@ -30,11 +30,16 @@ Reusable session and pooled clients use one JSON response line as a protocol fra
 `analyze(String)` rejects text containing `\r` or `\n`; use one-shot mode or prepare
 multiline input before calling these modes.
 
+Reusable session and pooled clients also reject `newLineEachWord(true)`. MyStem
+then writes one JSON line per word, which is incompatible with the one-line-per-request
+protocol used by these modes.
+
 ## Main Types
 
 - `Mystem` - static entry point: `Mystem.builder()`.
 - `MystemClientBuilder` - configures executable, options, mode, timeouts, size limits, and diagnostics.
-- `MystemClient` - raw client with `analyze`, `analyzeFile`, `analyzeAll`, and `close`.
+- `MystemClient` - raw client with `analyze`, `analyzeFile`, `analyzeAll`, `executionProfile`,
+  `outputFormat`, and `close`.
 - `MystemOptions` - typed MyStem CLI options.
 - `MystemPoolOptions` - pool size, warmup, idle, worker lifetime, and acquire timeout settings.
 - `MystemProbe` - smoke-checks a MyStem executable.
@@ -46,15 +51,24 @@ MystemRawResult analyze(String text)
 MystemFileContentResult analyzeFile(Path input)
 MystemFileResult analyzeFile(Path input, Path output)
 List<MystemRawResult> analyzeAll(Collection<String> texts)
+MystemClientExecutionProfile executionProfile()
+Optional<MystemOutputFormat> outputFormat()
 void close()
 ```
+
+`executionProfile()` describes the process model of built-in clients:
+`ONE_SHOT_PROCESS_PER_REQUEST`, `REUSABLE_SESSION`, or `POOLED_SESSIONS`. Custom
+client implementations may keep the default `UNKNOWN`.
+
+`outputFormat()` returns the configured output format for built-in clients. Custom
+client implementations may keep the default empty value.
 
 ## Results
 
 - `MystemRawResult` - input text, raw output, format, request stats.
 - `MystemFileContentResult` - input path, captured stdout, format, request stats.
 - `MystemFileResult` - input path, output path, format, request stats.
-- `MystemRequestStats` - elapsed time, execution mode, input/output sizes, and optional worker metadata.
+- `MystemRequestStats` - elapsed time, execution mode, and input/output sizes.
 
 ## Options
 
@@ -63,7 +77,7 @@ disambiguation, and all boolean MyStem flags disabled.
 
 | `MystemOptions` field | Type | Default | CLI | Notes |
 | --- | --- | --- | --- | --- |
-| `newLineEachWord` | boolean | `false` | `-n` | print each word on a new line |
+| `newLineEachWord` | boolean | `false` | `-n` | print each word on a new line; one-shot only |
 | `copyInput` | boolean | `false` | `-c` | copy full input to output |
 | `dictionaryWordsOnly` | boolean | `false` | `-w` | print dictionary words only |
 | `lemmaOnly` | boolean | `false` | `-l` | omit original word forms |
@@ -74,7 +88,7 @@ disambiguation, and all boolean MyStem flags disabled.
 | `disambiguate` | boolean | `false` | `-d` | contextual disambiguation |
 | `englishGrammemes` | boolean | `false` | `--eng-gr` | English grammar tag names |
 | `filterGrammar` | optional string | empty | `--filter-gram` | non-blank grammar filter |
-| `fixlist` | optional path | empty | `--fixlist` | readable custom dictionary path |
+| `fixlist` | optional path | empty | `--fixlist` | custom dictionary path checked when a client is built |
 | `format` | enum | `JSON` | `--format` | `JSON`, `XML`, or `TEXT` |
 | `generateAll` | boolean | `false` | `--generate-all` | generate all hypotheses |
 | `weight` | boolean | `false` | `--weight` | output lemma probability |
@@ -94,11 +108,35 @@ See the MyStem documentation for the linguistic meaning of CLI options:
 - `maxResponseBytes(int)`, default `32_000_000`;
 - `includeInputInDiagnostics(boolean)`, default `false`.
 
+## Pool Options
+
+`MystemPoolOptions` controls pooled JSON-line sessions:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `maxSize` | available processors | maximum number of live MyStem workers |
+| `warmupSize` | `0` | workers started when the pool is opened |
+| `minIdle` | `0` | idle workers the pool tries to keep available |
+| `acquireTimeout` | `2` seconds | maximum wait for an available worker |
+| `hookTimeout` | `2` seconds | maximum time for worker lifecycle hooks |
+| `maxRequestsPerWorker` | `Integer.MAX_VALUE` | requests served by one worker before replacement |
+| `maxWorkerAge` | `Duration.ZERO` | worker lifetime limit; zero disables age-based replacement |
+| `backgroundReplenishment` | `true` | whether idle workers may be replenished in the background |
+
+Use `maxSize` to match expected concurrent analysis work. Use `maxRequestsPerWorker`
+or `maxWorkerAge` when the MyStem process should be periodically replaced during
+long-running indexing jobs.
+
 ## Diagnostics
 
 `includeInputInDiagnostics(false)` is the default so exception messages do not
 include the full request text. `MystemProcessException.stderr()` exposes captured
 stderr-like diagnostics when available.
+
+Reusable session and pooled clients drain process stdout and stderr through
+bounded protocol buffers. A process that writes excessive stderr without a valid
+response fails the request with `MystemOutputLimitException` instead of allowing
+unbounded memory growth.
 
 ## Exceptions
 

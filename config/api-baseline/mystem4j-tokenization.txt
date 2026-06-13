@@ -1,5 +1,14 @@
 # mystem4j-tokenization
 
+## io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy
+Compiled from "MystemLemmaSelectionPolicy.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy extends java.lang.Enum<io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy> {
+  public static final io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy ALL;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy BEST_WEIGHT;
+  public static io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy[] values();
+  public static io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy valueOf(java.lang.String);
+}
+
 ## io.github.ulviar.mystem4j.tokenization.MystemSearchToken
 Compiled from "MystemSearchToken.java"
 public final class io.github.ulviar.mystem4j.tokenization.MystemSearchToken extends java.lang.Record {
@@ -39,10 +48,14 @@ public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer 
 ## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions
 Compiled from "MystemSearchTokenizerOptions.java"
 public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions extends java.lang.Record {
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean, io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy, io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean, io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy);
   public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean);
   public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions conservative();
   public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions search();
   public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions entityAware();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder builder();
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder toBuilder();
   public final java.lang.String toString();
   public final int hashCode();
   public final boolean equals(java.lang.Object);
@@ -51,6 +64,21 @@ public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerO
   public boolean mergeEmails();
   public boolean classifyCurrencies();
   public boolean expandCurrencyForms();
+  public io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy unmatchedTokenPolicy();
+  public io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy lemmaSelectionPolicy();
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder
+Compiled from "MystemSearchTokenizerOptions.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder {
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder classifyNumbers(boolean);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder mergeUrls(boolean);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder mergeEmails(boolean);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder classifyCurrencies(boolean);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder expandCurrencyForms(boolean);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder unmatchedTokenPolicy(io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder lemmaSelectionPolicy(io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy);
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions build();
 }
 
 ## io.github.ulviar.mystem4j.tokenization.MystemTokenForm
@@ -68,4 +96,13 @@ public final class io.github.ulviar.mystem4j.tokenization.MystemTokenForm extend
 Compiled from "MystemTokenizationException.java"
 public class io.github.ulviar.mystem4j.tokenization.MystemTokenizationException extends java.lang.RuntimeException {
   public io.github.ulviar.mystem4j.tokenization.MystemTokenizationException(java.lang.String);
+}
+
+## io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy
+Compiled from "MystemUnmatchedTokenPolicy.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy extends java.lang.Enum<io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy> {
+  public static final io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy FAIL;
+  public static final io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy SYNTHESIZE_FROM_ORIGINAL_TEXT;
+  public static io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy[] values();
+  public static io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy valueOf(java.lang.String);
 }

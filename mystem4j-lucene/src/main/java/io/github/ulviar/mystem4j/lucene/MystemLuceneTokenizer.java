@@ -1,6 +1,7 @@
 package io.github.ulviar.mystem4j.lucene;
 
 import io.github.ulviar.mystem4j.MystemClient;
+import io.github.ulviar.mystem4j.MystemOutputFormat;
 import io.github.ulviar.mystem4j.MystemRawResult;
 import io.github.ulviar.mystem4j.model.MystemDocument;
 import io.github.ulviar.mystem4j.model.MystemJsonParser;
@@ -29,6 +30,9 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
  * <p>The supplied client must produce JSON output. The tokenizer prepares unsafe Unicode input before sending it to
  * MyStem and emits offsets in coordinates of the original Lucene input. Input is processed in bounded chunks to avoid
  * materializing large Lucene fields in memory.
+ *
+ * <p>This tokenizer follows Lucene {@link Tokenizer} lifecycle rules and is not intended to be shared directly between
+ * threads.
  */
 public final class MystemLuceneTokenizer extends Tokenizer {
     public static final int DEFAULT_MAX_INPUT_CHARS = MystemLuceneAnalysisOptions.DEFAULT_MAX_INPUT_CHARS;
@@ -58,6 +62,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      * Creates a tokenizer with conservative tokenization options.
      *
      * @param client MyStem client configured for JSON output
+     * @throws IllegalArgumentException when the client exposes a known non-JSON output format
      */
     public MystemLuceneTokenizer(MystemClient client) {
         this(client, MystemSearchTokenizerOptions.conservative());
@@ -68,6 +73,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      *
      * @param client MyStem client configured for JSON output
      * @param options search tokenization policy
+     * @throws IllegalArgumentException when the client exposes a known non-JSON output format
      */
     public MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options) {
         this(client, options, DEFAULT_MAX_INPUT_CHARS);
@@ -79,6 +85,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      * @param client MyStem client configured for JSON output
      * @param options search tokenization policy
      * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
+     * @throws IllegalArgumentException when the client exposes a known non-JSON output format or the limit is invalid
      */
     public MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars) {
         this(client, options, MystemLuceneAnalysisOptions.withMaxInputChars(maxInputChars));
@@ -90,6 +97,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      * @param client MyStem client configured for JSON output
      * @param options search tokenization policy
      * @param analysisOptions Lucene-side limits and position policy
+     * @throws IllegalArgumentException when the client exposes a known non-JSON output format
      */
     public MystemLuceneTokenizer(
             MystemClient client, MystemSearchTokenizerOptions options, MystemLuceneAnalysisOptions analysisOptions) {
@@ -105,6 +113,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         this.parser = Objects.requireNonNull(parser, "parser");
         this.searchTokenizer = Objects.requireNonNull(searchTokenizer, "searchTokenizer");
         this.analysisOptions = Objects.requireNonNull(analysisOptions, "analysisOptions");
+        requireJsonOutput(this.client);
     }
 
     @Override
@@ -134,6 +143,16 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         inputExhausted = false;
         finalOffset = 0;
         pendingPositionIncrement = 1;
+    }
+
+    private static void requireJsonOutput(MystemClient client) {
+        Objects.requireNonNull(client.outputFormat(), "client.outputFormat()").ifPresent(format -> {
+            if (format != MystemOutputFormat.JSON) {
+                throw new IllegalArgumentException(
+                        "MystemLuceneTokenizer requires a MyStem client configured for JSON output, but the supplied "
+                                + "client reports " + format + ".");
+            }
+        });
     }
 
     private List<LuceneEmission> analyze(String originalText, int offsetShift) {
@@ -193,17 +212,35 @@ public final class MystemLuceneTokenizer extends Tokenizer {
             return;
         }
         if (totalCharsRead + read > analysisOptions.maxInputChars()) {
-            throw new IOException(
-                    "Lucene field exceeds MyStem tokenizer maxInputChars: " + analysisOptions.maxInputChars());
+            if (analysisOptions.oversizedInputPolicy() == MystemLuceneOversizedInputPolicy.FAIL) {
+                throw new IOException(
+                        "Lucene field exceeds MyStem tokenizer maxInputChars: " + analysisOptions.maxInputChars());
+            }
+            int allowed = truncationBoundary(buffer, analysisOptions.maxInputChars() - totalCharsRead, read);
+            pendingInput.append(buffer, 0, allowed);
+            totalCharsRead += read;
+            drainRemainingInput(buffer);
+            inputExhausted = true;
+            return;
         }
         pendingInput.append(buffer, 0, read);
         totalCharsRead += read;
+    }
+
+    private void drainRemainingInput(char[] buffer) throws IOException {
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            totalCharsRead += read;
+        }
     }
 
     @Override
     public void end() throws IOException {
         super.end();
         offsetAttribute.setOffset(finalOffset, finalOffset);
+        if (analysisOptions.positionPolicy() == MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS) {
+            positionIncrementAttribute.setPositionIncrement(Math.max(0, pendingPositionIncrement - 1));
+        }
     }
 
     private static int chooseChunkEnd(CharSequence input, int maxChunkChars) {
@@ -225,9 +262,22 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         if (limit < input.length()
                 && Character.isLowSurrogate(input.charAt(limit))
                 && Character.isHighSurrogate(input.charAt(limit - 1))) {
-            return limit == 1 ? limit : limit - 1;
+            return limit == 1 ? limit + 1 : limit - 1;
         }
         return limit;
+    }
+
+    private static int truncationBoundary(char[] input, int limit, int available) {
+        int boundedLimit = Math.max(0, Math.min(limit, available));
+        if (boundedLimit == 0) {
+            return 0;
+        }
+        if (boundedLimit < available
+                && Character.isHighSurrogate(input[boundedLimit - 1])
+                && Character.isLowSurrogate(input[boundedLimit])) {
+            return boundedLimit - 1;
+        }
+        return boundedLimit;
     }
 
     private static boolean isPreferredSplitAfter(int codePoint) {

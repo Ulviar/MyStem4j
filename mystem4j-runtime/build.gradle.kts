@@ -1,13 +1,23 @@
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     `java-library`
     `maven-publish`
+    id("io.github.ulviar.mystem4j.publishing-conventions")
+}
+
+mystem4jJava {
+    automaticModuleName.set("io.github.ulviar.mystem4j")
+}
+
+mystem4jPublishing {
+    moduleDescription.set("MyStem CLI runtime for JVM applications.")
 }
 
 dependencies {
     api("com.github.ulviar:icli:0.1.0")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<Test>().configureEach {

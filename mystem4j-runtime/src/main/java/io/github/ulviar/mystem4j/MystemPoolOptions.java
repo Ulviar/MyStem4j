@@ -4,6 +4,15 @@ import java.time.Duration;
 
 /**
  * Pool configuration for pooled MyStem JSON-line sessions.
+ *
+ * @param maxSize maximum number of live workers in the pool
+ * @param warmupSize number of workers started when the pool is opened
+ * @param minIdle minimum number of idle workers the pool tries to keep available
+ * @param acquireTimeout maximum time to wait for an available worker
+ * @param hookTimeout maximum time allowed for worker lifecycle hooks
+ * @param maxRequestsPerWorker maximum requests served by one worker before it is replaced
+ * @param maxWorkerAge maximum worker lifetime, or {@link Duration#ZERO} to disable age-based replacement
+ * @param backgroundReplenishment whether the pool may replenish idle workers in the background
  */
 public record MystemPoolOptions(
         int maxSize,

@@ -77,7 +77,7 @@ text.
 
 | Issue | Meaning | Suggested handling |
 | --- | --- | --- |
-| `UNMATCHED_TOKEN` | MyStem returned token text that could not be aligned to the original text | log or reject before offset-sensitive tokenization/Lucene |
+| `UNMATCHED_TOKEN` | MyStem returned token text that could not be aligned to the original text | log, reject, or let tokenization synthesize offset-safe tokens from the original text |
 | `UNPAIRED_SURROGATE` | input contained an invalid UTF-16 surrogate code unit | inspect input source; preprocessor replaces it with `U+FFFD` |
 | `CONTROL_CHARACTER` | input contained an unsafe control character | preprocessor replaces it with a space |
 | `NONCHARACTER` | input contained a Unicode noncharacter | preprocessor replaces it with a space |

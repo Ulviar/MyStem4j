@@ -1,7 +1,9 @@
 package io.github.ulviar.mystem4j.model;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonLocation;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,11 +26,29 @@ public final class MystemJsonParser {
         this.jsonFactory = Objects.requireNonNull(jsonFactory, "jsonFactory");
     }
 
+    /**
+     * Parses MyStem JSON and aligns token offsets against the supplied original text.
+     *
+     * @param originalText text originally sent to MyStem
+     * @param json MyStem JSON output
+     * @return parsed document with original-text offsets
+     * @throws MystemJsonParseException when the JSON is malformed or has an unsupported shape
+     * @throws NullPointerException when {@code originalText} or {@code json} is {@code null}
+     */
     public MystemDocument parse(String originalText, String json) {
         Objects.requireNonNull(originalText, "originalText");
         return parse(originalText, originalText, IntUnaryOperator.identity(), List.of(), json);
     }
 
+    /**
+     * Parses MyStem JSON for preprocessed text and maps token offsets back to the original text.
+     *
+     * @param preparedText preprocessed text sent to MyStem
+     * @param json MyStem JSON output
+     * @return parsed document with original-text offsets and preprocessing issues
+     * @throws MystemJsonParseException when the JSON is malformed or has an unsupported shape
+     * @throws NullPointerException when {@code preparedText} or {@code json} is {@code null}
+     */
     public MystemDocument parse(MystemPreparedText preparedText, String json) {
         Objects.requireNonNull(preparedText, "preparedText");
         return parse(
@@ -53,17 +73,17 @@ public final class MystemJsonParser {
         try (JsonParser parser = jsonFactory.createParser(json)) {
             JsonToken rootToken = parser.nextToken();
             if (rootToken != JsonToken.START_ARRAY) {
-                throw new MystemJsonParseException("MyStem JSON root must be an array.");
+                throw parseError(parser, "MyStem JSON root must be an array");
             }
             MystemOffsetAligner aligner = new MystemOffsetAligner(alignmentText, originalOffsetFor);
             ArrayList<MystemToken> tokens = new ArrayList<>();
             while (rootToken != null) {
                 if (rootToken != JsonToken.START_ARRAY) {
-                    throw new MystemJsonParseException("MyStem JSON root values must be arrays.");
+                    throw parseError(parser, "MyStem JSON root values must be arrays");
                 }
                 while (parser.nextToken() != JsonToken.END_ARRAY) {
                     if (parser.currentToken() != JsonToken.START_OBJECT) {
-                        throw new MystemJsonParseException("MyStem JSON item must be an object.");
+                        throw parseError(parser, "MyStem JSON item must be an object");
                     }
                     RawToken item = readToken(parser);
                     String text = item.text();
@@ -76,7 +96,7 @@ public final class MystemJsonParser {
             issues.addAll(aligner.issues());
             return new MystemDocument(originalText, tokens, issues);
         } catch (IOException error) {
-            throw new MystemJsonParseException("Failed to parse MyStem JSON output.", error);
+            throw parseIoError(error);
         }
     }
 
@@ -85,7 +105,7 @@ public final class MystemJsonParser {
         List<MystemAnalysis> analyses = List.of();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             if (parser.currentToken() != JsonToken.FIELD_NAME) {
-                throw new MystemJsonParseException("MyStem JSON item field name expected.");
+                throw parseError(parser, "MyStem JSON item field name expected");
             }
             String fieldName = parser.currentName();
             JsonToken valueToken = parser.nextToken();
@@ -106,7 +126,7 @@ public final class MystemJsonParser {
         ArrayList<MystemAnalysis> analyses = new ArrayList<>();
         while (parser.nextToken() != JsonToken.END_ARRAY) {
             if (parser.currentToken() != JsonToken.START_OBJECT) {
-                throw new MystemJsonParseException("MyStem JSON analysis item must be an object.");
+                throw parseError(parser, "MyStem JSON analysis item must be an object");
             }
             analyses.add(readAnalysis(parser));
         }
@@ -119,7 +139,7 @@ public final class MystemJsonParser {
         OptionalDouble weight = OptionalDouble.empty();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             if (parser.currentToken() != JsonToken.FIELD_NAME) {
-                throw new MystemJsonParseException("MyStem JSON analysis field name expected.");
+                throw parseError(parser, "MyStem JSON analysis field name expected");
             }
             String fieldName = parser.currentName();
             JsonToken valueToken = parser.nextToken();
@@ -145,6 +165,26 @@ public final class MystemJsonParser {
         }
         parser.skipChildren();
         return "";
+    }
+
+    private static MystemJsonParseException parseError(JsonParser parser, String message) {
+        return new MystemJsonParseException(message + locationSuffix(parser.currentLocation()) + ".");
+    }
+
+    private static MystemJsonParseException parseIoError(IOException error) {
+        if (error instanceof JsonProcessingException jsonError) {
+            return new MystemJsonParseException(
+                    "Failed to parse MyStem JSON output" + locationSuffix(jsonError.getLocation()) + ".",
+                    error);
+        }
+        return new MystemJsonParseException("Failed to parse MyStem JSON output.", error);
+    }
+
+    private static String locationSuffix(JsonLocation location) {
+        if (location == null || location.getLineNr() < 0 || location.getColumnNr() < 0) {
+            return "";
+        }
+        return " at line " + location.getLineNr() + ", column " + location.getColumnNr();
     }
 
     private record RawToken(String text, List<MystemAnalysis> analyses) {}

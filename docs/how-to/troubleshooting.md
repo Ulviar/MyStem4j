@@ -62,13 +62,14 @@ line. They reject raw `\r` and `\n` characters. Use one-shot mode for multiline
 text, or prepare input with `MystemTextPreprocessor.prepareJsonLine` and parse the
 result with `MystemJsonParser.parse(MystemPreparedText, json)`.
 
-## Tokenization Fails With Unknown Offsets
+## Parsed Output Has Unknown Offsets
 
-`mystem4j-tokenization` requires valid offsets. If `MystemJsonParser` reports
-`UNMATCHED_TOKEN`, inspect `document.issues()` and avoid passing that document to
-Lucene until the input and MyStem JSON can be aligned. When the original text can
-contain unusual Unicode values, run `MystemTextPreprocessor` before MyStem and parse
-with the prepared-text overload.
+If `MystemJsonParser` reports `UNMATCHED_TOKEN`, inspect `document.issues()`.
+The default search tokenizer still emits offset-safe fallback tokens from the
+original text. Use `MystemUnmatchedTokenPolicy.FAIL` when the application should
+reject such documents instead. When the original text can contain unusual Unicode
+values, run `MystemTextPreprocessor` before MyStem and parse with the prepared-text
+overload.
 
 ## Lucene Analyzer Is Slow
 

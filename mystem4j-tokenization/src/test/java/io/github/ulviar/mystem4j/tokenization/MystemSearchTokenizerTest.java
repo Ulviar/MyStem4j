@@ -54,6 +54,96 @@ class MystemSearchTokenizerTest {
     void rejectsCurrencyExpansionWithoutCurrencyClassification() {
         assertThrows(IllegalArgumentException.class,
                 () -> new MystemSearchTokenizerOptions(false, false, false, false, true));
+        assertThrows(NullPointerException.class,
+                () -> new MystemSearchTokenizerOptions(
+                        false, false, false, false, false, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> MystemSearchTokenizerOptions.builder()
+                        .expandCurrencyForms(true)
+                        .build());
+        assertThrows(NullPointerException.class,
+                () -> MystemSearchTokenizerOptions.builder().unmatchedTokenPolicy(null));
+        assertThrows(NullPointerException.class,
+                () -> MystemSearchTokenizerOptions.builder().lemmaSelectionPolicy(null));
+    }
+
+    @Test
+    void buildsOptionsWithNamedSetters() {
+        MystemSearchTokenizerOptions options = MystemSearchTokenizerOptions.builder()
+                .classifyNumbers(true)
+                .mergeUrls(true)
+                .mergeEmails(true)
+                .classifyCurrencies(true)
+                .expandCurrencyForms(true)
+                .unmatchedTokenPolicy(MystemUnmatchedTokenPolicy.FAIL)
+                .lemmaSelectionPolicy(MystemLemmaSelectionPolicy.BEST_WEIGHT)
+                .build();
+
+        assertEquals(new MystemSearchTokenizerOptions(
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        MystemUnmatchedTokenPolicy.FAIL,
+                        MystemLemmaSelectionPolicy.BEST_WEIGHT),
+                options);
+        assertEquals(options, options.toBuilder().build());
+    }
+
+    @Test
+    void canUseOnlyHighestWeightedLemma() {
+        MystemDocument document = document(
+                "замок",
+                new MystemToken(
+                        "замок",
+                        0,
+                        5,
+                        List.of(
+                                analysis("замок", 0.2),
+                                analysis("замокнуть", 0.8),
+                                analysis("замковый", 0.1))));
+        MystemSearchTokenizer tokenizer = new MystemSearchTokenizer(MystemSearchTokenizerOptions.conservative()
+                .toBuilder()
+                .lemmaSelectionPolicy(MystemLemmaSelectionPolicy.BEST_WEIGHT)
+                .build());
+
+        List<MystemSearchToken> tokens = tokenizer.tokenize(document);
+
+        assertEquals(List.of(new MystemTokenForm("замокнуть", true)), tokens.getFirst().forms());
+    }
+
+    @Test
+    void bestWeightLemmaSelectionFallsBackToFirstLemmaWhenWeightsAreMissing() {
+        MystemDocument document = document("тест", token("тест", 0, 4, "первый", "второй"));
+        MystemSearchTokenizer tokenizer = new MystemSearchTokenizer(MystemSearchTokenizerOptions.conservative()
+                .toBuilder()
+                .lemmaSelectionPolicy(MystemLemmaSelectionPolicy.BEST_WEIGHT)
+                .build());
+
+        List<MystemSearchToken> tokens = tokenizer.tokenize(document);
+
+        assertEquals(List.of(new MystemTokenForm("первый", true)), tokens.getFirst().forms());
+    }
+
+    @Test
+    void presetsMatchNamedOptionCombinations() {
+        assertEquals(MystemSearchTokenizerOptions.builder().build(), MystemSearchTokenizerOptions.conservative());
+        assertEquals(
+                MystemSearchTokenizerOptions.builder()
+                        .classifyNumbers(true)
+                        .classifyCurrencies(true)
+                        .build(),
+                MystemSearchTokenizerOptions.search());
+        assertEquals(
+                MystemSearchTokenizerOptions.builder()
+                        .classifyNumbers(true)
+                        .mergeUrls(true)
+                        .mergeEmails(true)
+                        .classifyCurrencies(true)
+                        .expandCurrencyForms(true)
+                        .build(),
+                MystemSearchTokenizerOptions.entityAware());
     }
 
     @Test
@@ -164,6 +254,27 @@ class MystemSearchTokenizerTest {
     }
 
     @Test
+    void emailMergingDoesNotConsumeAdjacentWordsSeparatedByPunctuation() {
+        String text = "пиши,me@example.com";
+        MystemDocument document = document(
+                text,
+                tokenAt(text, "пиши", "писать"),
+                tokenAt(text, ","),
+                tokenAt(text, "me"),
+                tokenAt(text, "@"),
+                tokenAt(text, "example"),
+                tokenAt(text, "."),
+                tokenAt(text, "com"));
+
+        List<MystemSearchToken> tokens = tokenizer.tokenize(document);
+
+        assertEquals(MystemSearchTokenType.WORD, tokenByText(tokens, "пиши").type());
+        assertEquals(List.of(new MystemTokenForm("писать", true)), tokenByText(tokens, "пиши").forms());
+        assertEquals(MystemSearchTokenType.OTHER, tokenByText(tokens, ",").type());
+        assertEquals(MystemSearchTokenType.EMAIL, tokenByText(tokens, "me@example.com").type());
+    }
+
+    @Test
     void synthesizesSearchTokensFromOriginalTextGaps() {
         String text = "О\u00ADд\u00ADи\u00ADн Раз++ C++ 10# $ https://example.com me@example.com.";
         MystemDocument document = new MystemJsonParser().parse(
@@ -263,10 +374,21 @@ class MystemSearchTokenizerTest {
     }
 
     @Test
-    void rejectsUnknownOffsets() {
+    void synthesizesOriginalTextWhenModelTokenOffsetsAreUnknownByDefault() {
         MystemDocument document = document("text", new MystemToken("text", -1, -1, List.of()));
 
-        assertThrows(MystemTokenizationException.class, () -> tokenizer.tokenize(document));
+        assertEquals(List.of(new MystemSearchToken(
+                "text", List.of(new MystemTokenForm("text", false)), 0, 4, MystemSearchTokenType.WORD)),
+                tokenizer.tokenize(document));
+    }
+
+    @Test
+    void rejectsUnknownOffsetsInStrictMode() {
+        MystemSearchTokenizer strictTokenizer = new MystemSearchTokenizer(new MystemSearchTokenizerOptions(
+                true, true, true, true, true, MystemUnmatchedTokenPolicy.FAIL));
+        MystemDocument document = document("text", new MystemToken("text", -1, -1, List.of()));
+
+        assertThrows(MystemTokenizationException.class, () -> strictTokenizer.tokenize(document));
     }
 
     @Test
@@ -302,6 +424,11 @@ class MystemSearchTokenizerTest {
         return token(tokenText, start, start + tokenText.length());
     }
 
+    private static MystemToken tokenAt(String originalText, String tokenText, String... lemmas) {
+        int start = originalText.indexOf(tokenText);
+        return token(tokenText, start, start + tokenText.length(), lemmas);
+    }
+
     private static MystemToken token(String text, int startOffset, int endOffset, String... lemmas) {
         return new MystemToken(text, startOffset, endOffset, analyses(lemmas));
     }
@@ -310,5 +437,9 @@ class MystemSearchTokenizerTest {
         return java.util.Arrays.stream(lemmas)
                 .map(lemma -> new MystemAnalysis(lemma, MystemGrammarParser.parse(""), OptionalDouble.empty()))
                 .toList();
+    }
+
+    private static MystemAnalysis analysis(String lemma, double weight) {
+        return new MystemAnalysis(lemma, MystemGrammarParser.parse(""), OptionalDouble.of(weight));
     }
 }

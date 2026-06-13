@@ -1,28 +1,19 @@
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.nio.file.Path
 import io.github.ulviar.mystem4j.buildlogic.ApiSurfaceCheckTask
 import io.github.ulviar.mystem4j.buildlogic.JpmsSmokeTestTask
+import io.github.ulviar.mystem4j.buildlogic.MarkdownLocalLinksCheckTask
 import io.github.ulviar.mystem4j.buildlogic.PublicationMetadataCheckTask
-import org.gradle.external.javadoc.StandardJavadocDocletOptions
-import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.publish.maven.MavenPublication
 
 plugins {
     base
-    id("org.jetbrains.kotlin.jvm") version "2.3.21" apply false
+    alias(libs.plugins.binary.compatibility.validator)
+    alias(libs.plugins.dokka.javadoc) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.spotless)
 }
 
 val mystem4jVersion = providers.gradleProperty("mystem4j.version").orElse("0.1.0")
 val projectUrlValue = "https://github.com/Ulviar/MyStem4j"
-val moduleDescriptions = mapOf(
-    "mystem4j-runtime" to "MyStem CLI runtime for JVM applications.",
-    "mystem4j-model" to "MyStem JSON model parsing, grammar parsing, Unicode preparation, and offset alignment.",
-    "mystem4j-tokenization" to "Search-oriented token preparation above parsed MyStem output.",
-    "mystem4j-lucene" to "Apache Lucene Analyzer and Tokenizer integration for MyStem.",
-    "mystem4j-kotlin" to "Kotlin DSL and extension helpers for MyStem4j runtime APIs.",
-    "mystem4j-gradle-plugin" to "Gradle plugin for preparing the native MyStem binary."
-)
 val automaticModuleNames = mapOf(
     "mystem4j-runtime" to "io.github.ulviar.mystem4j",
     "mystem4j-model" to "io.github.ulviar.mystem4j.model",
@@ -40,6 +31,7 @@ val libraryProjectNames = listOf(
     "mystem4j-kotlin"
 )
 val apiSurfaceProjectNames = libraryProjectNames + "mystem4j-gradle-plugin"
+val unitTestProjectNames = apiSurfaceProjectNames + "mystem4j-benchmarks"
 val javaBinSuffix = if (System.getProperty("os.name").startsWith("Windows")) ".exe" else ""
 val javaHome = Path.of(System.getProperty("java.home"))
 val javaExePath = javaHome.resolve("bin/java$javaBinSuffix").toAbsolutePath().toString()
@@ -51,73 +43,17 @@ allprojects {
     version = mystem4jVersion.get()
 }
 
-subprojects {
-    plugins.withType<JavaPlugin>().configureEach {
-        extensions.configure<JavaPluginExtension> {
-            toolchain {
-                languageVersion.set(JavaLanguageVersion.of(21))
-            }
-            withJavadocJar()
-            withSourcesJar()
-        }
-
-        tasks.withType<JavaCompile>().configureEach {
-            options.release.set(21)
-            options.encoding = "UTF-8"
-        }
-
-        tasks.withType<Jar>().configureEach {
-            automaticModuleNames[project.name]?.let { moduleName ->
-                manifest {
-                    attributes["Automatic-Module-Name"] = moduleName
-                }
-            }
-        }
-
-        tasks.withType<Javadoc>().configureEach {
-            options.encoding = "UTF-8"
-            (options as StandardJavadocDocletOptions).addStringOption("Xdoclint:all,-missing", "-quiet")
-        }
-
-        tasks.withType<Test>().configureEach {
-            useJUnitPlatform()
-        }
-    }
-
-    plugins.withId("maven-publish") {
-        extensions.configure<PublishingExtension> {
-            publications.withType<MavenPublication>().configureEach {
-                pom {
-                    name.set(project.name)
-                    description.set(moduleDescriptions[project.name] ?: "MyStem4j module.")
-                    url.set(projectUrlValue)
-                    developers {
-                        developer {
-                            id.set("ulviar")
-                            name.set("Ulviar")
-                        }
-                    }
-                    licenses {
-                        license {
-                            name.set("Apache License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                        }
-                    }
-                    scm {
-                        connection.set("scm:git:$projectUrlValue.git")
-                        developerConnection.set("scm:git:$projectUrlValue.git")
-                        url.set(projectUrlValue)
-                    }
-                }
-            }
-            repositories {
-                maven {
-                    name = "releaseDryRun"
-                    url = rootProject.layout.buildDirectory.dir("release-dry-run-repo").get().asFile.toURI()
-                }
-            }
-        }
-    }
+apiValidation {
+    ignoredProjects.addAll(
+        listOf(
+            "mystem4j-benchmarks",
+            "mystem4j-gradle-plugin",
+            "mystem4j-lucene",
+            "mystem4j-model",
+            "mystem4j-runtime",
+            "mystem4j-tokenization"
+        )
+    )
 }
 
 tasks.register("realMystemTest") {
@@ -156,6 +92,18 @@ tasks.register("memorySmokeTest") {
     )
 }
 
+tasks.register("unitTest") {
+    group = "verification"
+    description = "Runs unit and contract tests that do not require a real MyStem executable."
+    dependsOn(unitTestProjectNames.map { ":$it:test" })
+}
+
+tasks.register("coverageReport") {
+    group = "verification"
+    description = "Generates JaCoCo coverage reports for published modules and the Gradle plugin."
+    dependsOn(apiSurfaceProjectNames.map { ":$it:jacocoTestReport" })
+}
+
 tasks.register<JpmsSmokeTestTask>("jpmsSmokeTest") {
     group = "verification"
     description = "Compiles and runs a small modular consumer against the published library modules."
@@ -185,17 +133,23 @@ tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
             projectName,
             moduleProject.tasks.named<Jar>("jar").flatMap { it.archiveFile }.map { it.asFile.absolutePath }
         )
+        getJarFiles().from(moduleProject.tasks.named<Jar>("jar").flatMap { it.archiveFile })
         getPomPathByProject().put(
             projectName,
             moduleProject.layout.buildDirectory.file("publications/mavenJava/pom-default.xml")
                 .map { it.asFile.absolutePath }
         )
+        getPomFiles().from(moduleProject.layout.buildDirectory.file("publications/mavenJava/pom-default.xml"))
     }
     getPluginPomPath().set(project(":mystem4j-gradle-plugin")
         .layout
         .buildDirectory
         .file("publications/pluginMaven/pom-default.xml")
         .map { it.asFile.absolutePath })
+    getPomFiles().from(project(":mystem4j-gradle-plugin")
+        .layout
+        .buildDirectory
+        .file("publications/pluginMaven/pom-default.xml"))
     getDependencyScopesByProject().put("mystem4j-runtime", "icli:compile")
     getDependencyScopesByProject().put("mystem4j-model", "jackson-core:compile")
     getDependencyScopesByProject().put("mystem4j-tokenization", "mystem4j-model:compile")
@@ -217,91 +171,56 @@ tasks.register<ApiSurfaceCheckTask>("apiSurfaceCheck") {
             projectName,
             project(":$projectName").tasks.named<Jar>("jar").flatMap { it.archiveFile }.map { it.asFile.absolutePath }
         )
+        getJarFiles().from(project(":$projectName").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     }
 }
 
-val textSanityFiles = objects.fileCollection().from(
-    fileTree(layout.projectDirectory) {
-        include("*.md")
-        include("*.properties")
-        include("*.kts")
-        include("config/**/*.txt")
-        include("docs/**/*.md")
-        include("buildSrc/src/**/*.java")
-        include("mystem4j-*/src/**/*.java")
-        include("mystem4j-*/src/**/*.kt")
-        include("mystem4j-*/build.gradle.kts")
-        include("samples/**/*.kts")
-        exclude("**/build/**")
-        exclude("**/.gradle/**")
+spotless {
+    format("text") {
+        target("*.md", "*.properties", "config/**/*.txt", "docs/**/*.md", "gradle/**/*.toml")
+        trimTrailingWhitespace()
+        endWithNewline()
     }
-)
-
-tasks.register("whitespaceCheck") {
-    group = "verification"
-    description = "Checks text files for trailing whitespace and missing final newlines."
-    inputs.files(textSanityFiles)
-    doLast {
-        val failures = mutableListOf<String>()
-        textSanityFiles.files.sortedBy { it.relativeTo(rootDir).path }.forEach { file ->
-            val relativePath = file.relativeTo(rootDir).path
-            val text = Files.readString(file.toPath(), StandardCharsets.UTF_8)
-            if (text.isNotEmpty() && !text.endsWith("\n")) {
-                failures += "$relativePath: missing final newline"
-            }
-            text.lineSequence().forEachIndexed { index, line ->
-                if (line.endsWith(" ") || line.endsWith("\t")) {
-                    failures += "$relativePath:${index + 1}: trailing whitespace"
-                }
-            }
-        }
-        if (failures.isNotEmpty()) {
-            throw GradleException("Text sanity check failed:\n" + failures.joinToString("\n"))
-        }
+    java {
+        target("buildSrc/src/**/*.java", "mystem4j-*/src/**/*.java")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlin {
+        target("mystem4j-*/src/**/*.kt")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        target("*.gradle.kts", "mystem4j-*/build.gradle.kts", "samples/**/*.gradle.kts")
+        trimTrailingWhitespace()
+        endWithNewline()
     }
 }
 
-val markdownFiles = objects.fileCollection().from(
-    "README.md",
-    "CHANGELOG.md",
-    fileTree("docs") {
-        include("**/*.md")
-    }
-)
-
-tasks.register("markdownLocalLinksCheck") {
+tasks.register<MarkdownLocalLinksCheckTask>("markdownLocalLinksCheck") {
     group = "verification"
     description = "Checks local Markdown links in README, CHANGELOG, and docs."
-    inputs.files(markdownFiles)
-    doLast {
-        val linkPattern = Regex("""\[[^\]]+]\(([^)]+)\)""")
-        val missing = mutableListOf<String>()
-        markdownFiles.files.sortedBy { it.relativeTo(rootDir).path }.forEach { file ->
-            val text = Files.readString(file.toPath(), StandardCharsets.UTF_8)
-            for (match in linkPattern.findAll(text)) {
-                val rawTarget = match.groupValues[1]
-                val targetWithoutAnchor = rawTarget.substringBefore('#')
-                if (targetWithoutAnchor.isBlank()
-                    || targetWithoutAnchor.startsWith("http://")
-                    || targetWithoutAnchor.startsWith("https://")
-                    || targetWithoutAnchor.startsWith("mailto:")
-                ) {
-                    continue
-                }
-                val target = file.parentFile.resolve(targetWithoutAnchor).normalize()
-                if (!target.exists()) {
-                    missing += "${file.relativeTo(rootDir).path}: $rawTarget"
-                }
-            }
+    getMarkdownFiles().from(
+        "README.md",
+        "CHANGELOG.md",
+        fileTree("docs") {
+            include("**/*.md")
         }
-        if (missing.isNotEmpty()) {
-            throw GradleException("Markdown local link check failed:\n" + missing.joinToString("\n"))
-        }
-    }
+    )
+    getProjectDirectory().set(layout.projectDirectory)
 }
 
 tasks.named("check") {
-    dependsOn("jpmsSmokeTest", "publicationMetadataCheck", "apiSurfaceCheck", "whitespaceCheck", "markdownLocalLinksCheck")
+    dependsOn(
+        "unitTest",
+        "coverageReport",
+        "jpmsSmokeTest",
+        "publicationMetadataCheck",
+        "apiSurfaceCheck",
+        ":mystem4j-kotlin:apiCheck",
+        "spotlessCheck",
+        "markdownLocalLinksCheck")
 }
 
 tasks.register("publishToReleaseDryRunRepository") {
@@ -310,12 +229,24 @@ tasks.register("publishToReleaseDryRunRepository") {
     dependsOn(apiSurfaceProjectNames.map { ":$it:publishAllPublicationsToReleaseDryRunRepository" })
 }
 
+tasks.register<GradleBuild>("sampleSmokeTest") {
+    group = "verification"
+    description = "Runs the Gradle plugin smoke sample against this checkout."
+    dependsOn("publishToReleaseDryRunRepository")
+    dir = layout.projectDirectory.dir("samples/mystem-plugin-smoke").asFile
+    tasks = listOf("help")
+    startParameter.projectProperties["mystem4j.releaseDryRunRepository"] =
+        layout.buildDirectory.dir("release-dry-run-repo").get().asFile.toURI().toString()
+    startParameter.projectProperties["mystem4j.download"] = "false"
+}
+
 tasks.register("releaseCandidateCheck") {
     group = "verification"
     description = "Runs local release gates that do not require a real MyStem executable."
     dependsOn(
         "check",
         "memorySmokeTest",
+        "sampleSmokeTest",
         "publishToReleaseDryRunRepository",
         ":mystem4j-benchmarks:jmhSmoke"
     )

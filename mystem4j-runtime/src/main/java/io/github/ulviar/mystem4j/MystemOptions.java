@@ -1,6 +1,5 @@
 package io.github.ulviar.mystem4j;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,11 +39,6 @@ public record MystemOptions(
         filterGrammar.ifPresent(value -> {
             if (value.isBlank()) {
                 throw new MystemInvalidOptionsException("filterGrammar must not be blank.");
-            }
-        });
-        fixlist.ifPresent(path -> {
-            if (!Files.isReadable(path)) {
-                throw new MystemInvalidOptionsException("fixlist must be readable: " + path);
             }
         });
     }

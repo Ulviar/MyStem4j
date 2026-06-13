@@ -1,11 +1,16 @@
 package io.github.ulviar.mystem4j.gradle;
 
+import java.util.List;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.RegularFile;
+import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.process.CommandLineArgumentProvider;
 
 public class Mystem4jPlugin implements Plugin<Project> {
     static final String GROUP = "mystem4j";
@@ -82,6 +87,9 @@ public class Mystem4jPlugin implements Plugin<Project> {
                     task.getTimeoutSeconds().convention(10);
                     task.getSmokeInput().convention("мама");
                     task.getMaxOutputBytes().set(extension.getMaxProbeOutputBytes());
+                    task.getMarkerFile().set(project.getLayout()
+                            .getBuildDirectory()
+                            .file(distribution.map(value -> "mystem/probe/" + value.platformId() + ".properties")));
                 });
 
         Provider<RegularFile> downloadedArchive = download.flatMap(MystemDownloadTask::getArchiveFile);
@@ -102,14 +110,53 @@ public class Mystem4jPlugin implements Plugin<Project> {
                             .getBuildDirectory()
                             .file("mystem/mystem4j-test-runtime.properties"));
                 });
-        Provider<String> configuredExecutable =
-                project.provider(() -> extension.getConfigureTests().get() ? preparedExecutablePath.get() : null);
         project.getTasks().withType(Test.class).configureEach(test -> {
-            test.dependsOn(project.provider(() -> extension.getConfigureTests().get() ? prepareTestRuntime.get() : null));
-            test.getInputs().property(EXECUTABLE_PROPERTY, configuredExecutable).optional(true);
-            test.getInputs().file(executableFile).optional();
-            test.systemProperty(EXECUTABLE_PROPERTY, configuredExecutable);
-            test.environment(EXECUTABLE_ENV, configuredExecutable);
+            test.dependsOn(project.provider(
+                    () -> extension.getConfigureTests().get() ? List.of(prepareTestRuntime) : List.of()));
+            test.getInputs().property("mystem4j.configureTests", extension.getConfigureTests());
+            test.getInputs()
+                    .files(project.provider(() -> extension.getConfigureTests().get()
+                            ? project.files(executableFile)
+                            : project.files()))
+                    .withPropertyName("mystem4j.executableFile")
+                    .optional();
+            test.getJvmArgumentProviders()
+                    .add(new MystemExecutableArgumentProvider(extension.getConfigureTests(), preparedExecutablePath));
+            test.doFirst(task -> {
+                if (extension.getConfigureTests().get()) {
+                    test.environment(EXECUTABLE_ENV, preparedExecutablePath.get());
+                }
+            });
         });
+    }
+
+    private static final class MystemExecutableArgumentProvider implements CommandLineArgumentProvider {
+        private final Property<Boolean> configureTests;
+        private final Provider<String> executablePath;
+
+        private MystemExecutableArgumentProvider(Property<Boolean> configureTests, Provider<String> executablePath) {
+            this.configureTests = configureTests;
+            this.executablePath = executablePath;
+        }
+
+        @Input
+        public boolean isConfigureTests() {
+            return configureTests.get();
+        }
+
+        @Input
+        @Optional
+        public String getExecutablePath() {
+            return isConfigureTests() ? executablePath.get() : null;
+        }
+
+        @Override
+        public Iterable<String> asArguments() {
+            String path = getExecutablePath();
+            if (path == null) {
+                return List.of();
+            }
+            return List.of("-D" + EXECUTABLE_PROPERTY + "=" + path);
+        }
     }
 }

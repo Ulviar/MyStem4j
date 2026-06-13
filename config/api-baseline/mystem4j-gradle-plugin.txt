@@ -73,5 +73,6 @@ public abstract class io.github.ulviar.mystem4j.gradle.MystemProbeTask extends o
   public abstract org.gradle.api.provider.Property<java.lang.Integer> getTimeoutSeconds();
   public abstract org.gradle.api.provider.Property<java.lang.String> getSmokeInput();
   public abstract org.gradle.api.provider.Property<java.lang.Integer> getMaxOutputBytes();
+  public abstract org.gradle.api.file.RegularFileProperty getMarkerFile();
   public void probe();
 }

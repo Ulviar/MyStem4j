@@ -14,8 +14,10 @@ that a search index may use, such as a MyStem lemma and fallback surface form.
 List<MystemSearchToken> tokenize(MystemDocument document)
 ```
 
-The tokenizer expects known offsets. A token with `-1` offsets causes
-`MystemTokenizationException`.
+By default, if MyStem returns a token with `-1` offsets, the tokenizer ignores that
+unaligned model token and synthesizes offset-safe tokens from the original text.
+Use `MystemUnmatchedTokenPolicy.FAIL` when the application should reject the whole
+document instead.
 
 If the parsed MyStem output skips parts of the original text, the tokenizer
 synthesizes gap tokens from the original text before URL/email grouping and form
@@ -40,11 +42,25 @@ MystemSearchTokenizer tokenizer =
         new MystemSearchTokenizer(MystemSearchTokenizerOptions.search());
 ```
 
+Use the builder for custom combinations:
+
+```java
+MystemSearchTokenizerOptions options = MystemSearchTokenizerOptions.builder()
+        .classifyNumbers(true)
+        .mergeEmails(true)
+        .classifyCurrencies(true)
+        .lemmaSelectionPolicy(MystemLemmaSelectionPolicy.BEST_WEIGHT)
+        .unmatchedTokenPolicy(MystemUnmatchedTokenPolicy.FAIL)
+        .build();
+```
+
 ## Token Model
 
 - `MystemSearchToken` - source text, search forms, Java UTF-16 offsets, and type.
 - `MystemTokenForm` - form text plus `keyword` flag.
 - `MystemSearchTokenType` - `WORD`, `NUMBER`, `URL`, `EMAIL`, `CURRENCY`, `SEPARATOR`, or `OTHER`.
+- `MystemUnmatchedTokenPolicy` - whether unknown-offset model tokens are rejected or recovered from original text.
+- `MystemLemmaSelectionPolicy` - whether all MyStem lemmas are emitted or only the highest-weight lemma is used.
 
 `keyword=true` means the form should be treated as already normalized and should not
 be changed by later stemming or lowercasing logic. This is useful for values such
@@ -52,9 +68,14 @@ as numbers, full URLs, and currency codes.
 
 ## Search Forms
 
-The tokenizer emits lemma forms when MyStem analysis has lemmas. When a token has
-no lemma, the tokenizer emits lowercase source forms and marks them as non-keyword
-for words and keyword for numbers.
+The tokenizer emits lemma forms when MyStem analysis has lemmas. By default,
+distinct lemmas from all analysis variants are emitted. Set
+`MystemLemmaSelectionPolicy.BEST_WEIGHT` to emit only the lemma from the
+highest-weight MyStem analysis variant. When no variant has `wt`, that policy uses
+the first non-empty lemma.
+
+When a token has no lemma, the tokenizer emits lowercase source forms and marks
+them as non-keyword for words and keyword for numbers.
 
 Special handling:
 

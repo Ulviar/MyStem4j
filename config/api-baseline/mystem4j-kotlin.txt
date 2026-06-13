@@ -35,6 +35,11 @@ public final class io.github.ulviar.mystem4j.kotlin.MystemDslKt {
   public static final io.github.ulviar.mystem4j.MystemFileContentResult analyzeWith(java.io.File, io.github.ulviar.mystem4j.MystemClient);
 }
 
+## io.github.ulviar.mystem4j.kotlin.MystemDslMarker
+Compiled from "MystemDsl.kt"
+public interface io.github.ulviar.mystem4j.kotlin.MystemDslMarker extends java.lang.annotation.Annotation {
+}
+
 ## io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl
 Compiled from "MystemDsl.kt"
 public final class io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl {

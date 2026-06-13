@@ -31,9 +31,13 @@ class MystemSearchTokenizerUnicodeStressTest {
         int previousEnd = 0;
         for (MystemSearchToken token : tokens) {
             assertTrue(token.startOffset() >= previousStart);
+            assertTrue(token.startOffset() >= previousEnd);
             assertTrue(token.endOffset() >= token.startOffset());
             assertTrue(token.endOffset() <= text.length());
+            assertTrue(token.endOffset() > token.startOffset());
+            assertTrue(token.forms().size() > 0);
             assertFalse(token.forms().stream().anyMatch(form -> form.text().isEmpty()));
+            assertTrue(text.substring(token.startOffset(), token.endOffset()).equals(token.text()));
             previousStart = token.startOffset();
             previousEnd = token.endOffset();
         }

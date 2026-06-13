@@ -35,6 +35,8 @@ public final class MystemSearchTokenizer {
      *
      * @param document parsed MyStem document
      * @return search tokens with original-text offsets
+     * @throws MystemTokenizationException when a model token has invalid offsets or strict unmatched-token policy fails
+     * @throws NullPointerException when {@code document} is {@code null}
      */
     public List<MystemSearchToken> tokenize(MystemDocument document) {
         Objects.requireNonNull(document, "document");
@@ -54,6 +56,12 @@ public final class MystemSearchTokenizer {
         String originalText = document.originalText();
         int cursor = 0;
         for (MystemToken token : document.tokens()) {
+            if (!token.hasKnownOffsets()) {
+                if (options.unmatchedTokenPolicy() == MystemUnmatchedTokenPolicy.FAIL) {
+                    throw new MystemTokenizationException("Cannot tokenize MyStem token with unknown offsets: " + token);
+                }
+                continue;
+            }
             validateTokenRange(originalText, token);
             if (token.text().isEmpty()) {
                 continue;
@@ -80,9 +88,6 @@ public final class MystemSearchTokenizer {
     }
 
     private static void validateTokenRange(String originalText, MystemToken token) {
-        if (!token.hasKnownOffsets()) {
-            throw new MystemTokenizationException("Cannot tokenize MyStem token with unknown offsets: " + token);
-        }
         if (token.endOffset() > originalText.length()) {
             throw new MystemTokenizationException("MyStem token offsets exceed original text length: " + token);
         }

@@ -3,6 +3,7 @@ package io.github.ulviar.mystem4j.kotlin
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import io.github.ulviar.mystem4j.MystemInvalidOptionsException
 import io.github.ulviar.mystem4j.MystemOutputFormat
 import io.github.ulviar.mystem4j.MystemPoolOptions
 import kotlin.test.Test
@@ -43,6 +44,20 @@ class MystemDslTest {
         assertEquals(2, options.maxSize())
         assertEquals(1, options.warmupSize())
         assertEquals(1, options.minIdle())
+    }
+
+    @Test
+    fun preservesJavaOptionValidation() {
+        assertFailsWith<MystemInvalidOptionsException> {
+            mystemOptions {
+                mergeWordForms()
+            }
+        }
+        assertFailsWith<MystemInvalidOptionsException> {
+            mystemOptions {
+                sentenceMarkers()
+            }
+        }
     }
 
     @Test
@@ -112,28 +127,30 @@ class MystemDslTest {
     }
 
     private fun fakeMystem(): Path {
-        val executable = temporaryDirectory.resolve("fake-mystem")
-        Files.writeString(
-            executable,
-            """
-            #!/bin/sh
-            last=""
-            previous=""
-            for argument in "${'$'}@"; do
-              previous="${'$'}last"
-              last="${'$'}argument"
-            done
-            if [ -n "${'$'}last" ] && [ -f "${'$'}last" ]; then
-              cat "${'$'}last"
-              exit 0
-            fi
-            while IFS= read -r input || [ -n "${'$'}input" ]; do
-              printf '[{"text":"%s"}]\n' "${'$'}input"
-            done
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-        executable.toFile().setExecutable(true, false)
+        val executable = temporaryDirectory.resolve("fake-mystem${executableSuffix()}")
+        Files.writeString(executable, launcher(), StandardCharsets.UTF_8)
+        if (!isWindows()) {
+            executable.toFile().setExecutable(true, false)
+        }
         return executable
     }
+
+    private fun launcher(): String {
+        val javaExecutable = Path.of(System.getProperty("java.home"), "bin", javaExecutableName())
+        val classpath = System.getProperty("java.class.path")
+        val mainClass = FakeMystemProcess::class.java.name
+        return if (isWindows()) {
+            "@echo off\r\n\"$javaExecutable\" -cp \"$classpath\" $mainClass %*\r\nexit /b %ERRORLEVEL%\r\n"
+        } else {
+            "#!/bin/sh\nexec ${shellQuote(javaExecutable.toString())} -cp ${shellQuote(classpath)} $mainClass \"${'$'}@\"\n"
+        }
+    }
+
+    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\"'\"'") + "'"
+
+    private fun executableSuffix(): String = if (isWindows()) ".cmd" else ""
+
+    private fun javaExecutableName(): String = if (isWindows()) "java.exe" else "java"
+
+    private fun isWindows(): Boolean = System.getProperty("os.name", "").lowercase().contains("win")
 }

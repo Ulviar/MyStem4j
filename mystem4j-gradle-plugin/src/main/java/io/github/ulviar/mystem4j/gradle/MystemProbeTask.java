@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
@@ -36,6 +38,9 @@ public abstract class MystemProbeTask extends DefaultTask {
 
     @Input
     public abstract Property<Integer> getMaxOutputBytes();
+
+    @OutputFile
+    public abstract RegularFileProperty getMarkerFile();
 
     @TaskAction
     public void probe() {
@@ -79,6 +84,7 @@ public abstract class MystemProbeTask extends DefaultTask {
                 throw new GradleException("MyStem probe produced empty stdout" + stderrMessage(errorOutput));
             }
             validateJsonSmokeOutput(output, smokeInput, errorOutput);
+            writeMarker(executable, output);
             getLogger().lifecycle("MyStem probe succeeded: {}", executable);
         } catch (IOException error) {
             process.destroyForcibly();
@@ -87,6 +93,20 @@ public abstract class MystemProbeTask extends DefaultTask {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
             throw new GradleException("Interrupted while waiting for MyStem probe.", error);
+        }
+    }
+
+    private void writeMarker(Path executable, String output) {
+        Path marker = getMarkerFile().get().getAsFile().toPath();
+        try {
+            Files.createDirectories(marker.getParent());
+            Files.writeString(
+                    marker,
+                    "executable=" + executable.toAbsolutePath() + System.lineSeparator()
+                            + "output=" + trim(output.trim()) + System.lineSeparator(),
+                    StandardCharsets.UTF_8);
+        } catch (IOException error) {
+            throw new GradleException("Failed to write MyStem probe marker: " + marker, error);
         }
     }
 

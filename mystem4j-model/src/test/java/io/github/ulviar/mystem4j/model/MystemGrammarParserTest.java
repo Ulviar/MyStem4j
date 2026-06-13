@@ -29,6 +29,17 @@ class MystemGrammarParserTest {
     }
 
     @Test
+    void stripsVariantGroupParenthesesFromMergedGrammarOutput() {
+        MystemGrammar grammar = MystemGrammarParser.parse("S,жен=(пр,ед|пр,мн)");
+
+        assertEquals("S", grammar.partOfSpeech().orElseThrow());
+        assertEquals(Set.of("жен"), grammar.commonGrammemes());
+        assertEquals(2, grammar.variants().size());
+        assertEquals(Set.of("пр", "ед"), grammar.variants().get(0).grammemes());
+        assertEquals(Set.of("пр", "мн"), grammar.variants().get(1).grammemes());
+    }
+
+    @Test
     void parsesEmptyRightSide() {
         MystemGrammar grammar = MystemGrammarParser.parse("PR=");
 

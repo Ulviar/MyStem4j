@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.github.ulviar.icli.command.CommandExecutionException;
+import com.github.ulviar.icli.session.PooledProtocolSessionException;
 import com.github.ulviar.icli.session.ProtocolSessionException;
 import com.github.ulviar.icli.session.ProtocolTranscript;
 import java.util.OptionalInt;
@@ -43,5 +45,25 @@ class MystemProtocolFailureMapperTest {
         assertTrue(mapped.getMessage().contains("bad mystem"));
         assertFalse(mapped.getMessage().contains("\"secret\""));
         assertEquals("bad mystem\ndetails", mapped.stderr());
+    }
+
+    @Test
+    void mapsCommandLaunchFailureToStartupException() {
+        CommandExecutionException source = new CommandExecutionException(
+                CommandExecutionException.Reason.LAUNCH_FAILED, "could not start");
+
+        MystemException mapped = MystemProtocolFailureMapper.map(source, "Failed to execute MyStem process");
+
+        assertEquals(MystemStartupException.class, mapped.getClass());
+    }
+
+    @Test
+    void mapsPoolStartupFailureToStartupException() {
+        PooledProtocolSessionException source = new PooledProtocolSessionException(
+                PooledProtocolSessionException.Reason.STARTUP_FAILED, "could not start pool");
+
+        MystemException mapped = MystemProtocolFailureMapper.map(source);
+
+        assertEquals(MystemStartupException.class, mapped.getClass());
     }
 }

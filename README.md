@@ -178,6 +178,11 @@ Reference:
 
 - [Full documentation index](docs/README.md)
 - [Troubleshooting](docs/how-to/troubleshooting.md)
+
+Sample:
+
+- [Gradle plugin smoke project](samples/mystem-plugin-smoke) - a minimal build
+  that applies the plugin without downloading MyStem by default.
 - [API stability](docs/reference/api-stability.md)
 - [Glossary](docs/reference/glossary.md)
 - [Changelog](CHANGELOG.md)

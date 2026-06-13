@@ -9,6 +9,8 @@ public final class io.github.ulviar.mystem4j.Mystem {
 ## io.github.ulviar.mystem4j.MystemClient
 Compiled from "MystemClient.java"
 public interface io.github.ulviar.mystem4j.MystemClient extends java.lang.AutoCloseable {
+  public default io.github.ulviar.mystem4j.MystemClientExecutionProfile executionProfile();
+  public default java.util.Optional<io.github.ulviar.mystem4j.MystemOutputFormat> outputFormat();
   public abstract io.github.ulviar.mystem4j.MystemRawResult analyze(java.lang.String);
   public abstract io.github.ulviar.mystem4j.MystemFileContentResult analyzeFile(java.nio.file.Path);
   public abstract io.github.ulviar.mystem4j.MystemFileResult analyzeFile(java.nio.file.Path, java.nio.file.Path);
@@ -34,6 +36,17 @@ public final class io.github.ulviar.mystem4j.MystemClientBuilder {
   public io.github.ulviar.mystem4j.MystemClientBuilder maxResponseBytes(int);
   public io.github.ulviar.mystem4j.MystemClientBuilder includeInputInDiagnostics(boolean);
   public io.github.ulviar.mystem4j.MystemClient build();
+}
+
+## io.github.ulviar.mystem4j.MystemClientExecutionProfile
+Compiled from "MystemClientExecutionProfile.java"
+public final class io.github.ulviar.mystem4j.MystemClientExecutionProfile extends java.lang.Enum<io.github.ulviar.mystem4j.MystemClientExecutionProfile> {
+  public static final io.github.ulviar.mystem4j.MystemClientExecutionProfile UNKNOWN;
+  public static final io.github.ulviar.mystem4j.MystemClientExecutionProfile ONE_SHOT_PROCESS_PER_REQUEST;
+  public static final io.github.ulviar.mystem4j.MystemClientExecutionProfile REUSABLE_SESSION;
+  public static final io.github.ulviar.mystem4j.MystemClientExecutionProfile POOLED_SESSIONS;
+  public static io.github.ulviar.mystem4j.MystemClientExecutionProfile[] values();
+  public static io.github.ulviar.mystem4j.MystemClientExecutionProfile valueOf(java.lang.String);
 }
 
 ## io.github.ulviar.mystem4j.MystemClosedException
@@ -263,7 +276,7 @@ public final class io.github.ulviar.mystem4j.MystemRawResult extends java.lang.R
 ## io.github.ulviar.mystem4j.MystemRequestStats
 Compiled from "MystemRequestStats.java"
 public final class io.github.ulviar.mystem4j.MystemRequestStats extends java.lang.Record {
-  public io.github.ulviar.mystem4j.MystemRequestStats(java.time.Duration, io.github.ulviar.mystem4j.MystemExecutionMode, long, long, long, long, java.util.OptionalInt, boolean);
+  public io.github.ulviar.mystem4j.MystemRequestStats(java.time.Duration, io.github.ulviar.mystem4j.MystemExecutionMode, long, long, long, long);
   public final java.lang.String toString();
   public final int hashCode();
   public final boolean equals(java.lang.Object);
@@ -273,8 +286,6 @@ public final class io.github.ulviar.mystem4j.MystemRequestStats extends java.lan
   public long inputBytes();
   public long outputChars();
   public long outputBytes();
-  public java.util.OptionalInt workerId();
-  public boolean workerRestarted();
 }
 
 ## io.github.ulviar.mystem4j.MystemRequestTimeoutException

@@ -32,7 +32,7 @@ public final class MystemTextPreprocessor {
         StringBuilder prepared = new StringBuilder(text.length());
         ArrayList<MystemOffsetMapping> mappings = new ArrayList<>();
         ArrayList<MystemTextIssue> issues = new ArrayList<>();
-        boolean lengthChanged = false;
+        boolean mappingRequired = false;
 
         int index = 0;
         while (index < text.length()) {
@@ -45,17 +45,18 @@ public final class MystemTextPreprocessor {
                         prepared.append(' ');
                         issues.add(new MystemTextIssue(
                                 MystemTextIssueType.NONCHARACTER, "Unicode noncharacter replaced with space", index, 2));
-                        lengthChanged = true;
                     } else {
                         prepared.append(value).append(lowSurrogate);
                     }
-                    appendMapping(mappings, preparedStart, prepared.length(), index, index + 2);
+                    mappingRequired =
+                            appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 2);
                     index += 2;
                 } else {
                     prepared.append('\uFFFD');
                     issues.add(new MystemTextIssue(
                             MystemTextIssueType.UNPAIRED_SURROGATE, "Unpaired high surrogate", index, 1));
-                    appendMapping(mappings, preparedStart, prepared.length(), index, index + 1);
+                    mappingRequired =
+                            appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 1);
                     index++;
                 }
                 continue;
@@ -64,7 +65,8 @@ public final class MystemTextPreprocessor {
                 prepared.append('\uFFFD');
                 issues.add(new MystemTextIssue(
                         MystemTextIssueType.UNPAIRED_SURROGATE, "Unpaired low surrogate", index, 1));
-                appendMapping(mappings, preparedStart, prepared.length(), index, index + 1);
+                mappingRequired =
+                        appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 1);
                 index++;
                 continue;
             }
@@ -72,7 +74,8 @@ public final class MystemTextPreprocessor {
                 prepared.append(' ');
                 issues.add(new MystemTextIssue(
                         MystemTextIssueType.NONCHARACTER, "Unicode noncharacter replaced with space", index, 1));
-                appendMapping(mappings, preparedStart, prepared.length(), index, index + 1);
+                mappingRequired =
+                        appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 1);
                 index++;
                 continue;
             }
@@ -83,7 +86,8 @@ public final class MystemTextPreprocessor {
                         "Line separator replaced with space for JSON-line protocol",
                         index,
                         1));
-                appendMapping(mappings, preparedStart, prepared.length(), index, index + 1);
+                mappingRequired =
+                        appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 1);
                 index++;
                 continue;
             }
@@ -91,15 +95,38 @@ public final class MystemTextPreprocessor {
                 prepared.append(' ');
                 issues.add(new MystemTextIssue(
                         MystemTextIssueType.CONTROL_CHARACTER, "Control character replaced with space", index, 1));
-                appendMapping(mappings, preparedStart, prepared.length(), index, index + 1);
+                mappingRequired =
+                        appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 1);
                 index++;
                 continue;
             }
             prepared.append(value);
-            appendMapping(mappings, preparedStart, prepared.length(), index, index + 1);
+            mappingRequired =
+                    appendMappingIfNeeded(mappings, mappingRequired, preparedStart, prepared.length(), index, index + 1);
             index++;
         }
-        return new MystemPreparedText(text, prepared.toString(), lengthChanged ? mappings : List.of(), issues);
+        return new MystemPreparedText(text, prepared.toString(), mappingRequired ? mappings : List.of(), issues);
+    }
+
+    private static boolean appendMappingIfNeeded(
+            ArrayList<MystemOffsetMapping> mappings,
+            boolean mappingRequired,
+            int preparedStart,
+            int preparedEnd,
+            int originalStart,
+            int originalEnd) {
+        boolean lengthChanged = preparedEnd - preparedStart != originalEnd - originalStart;
+        if (!mappingRequired && !lengthChanged) {
+            return false;
+        }
+        if (!mappingRequired) {
+            if (preparedStart > 0 || originalStart > 0) {
+                appendMapping(mappings, 0, preparedStart, 0, originalStart);
+            }
+            mappingRequired = true;
+        }
+        appendMapping(mappings, preparedStart, preparedEnd, originalStart, originalEnd);
+        return mappingRequired;
     }
 
     private static void appendMapping(

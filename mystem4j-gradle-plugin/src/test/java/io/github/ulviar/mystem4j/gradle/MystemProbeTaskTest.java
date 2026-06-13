@@ -1,9 +1,9 @@
 package io.github.ulviar.mystem4j.gradle;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.gradle.api.GradleException;
@@ -20,16 +20,11 @@ class MystemProbeTaskTest {
     void rejectsNonMystemProbeOutput() throws IOException {
         Project project = ProjectBuilder.builder().build();
         MystemProbeTask task = project.getTasks().register("mystemProbe", MystemProbeTask.class).get();
-        task.getExecutableFile().set(script(
-                        "not-mystem",
-                        """
-                        #!/bin/sh
-                        echo "ready"
-                        """)
-                .toFile());
+        task.getExecutableFile().set(FakeMystemExecutable.create(temporaryDirectory, "not-mystem", "notMystem").toFile());
         task.getTimeoutSeconds().set(5);
         task.getSmokeInput().set("мама");
         task.getMaxOutputBytes().set(1024);
+        task.getMarkerFile().set(temporaryDirectory.resolve("probe/not-mystem.properties").toFile());
 
         assertThrows(GradleException.class, task::probe);
     }
@@ -38,37 +33,27 @@ class MystemProbeTaskTest {
     void acceptsMystemLikeJsonProbeOutput() throws IOException {
         Project project = ProjectBuilder.builder().build();
         MystemProbeTask task = project.getTasks().register("mystemProbeSuccess", MystemProbeTask.class).get();
-        task.getExecutableFile().set(script(
-                        "mystem-success",
-                        """
-                        #!/bin/sh
-                        while IFS= read -r input; do
-                          printf '[{"text":"%s"}]\\n' "$input"
-                        done
-                        """)
-                .toFile());
+        task.getExecutableFile().set(FakeMystemExecutable.create(temporaryDirectory, "mystem-success", "echo").toFile());
         task.getTimeoutSeconds().set(5);
         task.getSmokeInput().set("мама");
         task.getMaxOutputBytes().set(1024);
+        Path marker = temporaryDirectory.resolve("probe/success.properties");
+        task.getMarkerFile().set(marker.toFile());
 
         task.probe();
+
+        assertTrue(Files.isRegularFile(marker));
     }
 
     @Test
     void rejectsNonZeroExitCode() throws IOException {
         Project project = ProjectBuilder.builder().build();
         MystemProbeTask task = project.getTasks().register("mystemProbeFailure", MystemProbeTask.class).get();
-        task.getExecutableFile().set(script(
-                        "mystem-failure",
-                        """
-                        #!/bin/sh
-                        echo "bad mystem" >&2
-                        exit 7
-                        """)
-                .toFile());
+        task.getExecutableFile().set(FakeMystemExecutable.create(temporaryDirectory, "mystem-failure", "fail", "7", "bad mystem").toFile());
         task.getTimeoutSeconds().set(5);
         task.getSmokeInput().set("мама");
         task.getMaxOutputBytes().set(1024);
+        task.getMarkerFile().set(temporaryDirectory.resolve("probe/failure.properties").toFile());
 
         assertThrows(GradleException.class, task::probe);
     }
@@ -77,24 +62,12 @@ class MystemProbeTaskTest {
     void rejectsOutputLargerThanLimit() throws IOException {
         Project project = ProjectBuilder.builder().build();
         MystemProbeTask task = project.getTasks().register("mystemProbeLargeOutput", MystemProbeTask.class).get();
-        task.getExecutableFile().set(script(
-                        "mystem-large-output",
-                        """
-                        #!/bin/sh
-                        printf '0123456789'
-                        """)
-                .toFile());
+        task.getExecutableFile().set(FakeMystemExecutable.create(temporaryDirectory, "mystem-large-output", "largeOutput").toFile());
         task.getTimeoutSeconds().set(5);
         task.getSmokeInput().set("мама");
         task.getMaxOutputBytes().set(4);
+        task.getMarkerFile().set(temporaryDirectory.resolve("probe/large-output.properties").toFile());
 
         assertThrows(GradleException.class, task::probe);
-    }
-
-    private Path script(String name, String body) throws IOException {
-        Path executable = temporaryDirectory.resolve(name);
-        Files.writeString(executable, body, StandardCharsets.UTF_8);
-        executable.toFile().setExecutable(true, false);
-        return executable;
     }
 }

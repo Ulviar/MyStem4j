@@ -27,10 +27,21 @@ public final class MystemGrammarParser {
             variants.add(new MystemGrammarVariant(Set.of()));
         } else {
             for (String variant : parts[1].split("\\|")) {
-                variants.add(new MystemGrammarVariant(new LinkedHashSet<>(splitGrammemes(variant))));
+                variants.add(new MystemGrammarVariant(new LinkedHashSet<>(splitGrammemes(stripVariantBrackets(variant)))));
             }
         }
         return new MystemGrammar(raw, partOfSpeech, common, variants);
+    }
+
+    private static String stripVariantBrackets(String value) {
+        String result = value.trim();
+        while (result.startsWith("(")) {
+            result = result.substring(1).trim();
+        }
+        while (result.endsWith(")")) {
+            result = result.substring(0, result.length() - 1).trim();
+        }
+        return result;
     }
 
     private static List<String> splitGrammemes(String value) {

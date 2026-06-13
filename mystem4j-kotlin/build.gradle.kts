@@ -1,8 +1,19 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     kotlin("jvm")
+    alias(libs.plugins.dokka.javadoc)
     `maven-publish`
+    id("io.github.ulviar.mystem4j.publishing-conventions")
+}
+
+mystem4jJava {
+    automaticModuleName.set("io.github.ulviar.mystem4j.kotlin")
+}
+
+mystem4jPublishing {
+    moduleDescription.set("Kotlin DSL and extension helpers for MyStem4j runtime APIs.")
 }
 
 kotlin {
@@ -17,14 +28,19 @@ dependencies {
     api(project(":mystem4j-runtime"))
 
     testImplementation(kotlin("test"))
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.named<Javadoc>("javadoc") {
     source = fileTree("src/main/java") {
         include("__no_javadoc_sources__")
     }
+}
+
+tasks.named<Jar>("javadocJar") {
+    dependsOn(tasks.named("dokkaGeneratePublicationJavadoc"))
+    from(layout.buildDirectory.dir("dokka/javadoc"))
 }
 
 publishing {

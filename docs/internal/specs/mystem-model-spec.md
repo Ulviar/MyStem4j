@@ -137,6 +137,15 @@ Issue является диагностикой, а не исключением.
 - `MystemOffsetAligner` возвращает UTF-16 offsets для каждого Unicode scalar value;
 - `MystemTextPreprocessor` имеет total, monotonic mapping для всех UTF-16 code units;
 - parser корректно мапит offsets из prepared text обратно в original text.
+- parser принимает сгенерированный MyStem-like JSON с Unicode token text, lemma,
+  grammar и weight, сохраняя offsets и порядок;
+- malformed JSON-like input завершается `MystemJsonParseException`, а не
+  произвольными runtime errors;
+- grammar parser устойчив к случайным строкам с `,`, `=`, `|`, `(`, `)` и
+  Unicode atoms.
+- Jazzer/JUnit regression-mode harness проверяет те же parser и grammar
+  invariants на seed corpus при обычном `test`; active fuzzing включается
+  отдельно через `JAZZER_FUZZ=1`.
 
 Real-MyStem tests должны быть opt-in через `mystem4j.executable`, потому что они зависят от native binary:
 

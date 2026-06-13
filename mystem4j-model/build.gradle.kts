@@ -1,6 +1,16 @@
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     `java-library`
     `maven-publish`
+    id("io.github.ulviar.mystem4j.publishing-conventions")
+}
+
+mystem4jJava {
+    automaticModuleName.set("io.github.ulviar.mystem4j.model")
+}
+
+mystem4jPublishing {
+    moduleDescription.set("MyStem JSON model parsing, grammar parsing, Unicode preparation, and offset alignment.")
 }
 
 val realMystemTest by sourceSets.creating {
@@ -10,10 +20,11 @@ val realMystemTest by sourceSets.creating {
 }
 
 dependencies {
-    api("com.fasterxml.jackson.core:jackson-core:2.21.3")
+    api(libs.jackson.core)
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.jazzer.junit)
+    testRuntimeOnly(libs.junit.platform.launcher)
 
     add(realMystemTest.implementationConfigurationName, project(":mystem4j-runtime"))
 }
@@ -26,6 +37,8 @@ tasks.withType<Test>().configureEach {
     val unicodeStress = providers.systemProperty("mystem4j.unicodeStress").orElse("false")
     val unicodeStressChunkSize = providers.systemProperty("mystem4j.unicodeStressChunkSize").orElse("2048")
 
+    // Jazzer instruments fuzz tests; disabling CDS keeps JDK output free from bootstrap-classpath warnings.
+    jvmArgs("-Xshare:off")
     inputs.property("mystem4j.executable", realMystemExecutable)
     inputs.property("mystem4j.unicodeStress", unicodeStress)
     inputs.property("mystem4j.unicodeStressChunkSize", unicodeStressChunkSize)

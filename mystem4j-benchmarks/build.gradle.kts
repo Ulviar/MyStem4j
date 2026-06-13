@@ -1,4 +1,5 @@
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     java
 }
 
@@ -6,9 +7,12 @@ dependencies {
     implementation(project(":mystem4j-model"))
     implementation(project(":mystem4j-tokenization"))
     implementation(project(":mystem4j-lucene"))
-    implementation("org.openjdk.jmh:jmh-core:1.37")
+    implementation(libs.jmh.core)
 
-    annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+    annotationProcessor(libs.jmh.generator.annprocess)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.register<JavaExec>("jmh") {

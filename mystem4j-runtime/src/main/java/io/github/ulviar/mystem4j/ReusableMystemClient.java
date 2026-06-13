@@ -5,7 +5,9 @@ import com.github.ulviar.icli.session.ProtocolSessionException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class ReusableMystemClient implements MystemClient {
     private final ProtocolSession<String, String> session;
@@ -13,6 +15,7 @@ final class ReusableMystemClient implements MystemClient {
     private final MystemOptions options;
     private final Duration requestTimeout;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicReference<MystemException> terminalFailure = new AtomicReference<>();
 
     ReusableMystemClient(
             ProtocolSession<String, String> session,
@@ -23,6 +26,16 @@ final class ReusableMystemClient implements MystemClient {
         this.fileClient = Objects.requireNonNull(fileClient, "fileClient");
         this.options = Objects.requireNonNull(options, "options");
         this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
+    }
+
+    @Override
+    public MystemClientExecutionProfile executionProfile() {
+        return MystemClientExecutionProfile.REUSABLE_SESSION;
+    }
+
+    @Override
+    public Optional<MystemOutputFormat> outputFormat() {
+        return Optional.of(options.format());
     }
 
     @Override
@@ -41,12 +54,14 @@ final class ReusableMystemClient implements MystemClient {
                     text.length(),
                     inputBytes,
                     output.length(),
-                    output.getBytes(options.encoding().charset()).length,
-                    java.util.OptionalInt.empty(),
-                    false);
+                    output.getBytes(options.encoding().charset()).length);
             return new MystemRawResult(text, output, options.format(), stats);
         } catch (ProtocolSessionException error) {
-            throw MystemProtocolFailureMapper.map(error);
+            MystemException mapped = MystemProtocolFailureMapper.map(error);
+            if (isTerminalSessionFailure(error)) {
+                terminalFailure.compareAndSet(null, mapped);
+            }
+            throw mapped;
         }
     }
 
@@ -74,6 +89,18 @@ final class ReusableMystemClient implements MystemClient {
         if (closed.get()) {
             throw new MystemClosedException("MyStem client is closed.");
         }
+        MystemException failure = terminalFailure.get();
+        if (failure != null) {
+            throw new MystemProtocolException("Reusable MyStem session is not usable after a previous failure.", failure);
+        }
     }
 
+    private static boolean isTerminalSessionFailure(ProtocolSessionException error) {
+        return switch (error.reason()) {
+            case TIMEOUT, CLOSED, EOF, BROKEN_PIPE, DECODE_ERROR, RESPONSE_TOO_LARGE, OUTPUT_BACKLOG_OVERFLOW,
+                            PROTOCOL_DECODER_FAILED, PROCESS_EXITED, FAILURE ->
+                    true;
+            case REQUEST_TOO_LARGE -> false;
+        };
+    }
 }

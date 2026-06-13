@@ -73,43 +73,13 @@ class MystemRuntimeResourceReleaseTest {
     }
 
     private Path pidRecordingInteractiveMystem(Path pidFile) throws IOException {
-        return script(
-                "pid-recording-interactive-mystem",
-                """
-                #!/bin/sh
-                printf '%%s\\n' "$$" >> %s
-                while IFS= read -r input; do
-                  printf '[{"text":"%%s"}]\\n' "$input"
-                done
-                """
-                        .formatted(shellQuote(pidFile)));
+        return FakeMystemExecutable.create(
+                temporaryDirectory, "pid-recording-interactive-mystem", "recordPidInteractive", pidFile.toString());
     }
 
     private Path pidRecordingSleepingMystem(Path pidFile) throws IOException {
-        return script(
-                "pid-recording-sleeping-mystem",
-                """
-                #!/bin/sh
-                printf '%%s\\n' "$$" >> %s
-                trap 'kill "$child" 2>/dev/null; exit 0' TERM INT
-                while :; do
-                  sleep 30 &
-                  child=$!
-                  wait "$child"
-                done
-                """
-                        .formatted(shellQuote(pidFile)));
-    }
-
-    private Path script(String name, String body) throws IOException {
-        Path executable = temporaryDirectory.resolve(name);
-        Files.writeString(executable, body, StandardCharsets.UTF_8);
-        executable.toFile().setExecutable(true, false);
-        return executable;
-    }
-
-    private static String shellQuote(Path path) {
-        return "'" + path.toAbsolutePath().toString().replace("'", "'\"'\"'") + "'";
+        return FakeMystemExecutable.create(
+                temporaryDirectory, "pid-recording-sleeping-mystem", "recordPidSleep", pidFile.toString());
     }
 
     private static List<Long> waitForPidCount(Path pidFile, int expected) throws InterruptedException, IOException {

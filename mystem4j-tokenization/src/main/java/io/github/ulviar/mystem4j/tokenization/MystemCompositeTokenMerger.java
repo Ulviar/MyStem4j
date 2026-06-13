@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 final class MystemCompositeTokenMerger {
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[\\p{L}\\p{N}._%+\\-]+@[\\p{L}\\p{N}](?:[\\p{L}\\p{N}\\-]*[\\p{L}\\p{N}])?(?:\\.[\\p{L}\\p{N}](?:[\\p{L}\\p{N}\\-]*[\\p{L}\\p{N}])?)+$");
+    private static final Pattern EMAIL_PUNCTUATION = Pattern.compile("[._%+\\-]+");
 
     private MystemCompositeTokenMerger() {}
 
@@ -80,7 +82,7 @@ final class MystemCompositeTokenMerger {
 
     private static List<MystemPreparedSearchToken> mergeEmail(
             String originalText, List<MystemPreparedSearchToken> group) {
-        MergeRange range = mergeRange(group);
+        MergeRange range = emailRange(group);
         if (range == null) {
             return List.of();
         }
@@ -93,6 +95,44 @@ final class MystemCompositeTokenMerger {
                 text, range.startOffset(), range.endOffset(), MystemTokenFeature.EMAIL);
         token.forms.add(domain);
         return mergedGroup(group, range, token);
+    }
+
+    private static MergeRange emailRange(List<MystemPreparedSearchToken> group) {
+        for (int index = 0; index < group.size(); index++) {
+            if (!group.get(index).features.contains(MystemTokenFeature.EMAIL_PART)) {
+                continue;
+            }
+            int first = index - 1;
+            while (first >= 0 && isEmailAtom(group.get(first))) {
+                first--;
+            }
+            first++;
+            int last = index + 1;
+            while (last < group.size() && isEmailAtom(group.get(last))) {
+                last++;
+            }
+            last--;
+            while (first < index && isEmailPunctuation(group.get(first))) {
+                first++;
+            }
+            while (last > index && isEmailPunctuation(group.get(last))) {
+                last--;
+            }
+            if (first < index && last > index) {
+                return new MergeRange(first, last, group.get(first).startOffset, group.get(last).endOffset);
+            }
+        }
+        return null;
+    }
+
+    private static boolean isEmailAtom(MystemPreparedSearchToken token) {
+        return token.features.contains(MystemTokenFeature.WORD)
+                || token.features.contains(MystemTokenFeature.NUMBER)
+                || isEmailPunctuation(token);
+    }
+
+    private static boolean isEmailPunctuation(MystemPreparedSearchToken token) {
+        return EMAIL_PUNCTUATION.matcher(token.text).matches();
     }
 
     private static List<MystemPreparedSearchToken> mergedGroup(

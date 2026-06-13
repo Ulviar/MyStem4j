@@ -100,6 +100,15 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
         }
     }
 
+    public void testNormalizeLowercasesMultiTermQueryTermsWithoutCallingMystem() {
+        FakeMystemClient client = FakeMystemClient.echo();
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
+            assertEquals("мам*", analyzer.normalize(FIELD, "Мам*").utf8ToString());
+            assertEquals("c++", analyzer.normalize(FIELD, "C++").utf8ToString());
+        }
+        assertTrue(client.requests().isEmpty());
+    }
+
     public void testConservativeAndEntityAwarePoliciesIndexDifferentSearchTerms() throws IOException {
         FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"Visit https://example.com".equals(input)) {

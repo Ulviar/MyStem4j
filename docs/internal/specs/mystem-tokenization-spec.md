@@ -112,7 +112,7 @@ Baseline gap tokenizer должен распознавать:
 - Есть модуль `mystem4j-tokenization`.
 - Модуль зависит от `mystem4j-model`, но не зависит от `mystem4j-runtime` напрямую.
 - Токенизация сохраняет original UTF-16 offsets.
-- Токен с unknown offsets дает `MystemTokenizationException`.
+- Токен с unknown offsets обрабатывается явной политикой: default recovery через original-text gaps или strict `MystemTokenizationException`.
 - Gaps исходного текста не теряются.
 - Есть тесты для soft hyphen, `+`/`++`/`#`, URL/email, currencies и exceptional diacritics.
 - Default tokenizer не включает entity-aware семантику без явных options.

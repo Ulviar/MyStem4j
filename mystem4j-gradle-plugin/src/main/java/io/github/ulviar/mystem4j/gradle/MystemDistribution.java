@@ -92,6 +92,10 @@ final class MystemDistribution {
 
     private static String normalizeOs(String os) {
         String normalized = os.toLowerCase(Locale.ROOT).replace('_', '-').replace(' ', '-');
+        if (normalized.contains("aarch64") || normalized.contains("arm64")) {
+            throw new GradleException(
+                    "Unsupported MyStem target architecture in " + os + ". MyStem4j currently supports x64 MyStem distributions.");
+        }
         if (normalized.contains("win")) {
             return "windows";
         }

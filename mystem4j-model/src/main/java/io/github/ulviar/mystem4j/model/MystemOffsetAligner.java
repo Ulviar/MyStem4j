@@ -45,6 +45,9 @@ final class MystemOffsetAligner {
     }
 
     private MystemTextRange fuzzyAlign(String tokenText) {
+        // Fallback for trusted MyStem JSON only: MyStem may drop selected code points
+        // such as soft hyphen from token text while offsets still need to point to the
+        // original input. Normal alignment uses String.indexOf from the current cursor.
         for (int start = cursor; start < alignmentText.length(); start += Character.charCount(alignmentText.codePointAt(start))) {
             int end = matchIgnoringMyStemDroppedCharacters(tokenText, start);
             if (end >= 0) {

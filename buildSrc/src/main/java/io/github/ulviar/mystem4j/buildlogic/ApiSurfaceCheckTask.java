@@ -9,9 +9,11 @@ import java.util.Map;
 import java.util.zip.ZipFile;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
 import org.gradle.api.tasks.OutputDirectory;
@@ -20,6 +22,9 @@ import org.gradle.api.tasks.TaskAction;
 public abstract class ApiSurfaceCheckTask extends DefaultTask {
     @Input
     public abstract MapProperty<String, String> getJarPathByProject();
+
+    @Classpath
+    public abstract ConfigurableFileCollection getJarFiles();
 
     @InputDirectory
     public abstract DirectoryProperty getBaselineDirectory();

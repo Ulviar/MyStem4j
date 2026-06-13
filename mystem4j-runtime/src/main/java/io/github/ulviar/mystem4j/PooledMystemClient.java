@@ -6,7 +6,7 @@ import com.github.ulviar.icli.session.ProtocolSessionException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.OptionalInt;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -30,6 +30,16 @@ final class PooledMystemClient implements MystemClient {
     }
 
     @Override
+    public MystemClientExecutionProfile executionProfile() {
+        return MystemClientExecutionProfile.POOLED_SESSIONS;
+    }
+
+    @Override
+    public Optional<MystemOutputFormat> outputFormat() {
+        return Optional.of(options.format());
+    }
+
+    @Override
     public MystemRawResult analyze(String text) {
         closeLock.readLock().lock();
         try {
@@ -47,9 +57,7 @@ final class PooledMystemClient implements MystemClient {
                         text.length(),
                         inputBytes,
                         output.length(),
-                        output.getBytes(options.encoding().charset()).length,
-                        OptionalInt.empty(),
-                        false);
+                        output.getBytes(options.encoding().charset()).length);
                 return new MystemRawResult(text, output, options.format(), stats);
             } catch (ProtocolSessionException error) {
                 throw MystemProtocolFailureMapper.map(error);

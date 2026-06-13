@@ -1,5 +1,7 @@
 package io.github.ulviar.mystem4j.lucene;
 
+import io.github.ulviar.mystem4j.MystemClientExecutionProfile;
+import io.github.ulviar.mystem4j.MystemOutputFormat;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.io.IOException;
 import java.io.Reader;
@@ -11,6 +13,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
+import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.tests.analysis.BaseTokenStreamTestCase;
 
 public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
@@ -144,6 +147,28 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
     }
 
+    public void testChunkingDoesNotSplitSurrogatePairs() throws IOException {
+        FakeMystemClient client = FakeMystemClient.echo();
+        MystemLuceneAnalysisOptions analysisOptions =
+                new MystemLuceneAnalysisOptions(16, 1, MystemLucenePositionPolicy.COMPACT);
+        try (Analyzer analyzer =
+                new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "😀 A",
+                    new String[] {"a"},
+                    new int[] {3},
+                    new int[] {4},
+                    new String[] {"word"},
+                    new int[] {1});
+        }
+
+        assertTrue(client.requests().contains("😀"));
+        for (String request : client.requests()) {
+            assertFalse("request contains an unpaired surrogate: " + request, containsUnpairedSurrogate(request));
+        }
+    }
+
     public void testPositionPolicyCanPreserveSkippedTokenGaps() throws IOException {
         FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"A B".equals(input)) {
@@ -168,6 +193,30 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                     new int[] {1, 3},
                     new String[] {"word", "word"},
                     new int[] {1, 2});
+        }
+    }
+
+    public void testPositionPolicyPreservesTrailingSkippedTokenGapInEndState() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> {
+            if (!"A ".equals(input)) {
+                return "[]";
+            }
+            return """
+                    [{"analysis":[],"text":"A"}]
+                    """;
+        });
+        MystemLuceneAnalysisOptions analysisOptions =
+                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+        try (Analyzer analyzer =
+                new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions);
+                TokenStream stream = analyzer.tokenStream("field", new StringReader("A "))) {
+            PositionIncrementAttribute positionIncrement = stream.addAttribute(PositionIncrementAttribute.class);
+            stream.reset();
+            assertTrue(stream.incrementToken());
+            assertEquals(1, positionIncrement.getPositionIncrement());
+            assertFalse(stream.incrementToken());
+            stream.end();
+            assertEquals(1, positionIncrement.getPositionIncrement());
         }
     }
 
@@ -234,7 +283,7 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
 
     public void testRandomDataDoesNotBreakTokenStreamLifecycle() throws IOException {
         try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.echo())) {
-            checkRandomData(random(), analyzer, 200, 256, false, false);
+            checkRandomData(random(), analyzer, 200, 256, true, true);
         }
     }
 
@@ -244,6 +293,58 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
             expectThrows(IOException.class, () -> assertAnalyzesTo(analyzer, "12345", new String[0]));
         }
         assertTrue(client.requests().isEmpty());
+    }
+
+    public void testCanTruncateOversizedFieldsAtConfiguredLimit() throws IOException {
+        FakeMystemClient client = FakeMystemClient.echo();
+        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+                4,
+                4,
+                MystemLucenePositionPolicy.COMPACT,
+                MystemLuceneClientPolicy.ALLOW_ANY,
+                MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY);
+
+        try (Analyzer analyzer =
+                new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "Alpha",
+                    new String[] {"alph"},
+                    new int[] {0},
+                    new int[] {4},
+                    new String[] {"word"},
+                    new int[] {1});
+        }
+
+        assertFalse(client.requests().isEmpty());
+        assertTrue(client.requests().contains("Alph"));
+        assertTrue(client.requests().stream().allMatch(request -> request.length() <= analysisOptions.maxInputChars()));
+    }
+
+    public void testTruncationDoesNotLeaveUnpairedSurrogateAtLimit() throws IOException {
+        FakeMystemClient client = FakeMystemClient.echo();
+        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+                2,
+                2,
+                MystemLucenePositionPolicy.COMPACT,
+                MystemLuceneClientPolicy.ALLOW_ANY,
+                MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY);
+
+        try (Analyzer analyzer =
+                new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "A😀B",
+                    new String[] {"a"},
+                    new int[] {0},
+                    new int[] {1},
+                    new String[] {"word"},
+                    new int[] {1});
+        }
+
+        assertFalse(client.requests().isEmpty());
+        assertTrue(client.requests().contains("A"));
+        assertTrue(client.requests().stream().noneMatch(MystemLuceneAnalyzerTest::containsUnpairedSurrogate));
     }
 
     public void testTokenizerReleasesBufferedFieldDataOnClose() throws Exception {
@@ -285,6 +386,98 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                 IllegalArgumentException.class,
                 () -> new MystemLuceneAnalysisOptions(1, 2, MystemLucenePositionPolicy.COMPACT));
         expectThrows(NullPointerException.class, () -> new MystemLuceneAnalysisOptions(1, 1, null));
+        expectThrows(
+                NullPointerException.class,
+                () -> new MystemLuceneAnalysisOptions(1, 1, MystemLucenePositionPolicy.COMPACT, null));
+        expectThrows(
+                NullPointerException.class,
+                () -> new MystemLuceneAnalysisOptions(
+                        1,
+                        1,
+                        MystemLucenePositionPolicy.COMPACT,
+                        MystemLuceneClientPolicy.ALLOW_ANY,
+                        null));
+    }
+
+    public void testStrictClientPolicyRejectsOneShotRuntimeClient() {
+        FakeMystemClient client = new FakeMystemClient(
+                input -> "[]", MystemClientExecutionProfile.ONE_SHOT_PROCESS_PER_REQUEST);
+        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+                100,
+                100,
+                MystemLucenePositionPolicy.COMPACT,
+                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+
+        IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions));
+
+        assertTrue(error.getMessage().contains("one-shot MyStem client"));
+    }
+
+    public void testStrictClientPolicyRejectsReusableRuntimeClient() {
+        FakeMystemClient client = new FakeMystemClient(input -> "[]", MystemClientExecutionProfile.REUSABLE_SESSION);
+        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+                100,
+                100,
+                MystemLucenePositionPolicy.COMPACT,
+                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+
+        IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions));
+
+        assertTrue(error.getMessage().contains("reusable-session MyStem client"));
+    }
+
+    public void testStrictClientPolicyAllowsUnknownAndPooledProfiles() {
+        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+                100,
+                100,
+                MystemLucenePositionPolicy.COMPACT,
+                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+
+        new MystemLuceneAnalyzer(FakeMystemClient.echo(), MystemSearchTokenizerOptions.conservative(), analysisOptions)
+                .close();
+        new MystemLuceneAnalyzer(
+                        new FakeMystemClient(input -> "[]", MystemClientExecutionProfile.POOLED_SESSIONS),
+                        MystemSearchTokenizerOptions.conservative(),
+                        analysisOptions)
+                .close();
+    }
+
+    public void testRejectsNullClientExecutionProfile() {
+        MystemLuceneAnalysisOptions analysisOptions =
+                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.COMPACT);
+
+        expectThrows(
+                NullPointerException.class,
+                () -> new MystemLuceneAnalyzer(
+                        new FakeMystemClient(input -> "[]", null),
+                        MystemSearchTokenizerOptions.conservative(),
+                        analysisOptions));
+    }
+
+    public void testAnalyzerRejectsKnownNonJsonClientFormat() {
+        FakeMystemClient client = FakeMystemClient.withOutputFormat(input -> "plain text", MystemOutputFormat.TEXT);
+
+        IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative()));
+
+        assertTrue(error.getMessage().contains("requires a MyStem client configured for JSON output"));
+        assertTrue(error.getMessage().contains("TEXT"));
+    }
+
+    public void testTokenizerRejectsKnownNonJsonClientFormat() {
+        FakeMystemClient client = FakeMystemClient.withOutputFormat(input -> "plain text", MystemOutputFormat.TEXT);
+
+        IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneTokenizer(client, MystemSearchTokenizerOptions.conservative()));
+
+        assertTrue(error.getMessage().contains("requires a MyStem client configured for JSON output"));
+        assertTrue(error.getMessage().contains("TEXT"));
     }
 
     public void testAnalyzerDoesNotCloseClientByDefault() {
@@ -332,6 +525,21 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
             result.add(value);
         }
         return List.copyOf(result);
+    }
+
+    private static boolean containsUnpairedSurrogate(String text) {
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            if (Character.isHighSurrogate(current)) {
+                if (index + 1 >= text.length() || !Character.isLowSurrogate(text.charAt(index + 1))) {
+                    return true;
+                }
+                index++;
+            } else if (Character.isLowSurrogate(current)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static <T> T privateField(Object target, String name, Class<T> type) throws ReflectiveOperationException {

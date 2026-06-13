@@ -2,15 +2,18 @@ package io.github.ulviar.mystem4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,6 +25,8 @@ class ProtocolMystemClientTest {
     void analyzesTextWithReusableSession() throws IOException {
         Path executable = fakeInteractiveMystem();
         try (MystemClient client = Mystem.builder().executable(executable).session().build()) {
+            assertEquals(MystemClientExecutionProfile.REUSABLE_SESSION, client.executionProfile());
+            assertEquals(Optional.of(MystemOutputFormat.JSON), client.outputFormat());
             assertEquals(MystemExecutionMode.SESSION, client.analyze("one").stats().mode());
             assertEquals("[{\"text\":\"two\"}]\n", client.analyze("two").output());
         }
@@ -34,6 +39,8 @@ class ProtocolMystemClientTest {
                 .executable(executable)
                 .pooled(pool -> pool.maxSize(2).warmupSize(1).minIdle(1).acquireTimeout(Duration.ofSeconds(1)))
                 .build()) {
+            assertEquals(MystemClientExecutionProfile.POOLED_SESSIONS, client.executionProfile());
+            assertEquals(Optional.of(MystemOutputFormat.JSON), client.outputFormat());
             assertEquals(MystemExecutionMode.POOL, client.analyze("one").stats().mode());
             assertEquals("[{\"text\":\"two\"}]\n", client.analyze("two").output());
         }
@@ -48,6 +55,32 @@ class ProtocolMystemClientTest {
                         .executable(executable)
                         .options(MystemOptions.builder().format(MystemOutputFormat.TEXT).build())
                         .session()
+                        .build());
+    }
+
+    @Test
+    void rejectsNewLineEachWordInReusableSession() throws IOException {
+        Path executable = fakeInteractiveMystem();
+
+        assertThrows(
+                MystemInvalidOptionsException.class,
+                () -> Mystem.builder()
+                        .executable(executable)
+                        .options(MystemOptions.builder().newLineEachWord(true).build())
+                        .session()
+                        .build());
+    }
+
+    @Test
+    void rejectsNewLineEachWordInPool() throws IOException {
+        Path executable = fakeInteractiveMystem();
+
+        assertThrows(
+                MystemInvalidOptionsException.class,
+                () -> Mystem.builder()
+                        .executable(executable)
+                        .options(MystemOptions.builder().newLineEachWord(true).build())
+                        .pooled()
                         .build());
     }
 
@@ -79,15 +112,7 @@ class ProtocolMystemClientTest {
 
     @Test
     void mapsEarlyProcessExitInReusableSession() throws IOException {
-        Path executable = script(
-                "exiting-mystem",
-                """
-                #!/bin/sh
-                while IFS= read -r input; do
-                  echo "fatal mystem" >&2
-                  exit 9
-                done
-                """);
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "exiting-mystem", "exitOnFirstRequest");
 
         try (MystemClient client = Mystem.builder().executable(executable).session().build()) {
             MystemProcessException error = assertThrows(MystemProcessException.class, () -> client.analyze("one"));
@@ -99,15 +124,7 @@ class ProtocolMystemClientTest {
 
     @Test
     void mapsPooledAcquireTimeout() throws Exception {
-        Path executable = script(
-                "slow-interactive-mystem",
-                """
-                #!/bin/sh
-                while IFS= read -r input; do
-                  sleep 1
-                  printf '[{"text":"%s"}]\\n' "$input"
-                done
-                """);
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "slow-interactive-mystem", "slowInteractive");
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try (MystemClient client = Mystem.builder()
@@ -125,47 +142,135 @@ class ProtocolMystemClientTest {
     }
 
     @Test
-    void mapsSessionStartupFailure() throws IOException {
-        Path executable = missingInterpreterScript();
+    void pooledClientReplacesWorkerAfterMaxRequests() throws IOException {
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "pid-reporting-interactive-mystem", "pidInteractive");
 
-        assertThrows(MystemStartupException.class, () -> Mystem.builder().executable(executable).session().build());
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .pooled(pool -> pool.maxSize(1)
+                        .warmupSize(1)
+                        .minIdle(1)
+                        .maxRequestsPerWorker(1)
+                        .acquireTimeout(Duration.ofSeconds(1)))
+                .build()) {
+            String firstPid = pidFromOutput(client.analyze("one").output());
+            String secondPid = pidFromOutput(client.analyze("two").output());
+
+            assertTrue(!firstPid.equals(secondPid), "pool should replace worker after maxRequestsPerWorker");
+        }
     }
 
     @Test
-    void mapsPoolStartupFailure() throws IOException {
-        Path executable = missingInterpreterScript();
+    void pooledClientHandlesConcurrentRequests() throws Exception {
+        Path executable = fakeInteractiveMystem();
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .requestTimeout(Duration.ofSeconds(1))
+                .pooled(pool -> pool.maxSize(4).warmupSize(2).minIdle(1).acquireTimeout(Duration.ofSeconds(1)))
+                .build()) {
+            List<Future<String>> outputs = new ArrayList<>();
+            for (int index = 0; index < 24; index++) {
+                String input = "request-" + index;
+                outputs.add(executor.submit(() -> client.analyze(input).output()));
+            }
 
-        assertThrows(
-                MystemStartupException.class,
-                () -> Mystem.builder()
-                        .executable(executable)
-                        .pooled(pool -> pool.maxSize(1).warmupSize(1))
-                        .build());
+            for (int index = 0; index < outputs.size(); index++) {
+                assertEquals("[{\"text\":\"request-" + index + "\"}]\n", outputs.get(index).get());
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void pooledClientReplacesWorkerAfterCrash() throws IOException {
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "crashing-interactive-mystem", "crashOnDie");
+
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .requestTimeout(Duration.ofSeconds(1))
+                .pooled(pool -> pool.maxSize(1).warmupSize(1).minIdle(1).acquireTimeout(Duration.ofSeconds(1)))
+                .build()) {
+            assertThrows(MystemException.class, () -> client.analyze("die"));
+
+            assertEquals("[{\"text\":\"ok\"}]\n", client.analyze("ok").output());
+        }
+    }
+
+    @Test
+    void reportsReusableSessionAsFailedAfterRequestTimeout() throws IOException {
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "timeout-interactive-mystem", "slowInteractive");
+
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .requestTimeout(Duration.ofMillis(50))
+                .session()
+                .build()) {
+            assertThrows(MystemRequestTimeoutException.class, () -> client.analyze("one"));
+            assertThrows(MystemProtocolException.class, () -> client.analyze("two"));
+        }
+    }
+
+    @Test
+    void noisyReusableSessionFailsWithBoundedOutputLimit() throws IOException {
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "noisy-interactive-mystem", "noisyInteractive");
+
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .maxResponseBytes(256)
+                .requestTimeout(Duration.ofSeconds(1))
+                .session()
+                .build()) {
+            assertThrows(MystemOutputLimitException.class, () -> client.analyze("one"));
+        }
+    }
+
+    @Test
+    void noisyPooledSessionFailsWithBoundedOutputLimit() throws IOException {
+        Path executable = FakeMystemExecutable.create(temporaryDirectory, "noisy-pooled-mystem", "noisyInteractive");
+
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .maxResponseBytes(256)
+                .requestTimeout(Duration.ofSeconds(1))
+                .pooled(pool -> pool.maxSize(1).warmupSize(1).acquireTimeout(Duration.ofSeconds(1)))
+                .build()) {
+            assertThrows(MystemOutputLimitException.class, () -> client.analyze("one"));
+        }
+    }
+
+    @Test
+    void brokenExecutableSessionFailsOnRequest() throws IOException {
+        Path executable = FakeMystemExecutable.brokenExecutable(temporaryDirectory, "broken-session-mystem");
+
+        try (MystemClient client = Mystem.builder().executable(executable).session().build()) {
+            assertThrows(MystemException.class, () -> client.analyze("one"));
+        }
+    }
+
+    @Test
+    void brokenExecutablePoolFailsOnRequest() throws IOException {
+        Path executable = FakeMystemExecutable.brokenExecutable(temporaryDirectory, "broken-pool-mystem");
+
+        try (MystemClient client = Mystem.builder()
+                .executable(executable)
+                .pooled(pool -> pool.maxSize(1).warmupSize(1))
+                .build()) {
+            assertThrows(MystemException.class, () -> client.analyze("one"));
+        }
     }
 
     private Path fakeInteractiveMystem() throws IOException {
-        return script(
-                "fake-interactive-mystem",
-                """
-                #!/bin/sh
-                while IFS= read -r input; do
-                  printf '[{"text":"%s"}]\\n' "$input"
-                done
-                """);
+        return FakeMystemExecutable.create(temporaryDirectory, "fake-interactive-mystem", "interactiveEcho");
     }
 
-    private Path missingInterpreterScript() throws IOException {
-        return script(
-                "missing-interpreter",
-                """
-                #!/definitely/missing/interpreter
-                """);
+    private static String pidFromOutput(String output) {
+        java.util.regex.Matcher matcher = Pattern.compile("pid:(\\d+)").matcher(output);
+        if (!matcher.find()) {
+            throw new AssertionError("No pid in output: " + output);
+        }
+        return matcher.group(1);
     }
 
-    private Path script(String name, String body) throws IOException {
-        Path executable = temporaryDirectory.resolve(name);
-        Files.writeString(executable, body, StandardCharsets.UTF_8);
-        executable.toFile().setExecutable(true, false);
-        return executable;
-    }
 }

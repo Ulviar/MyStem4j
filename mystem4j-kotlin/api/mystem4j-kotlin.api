@@ -1,0 +1,63 @@
+public final class io/github/ulviar/mystem4j/kotlin/MystemClientDsl {
+	public final fun executable (Ljava/io/File;)V
+	public final fun executable (Ljava/lang/String;)V
+	public final fun executable (Ljava/nio/file/Path;)V
+	public final fun idleTimeout (Ljava/time/Duration;)V
+	public final fun idleTimeoutKotlinDuration (J)V
+	public final fun includeInputInDiagnostics (Z)V
+	public final fun maxRequestBytes (I)V
+	public final fun maxRequestChars (I)V
+	public final fun maxResponseBytes (I)V
+	public final fun maxResponseChars (I)V
+	public final fun options (Lio/github/ulviar/mystem4j/MystemOptions;)V
+	public final fun options (Lkotlin/jvm/functions/Function1;)V
+	public final fun pooled ()V
+	public final fun pooled (Lio/github/ulviar/mystem4j/MystemPoolOptions;)V
+	public final fun pooled (Lkotlin/jvm/functions/Function1;)V
+	public final fun requestTimeout (Ljava/time/Duration;)V
+	public final fun requestTimeoutKotlinDuration (J)V
+	public final fun searchPath (Z)V
+	public final fun session ()V
+}
+
+public final class io/github/ulviar/mystem4j/kotlin/MystemDslKt {
+	public static final fun analyzeWith (Ljava/io/File;Lio/github/ulviar/mystem4j/MystemClient;)Lio/github/ulviar/mystem4j/MystemFileContentResult;
+	public static final fun analyzeWith (Ljava/lang/String;Lio/github/ulviar/mystem4j/MystemClient;)Lio/github/ulviar/mystem4j/MystemRawResult;
+	public static final fun analyzeWith (Ljava/nio/file/Path;Lio/github/ulviar/mystem4j/MystemClient;)Lio/github/ulviar/mystem4j/MystemFileContentResult;
+	public static final fun mystemClient (Lkotlin/jvm/functions/Function1;)Lio/github/ulviar/mystem4j/MystemClient;
+	public static final fun mystemOptions (Lkotlin/jvm/functions/Function1;)Lio/github/ulviar/mystem4j/MystemOptions;
+}
+
+public abstract interface annotation class io/github/ulviar/mystem4j/kotlin/MystemDslMarker : java/lang/annotation/Annotation {
+}
+
+public final class io/github/ulviar/mystem4j/kotlin/MystemOptionsDsl {
+	public final fun copyInput (Z)V
+	public static synthetic fun copyInput$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun dictionaryWordsOnly (Z)V
+	public static synthetic fun dictionaryWordsOnly$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun disambiguate (Z)V
+	public static synthetic fun disambiguate$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun encoding (Lio/github/ulviar/mystem4j/MystemEncoding;)V
+	public final fun englishGrammemes (Z)V
+	public static synthetic fun englishGrammemes$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun filterGrammar (Ljava/lang/String;)V
+	public final fun fixlist (Ljava/io/File;)V
+	public final fun fixlist (Ljava/lang/String;)V
+	public final fun fixlist (Ljava/nio/file/Path;)V
+	public final fun format (Lio/github/ulviar/mystem4j/MystemOutputFormat;)V
+	public final fun generateAll (Z)V
+	public static synthetic fun generateAll$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun grammarInfo (Z)V
+	public static synthetic fun grammarInfo$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun lemmaOnly (Z)V
+	public static synthetic fun lemmaOnly$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun mergeWordForms (Z)V
+	public static synthetic fun mergeWordForms$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun newLineEachWord (Z)V
+	public static synthetic fun newLineEachWord$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun sentenceMarkers (Z)V
+	public static synthetic fun sentenceMarkers$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+	public final fun weight (Z)V
+	public static synthetic fun weight$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
+}

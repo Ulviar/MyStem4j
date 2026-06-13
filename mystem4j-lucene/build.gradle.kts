@@ -1,20 +1,28 @@
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     `java-library`
     `maven-publish`
+    id("io.github.ulviar.mystem4j.publishing-conventions")
 }
 
-val luceneVersion = providers.gradleProperty("lucene.version").orElse("10.4.0")
+mystem4jJava {
+    automaticModuleName.set("io.github.ulviar.mystem4j.lucene")
+}
+
+mystem4jPublishing {
+    moduleDescription.set("Apache Lucene Analyzer and Tokenizer integration for MyStem.")
+}
 
 dependencies {
     api(project(":mystem4j-runtime"))
     api(project(":mystem4j-tokenization"))
-    api("org.apache.lucene:lucene-core:${luceneVersion.get()}")
+    api(libs.lucene.core)
 
     implementation(project(":mystem4j-model"))
 
-    testImplementation("org.apache.lucene:lucene-test-framework:${luceneVersion.get()}")
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation(libs.lucene.test.framework)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<Test>().configureEach {

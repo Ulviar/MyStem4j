@@ -1,7 +1,6 @@
 package io.github.ulviar.mystem4j;
 
 import java.time.Duration;
-import java.util.OptionalInt;
 
 public record MystemRequestStats(
         Duration elapsed,
@@ -9,9 +8,7 @@ public record MystemRequestStats(
         long inputChars,
         long inputBytes,
         long outputChars,
-        long outputBytes,
-        OptionalInt workerId,
-        boolean workerRestarted) {
+        long outputBytes) {
     public MystemRequestStats {
         if (elapsed == null || elapsed.isNegative()) {
             throw new IllegalArgumentException("elapsed must not be null or negative");
@@ -21,9 +18,6 @@ public record MystemRequestStats(
         }
         if (inputChars < -1 || inputBytes < -1 || outputChars < -1 || outputBytes < -1) {
             throw new IllegalArgumentException("sizes must be non-negative or -1 when unknown");
-        }
-        if (workerId == null) {
-            throw new IllegalArgumentException("workerId must not be null");
         }
     }
 
@@ -35,9 +29,7 @@ public record MystemRequestStats(
                 inputChars,
                 inputBytes,
                 outputChars,
-                outputBytes,
-                OptionalInt.empty(),
-                false);
+                outputBytes);
     }
 
     static MystemRequestStats oneShotFile(
@@ -48,8 +40,6 @@ public record MystemRequestStats(
                 inputChars,
                 inputBytes,
                 outputChars,
-                outputBytes,
-                OptionalInt.empty(),
-                false);
+                outputBytes);
     }
 }

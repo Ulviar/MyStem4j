@@ -1,6 +1,7 @@
 package io.github.ulviar.mystem4j.lucene;
 
 import io.github.ulviar.mystem4j.MystemClient;
+import io.github.ulviar.mystem4j.MystemClientExecutionProfile;
 import io.github.ulviar.mystem4j.MystemExecutionMode;
 import io.github.ulviar.mystem4j.MystemFileContentResult;
 import io.github.ulviar.mystem4j.MystemFileResult;
@@ -10,19 +11,35 @@ import io.github.ulviar.mystem4j.MystemRequestStats;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Optional;
 import java.util.function.Function;
 
 final class FakeMystemClient implements MystemClient {
     private static final char[] HEX_DIGITS = "0123456789abcdef".toCharArray();
     private final Function<String, String> output;
-    private final ArrayList<String> requests = new ArrayList<>();
+    private final MystemClientExecutionProfile executionProfile;
+    private final Optional<MystemOutputFormat> outputFormat;
+    private final List<String> requests = Collections.synchronizedList(new ArrayList<>());
     private boolean closed;
     private int closeCount;
 
     FakeMystemClient(Function<String, String> output) {
+        this(output, MystemClientExecutionProfile.UNKNOWN);
+    }
+
+    FakeMystemClient(Function<String, String> output, MystemClientExecutionProfile executionProfile) {
+        this(output, executionProfile, Optional.empty());
+    }
+
+    private FakeMystemClient(
+            Function<String, String> output,
+            MystemClientExecutionProfile executionProfile,
+            Optional<MystemOutputFormat> outputFormat) {
         this.output = output;
+        this.executionProfile = executionProfile;
+        this.outputFormat = outputFormat;
     }
 
     static FakeMystemClient echo() {
@@ -31,6 +48,20 @@ final class FakeMystemClient implements MystemClient {
                 : """
                 [{"analysis":[],"text":%s}]
                 """.formatted(jsonString(input)));
+    }
+
+    static FakeMystemClient withOutputFormat(Function<String, String> output, MystemOutputFormat outputFormat) {
+        return new FakeMystemClient(output, MystemClientExecutionProfile.UNKNOWN, Optional.of(outputFormat));
+    }
+
+    @Override
+    public MystemClientExecutionProfile executionProfile() {
+        return executionProfile;
+    }
+
+    @Override
+    public Optional<MystemOutputFormat> outputFormat() {
+        return outputFormat;
     }
 
     @Override
@@ -47,9 +78,7 @@ final class FakeMystemClient implements MystemClient {
                         text.length(),
                         -1,
                         rawOutput.length(),
-                        -1,
-                        OptionalInt.empty(),
-                        false));
+                        -1));
     }
 
     @Override
@@ -77,7 +106,9 @@ final class FakeMystemClient implements MystemClient {
     }
 
     List<String> requests() {
-        return List.copyOf(requests);
+        synchronized (requests) {
+            return List.copyOf(requests);
+        }
     }
 
     private static String jsonString(String value) {

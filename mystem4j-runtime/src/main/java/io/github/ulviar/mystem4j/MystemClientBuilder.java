@@ -6,6 +6,7 @@ import com.github.ulviar.icli.session.PooledProtocolSession;
 import com.github.ulviar.icli.session.PooledProtocolSessionException;
 import com.github.ulviar.icli.session.ProtocolSession;
 import com.github.ulviar.icli.session.ProtocolSessionException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
@@ -80,6 +81,7 @@ public final class MystemClientBuilder {
      * @return this builder
      */
     public MystemClientBuilder requestTimeout(Duration requestTimeout) {
+        Objects.requireNonNull(requestTimeout, "requestTimeout");
         if (requestTimeout.isNegative() || requestTimeout.isZero()) {
             throw new IllegalArgumentException("requestTimeout must be positive");
         }
@@ -94,6 +96,7 @@ public final class MystemClientBuilder {
      * @return this builder
      */
     public MystemClientBuilder idleTimeout(Duration idleTimeout) {
+        Objects.requireNonNull(idleTimeout, "idleTimeout");
         if (idleTimeout.isNegative()) {
             throw new IllegalArgumentException("idleTimeout must be non-negative");
         }
@@ -218,8 +221,13 @@ public final class MystemClientBuilder {
      * Builds a configured client.
      *
      * @return client
+     * @throws MystemExecutableNotFoundException when no executable can be resolved
+     * @throws MystemInvalidOptionsException when the selected mode is incompatible with configured options
+     * @throws MystemStartupException when a reusable session or pool cannot be started
+     * @throws MystemException when session or pool startup fails with a protocol-level runtime error
      */
     public MystemClient build() {
+        validateRuntimeOptions();
         Path resolvedExecutable = MystemExecutableResolver.resolve(executable, searchPath);
         OneShotMystemClient oneShotClient = newOneShotClient(resolvedExecutable);
         if (mode == Mode.ONE_SHOT) {
@@ -227,6 +235,10 @@ public final class MystemClientBuilder {
         }
         if (options.format() != MystemOutputFormat.JSON) {
             throw new MystemInvalidOptionsException("Reusable and pooled MyStem clients require JSON format.");
+        }
+        if (options.newLineEachWord()) {
+            throw new MystemInvalidOptionsException(
+                    "Reusable and pooled MyStem clients cannot use newLineEachWord because it breaks JSON-line request framing.");
         }
         if (mode == Mode.SESSION) {
             ProtocolSession<String, String> session;
@@ -282,6 +294,14 @@ public final class MystemClientBuilder {
             throw new MystemStartupException("Failed to start pooled MyStem session.", error);
         }
         return new PooledMystemClient(pool, oneShotClient, options, requestTimeout);
+    }
+
+    private void validateRuntimeOptions() {
+        options.fixlist().ifPresent(path -> {
+            if (!Files.isReadable(path)) {
+                throw new MystemInvalidOptionsException("fixlist must be readable: " + path);
+            }
+        });
     }
 
     private OneShotMystemClient newOneShotClient(Path resolvedExecutable) {

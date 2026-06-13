@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -39,6 +40,16 @@ final class OneShotMystemClient implements MystemClient {
         this.maxRequestBytes = maxRequestBytes;
         this.maxResponseBytes = maxResponseBytes;
         this.includeInputInDiagnostics = includeInputInDiagnostics;
+    }
+
+    @Override
+    public MystemClientExecutionProfile executionProfile() {
+        return MystemClientExecutionProfile.ONE_SHOT_PROCESS_PER_REQUEST;
+    }
+
+    @Override
+    public Optional<MystemOutputFormat> outputFormat() {
+        return Optional.of(options.format());
     }
 
     @Override

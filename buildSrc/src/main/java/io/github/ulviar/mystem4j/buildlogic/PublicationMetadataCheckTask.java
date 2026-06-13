@@ -1,26 +1,46 @@
 package io.github.ulviar.mystem4j.buildlogic;
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.spi.ToolProvider;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
 public abstract class PublicationMetadataCheckTask extends DefaultTask {
+    private static final long LATEST_REPRODUCIBLE_TIMESTAMP = Instant.parse("2000-01-01T00:00:00Z").toEpochMilli();
+
     @Input
     public abstract MapProperty<String, String> getModuleNameByProject();
 
     @Input
     public abstract MapProperty<String, String> getJarPathByProject();
 
+    @Classpath
+    public abstract ConfigurableFileCollection getJarFiles();
+
     @Input
     public abstract MapProperty<String, String> getPomPathByProject();
+
+    @InputFiles
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract ConfigurableFileCollection getPomFiles();
 
     @Input
     public abstract Property<String> getPluginPomPath();
@@ -38,9 +58,8 @@ public abstract class PublicationMetadataCheckTask extends DefaultTask {
             String projectName = entry.getKey();
             String moduleName = entry.getValue();
             File jarFile = new File(getJarPathByProject().get().get(projectName));
-            String descriptor = ProcessSupport.run(
-                    java.util.List.of("jar", "--describe-module", "--file", jarFile.getAbsolutePath()),
-                    jarFile.getParentFile());
+            requireReproducibleTimestamps(projectName, jarFile);
+            String descriptor = describeModule(jarFile);
             if (descriptor.lines().findFirst().filter(line -> line.startsWith(moduleName)).isEmpty()) {
                 throw new GradleException("Unexpected JPMS descriptor for " + projectName + ": " + descriptor);
             }
@@ -67,6 +86,23 @@ public abstract class PublicationMetadataCheckTask extends DefaultTask {
                 String scope = spec.substring(separator + 1);
                 requireDependencyScope(projectName, pom, artifactId, scope);
             }
+        }
+    }
+
+    private static void requireReproducibleTimestamps(String projectName, File jarFile) {
+        try (ZipFile zip = new ZipFile(jarFile)) {
+            if (!zip.entries().hasMoreElements()) {
+                throw new GradleException("Published JAR for " + projectName + " is empty: " + jarFile);
+            }
+            for (ZipEntry entry : java.util.Collections.list(zip.entries())) {
+                long timestamp = entry.getTime();
+                if (timestamp < 0 || timestamp >= LATEST_REPRODUCIBLE_TIMESTAMP) {
+                    throw new GradleException("Published JAR for " + projectName
+                            + " contains a non-reproducible timestamp in " + entry.getName() + ".");
+                }
+            }
+        } catch (java.io.IOException error) {
+            throw new GradleException("Failed to inspect published JAR " + jarFile, error);
         }
     }
 
@@ -99,5 +135,22 @@ public abstract class PublicationMetadataCheckTask extends DefaultTask {
         } catch (java.io.IOException error) {
             throw new GradleException("Failed to read " + path, error);
         }
+    }
+
+    private static String describeModule(File jarFile) {
+        ToolProvider jarTool = ToolProvider.findFirst("jar")
+                .orElseThrow(() -> new GradleException("Current JDK does not provide the jar tool."));
+        StringWriter output = new StringWriter();
+        StringWriter error = new StringWriter();
+        int exitCode = jarTool.run(
+                new PrintWriter(output),
+                new PrintWriter(error),
+                "--describe-module",
+                "--file",
+                jarFile.getAbsolutePath());
+        if (exitCode != 0) {
+            throw new GradleException("jar --describe-module failed for " + jarFile + "\n" + error);
+        }
+        return output.toString();
     }
 }

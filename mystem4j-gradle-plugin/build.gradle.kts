@@ -1,6 +1,16 @@
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     `java-gradle-plugin`
     `maven-publish`
+    id("io.github.ulviar.mystem4j.publishing-conventions")
+}
+
+mystem4jJava {
+    automaticModuleName.set("io.github.ulviar.mystem4j.gradle.plugin")
+}
+
+mystem4jPublishing {
+    moduleDescription.set("Gradle plugin for preparing the native MyStem binary.")
 }
 
 gradlePlugin {
@@ -16,6 +26,6 @@ gradlePlugin {
 
 dependencies {
     testImplementation(gradleTestKit())
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }

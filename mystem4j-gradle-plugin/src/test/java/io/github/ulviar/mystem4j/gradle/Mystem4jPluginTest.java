@@ -2,6 +2,7 @@ package io.github.ulviar.mystem4j.gradle;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,9 +13,11 @@ import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.stream.Stream;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.gradle.api.Project;
@@ -93,8 +96,29 @@ class Mystem4jPluginTest {
     }
 
     @Test
+    void testTaskRunsWithoutPreparedExecutableByDefault() throws IOException {
+        Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
+        Files.writeString(
+                temporaryDirectory.resolve("build.gradle.kts"),
+                """
+                plugins {
+                    java
+                    id("io.github.ulviar.mystem4j")
+                }
+                """,
+                StandardCharsets.UTF_8);
+
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("test", "--stacktrace")
+                .build();
+    }
+
+    @Test
     void wiresPreparedExecutableIntoTestTaskDuringConfiguration() throws IOException {
-        Path archive = fakeWindowsArchive();
+        Path archive = fakeProbeArchive();
+        String targetOs = probeTargetOs();
         Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
         Files.writeString(
                 temporaryDirectory.resolve("build.gradle.kts"),
@@ -108,7 +132,7 @@ class Mystem4jPluginTest {
                 }
 
                 mystem4j {
-                    targetOs.set("windows")
+                    targetOs.set("%s")
                     archiveUrl.set("%s")
                     download.set(true)
                     acceptYandexMystemLicense.set(true)
@@ -119,20 +143,13 @@ class Mystem4jPluginTest {
                     dependsOn(tasks.named("test"))
                     doLast {
                         val testTask = tasks.named<Test>("test").get()
-                        fun providerValue(value: Any?): String = when (value) {
-                            is Provider<*> -> value.get().toString()
-                            null -> ""
-                            else -> value.toString()
-                        }
-                        val executable = providerValue(testTask.systemProperties["mystem4j.executable"])
-                        check(executable.isNotBlank()) { "missing mystem4j.executable" }
-                        check(file(executable).isFile) { "missing executable: $executable" }
-                        check(providerValue(testTask.environment["MYSTEM_PATH"]) == executable) { "missing MYSTEM_PATH" }
-                        check(testTask.inputs.properties.containsKey("mystem4j.executable")) { "missing test input" }
+                        check(testTask.jvmArgumentProviders.isNotEmpty()) { "missing JVM argument provider" }
+                        check(testTask.inputs.properties.containsKey("mystem4j.configureTests")) { "missing configureTests input" }
+                        check(file(mystem4j.executablePath.get()).isFile) { "missing executable" }
                     }
                 }
                 """
-                        .formatted(archive.toUri()),
+                        .formatted(targetOs, archive.toUri()),
                 StandardCharsets.UTF_8);
 
         GradleRunner.create()
@@ -143,8 +160,76 @@ class Mystem4jPluginTest {
     }
 
     @Test
+    void wiresPreparedExecutableIntoForkedTestJvm() throws IOException {
+        Path archive = fakeProbeArchive();
+        String targetOs = probeTargetOs();
+        Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
+        Files.createDirectories(temporaryDirectory.resolve("src/test/java"));
+        Files.writeString(
+                temporaryDirectory.resolve("src/test/java/ConfiguredMystemTest.java"),
+                """
+                import static org.junit.jupiter.api.Assertions.assertEquals;
+                import static org.junit.jupiter.api.Assertions.assertNotNull;
+                import static org.junit.jupiter.api.Assertions.assertTrue;
+
+                import java.nio.file.Files;
+                import java.nio.file.Path;
+                import org.junit.jupiter.api.Test;
+
+                class ConfiguredMystemTest {
+                    @Test
+                    void receivesPreparedExecutablePath() {
+                        String executable = System.getProperty("mystem4j.executable");
+                        assertNotNull(executable);
+                        assertTrue(Files.isRegularFile(Path.of(executable)), executable);
+                        assertEquals(executable, System.getenv("MYSTEM_PATH"));
+                    }
+                }
+                """,
+                StandardCharsets.UTF_8);
+        Files.writeString(
+                temporaryDirectory.resolve("build.gradle.kts"),
+                """
+                plugins {
+                    java
+                    id("io.github.ulviar.mystem4j")
+                }
+
+                repositories {
+                    mavenCentral()
+                }
+
+                dependencies {
+                    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
+                    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+                }
+
+                tasks.test {
+                    useJUnitPlatform()
+                }
+
+                mystem4j {
+                    targetOs.set("%s")
+                    archiveUrl.set("%s")
+                    download.set(true)
+                    acceptYandexMystemLicense.set(true)
+                    configureTests.set(true)
+                }
+                """
+                        .formatted(targetOs, archive.toUri()),
+                StandardCharsets.UTF_8);
+
+        GradleRunner.create()
+                .withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath()
+                .withArguments("test", "--stacktrace")
+                .build();
+    }
+
+    @Test
     void testRuntimeWiringIsConfigurationCacheCompatible() throws IOException {
-        Path archive = fakeWindowsArchive();
+        Path archive = fakeProbeArchive();
+        String targetOs = probeTargetOs();
         Files.writeString(temporaryDirectory.resolve("settings.gradle.kts"), "", StandardCharsets.UTF_8);
         Files.writeString(
                 temporaryDirectory.resolve("build.gradle.kts"),
@@ -155,14 +240,14 @@ class Mystem4jPluginTest {
                 }
 
                 mystem4j {
-                    targetOs.set("windows")
+                    targetOs.set("%s")
                     archiveUrl.set("%s")
                     download.set(true)
                     acceptYandexMystemLicense.set(true)
                     configureTests.set(true)
                 }
                 """
-                        .formatted(archive.toUri()),
+                        .formatted(targetOs, archive.toUri()),
                 StandardCharsets.UTF_8);
 
         GradleRunner.create()
@@ -240,6 +325,73 @@ class Mystem4jPluginTest {
             zip.closeEntry();
         }
         return archive;
+    }
+
+    private Path fakeProbeArchive() throws IOException {
+        assumeFalse(isWindows(), "JVM-only test fixture cannot provide a native Windows mystem.exe shim.");
+        Path contentDirectory = temporaryDirectory.resolve("probe-archive-content");
+        Files.createDirectories(contentDirectory);
+        Path executable = FakeMystemExecutable.create(contentDirectory, "mystem", "echo");
+        Path archive = temporaryDirectory.resolve("mystem-probe.tar.gz");
+        writeTarGz(archive, "mystem/bin/mystem", Files.readAllBytes(executable));
+        return archive;
+    }
+
+    private static String probeTargetOs() {
+        String os = MystemDistribution.currentOs();
+        assumeFalse("windows".equals(os), "JVM-only test fixture cannot provide a native Windows mystem.exe shim.");
+        return os;
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+    }
+
+    private static void writeTarGz(Path archive, String name, byte[] content) throws IOException {
+        try (GZIPOutputStream output = new GZIPOutputStream(Files.newOutputStream(archive))) {
+            byte[] header = new byte[512];
+            writeAscii(header, 0, 100, name);
+            writeOctal(header, 100, 8, 0755);
+            writeOctal(header, 108, 8, 0);
+            writeOctal(header, 116, 8, 0);
+            writeOctal(header, 124, 12, content.length);
+            writeOctal(header, 136, 12, 0);
+            Arrays.fill(header, 148, 156, (byte) ' ');
+            header[156] = '0';
+            writeAscii(header, 257, 6, "ustar");
+            writeAscii(header, 263, 2, "00");
+            writeChecksum(header);
+
+            output.write(header);
+            output.write(content);
+            int padding = (int) ((512 - (content.length % 512L)) % 512);
+            output.write(new byte[padding]);
+            output.write(new byte[1024]);
+        }
+    }
+
+    private static void writeAscii(byte[] header, int offset, int length, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(bytes, 0, header, offset, Math.min(bytes.length, length));
+    }
+
+    private static void writeOctal(byte[] header, int offset, int length, long value) {
+        String octal = Long.toOctalString(value);
+        String padded = "0".repeat(length - octal.length() - 1) + octal;
+        writeAscii(header, offset, length - 1, padded);
+        header[offset + length - 1] = 0;
+    }
+
+    private static void writeChecksum(byte[] header) {
+        long checksum = 0;
+        for (byte value : header) {
+            checksum += value & 0xFF;
+        }
+        String octal = Long.toOctalString(checksum);
+        String padded = "0".repeat(6 - octal.length()) + octal;
+        writeAscii(header, 148, 6, padded);
+        header[154] = 0;
+        header[155] = (byte) ' ';
     }
 
     private static String sha256(Path file) {

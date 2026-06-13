@@ -1,6 +1,16 @@
 plugins {
+    id("io.github.ulviar.mystem4j.java-conventions")
     `java-library`
     `maven-publish`
+    id("io.github.ulviar.mystem4j.publishing-conventions")
+}
+
+mystem4jJava {
+    automaticModuleName.set("io.github.ulviar.mystem4j.tokenization")
+}
+
+mystem4jPublishing {
+    moduleDescription.set("Search-oriented token preparation above parsed MyStem output.")
 }
 
 val realMystemTest by sourceSets.creating {
@@ -12,8 +22,8 @@ val realMystemTest by sourceSets.creating {
 dependencies {
     api(project(":mystem4j-model"))
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 
     add(realMystemTest.implementationConfigurationName, project(":mystem4j-runtime"))
 }

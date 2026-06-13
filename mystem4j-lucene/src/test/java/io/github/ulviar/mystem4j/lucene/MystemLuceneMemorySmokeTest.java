@@ -11,7 +11,6 @@ import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.OptionalInt;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -63,9 +62,7 @@ public class MystemLuceneMemorySmokeTest extends LuceneTestCase {
                             text.length(),
                             -1,
                             output.length(),
-                            -1,
-                            OptionalInt.empty(),
-                            false));
+                            -1));
         }
 
         @Override
