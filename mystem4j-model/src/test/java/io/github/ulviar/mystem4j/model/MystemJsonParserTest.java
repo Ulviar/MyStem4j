@@ -114,6 +114,26 @@ class MystemJsonParserTest {
     }
 
     @Test
+    void prefersCurrentSoftHyphenOccurrenceOverLaterExactDuplicate() {
+        String original = "О\u00ADдин Один";
+        MystemDocument document = parser.parse(
+                original,
+                """
+                [
+                  {"analysis":[{"lex":"один","gr":"S"}],"text":"Один"},
+                  {"analysis":[{"lex":"один","gr":"S"}],"text":"Один"}
+                ]
+                """);
+
+        assertTrue(document.issues().isEmpty());
+        assertEquals(2, document.tokens().size());
+        assertEquals("О\u00ADдин", original.substring(
+                document.tokens().get(0).startOffset(), document.tokens().get(0).endOffset()));
+        assertEquals("Один", original.substring(
+                document.tokens().get(1).startOffset(), document.tokens().get(1).endOffset()));
+    }
+
+    @Test
     void rejectsNonArrayJson() {
         MystemJsonParseException error =
                 assertThrows(MystemJsonParseException.class, () -> parser.parse("text", "{\"text\":\"text\"}"));

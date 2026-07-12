@@ -28,11 +28,12 @@ final class MystemOffsetAligner {
             return new MystemTextRange(originalCursor, originalCursor);
         }
         int index = alignmentText.indexOf(tokenText, cursor);
+        FuzzyMatch fuzzyMatch = findFuzzyMatchBefore(tokenText, index);
+        if (fuzzyMatch != null) {
+            cursor = fuzzyMatch.endOffset();
+            return mappedRange(fuzzyMatch.startOffset(), fuzzyMatch.endOffset());
+        }
         if (index < 0) {
-            MystemTextRange fuzzyRange = fuzzyAlign(tokenText);
-            if (fuzzyRange.startOffset() >= 0) {
-                return fuzzyRange;
-            }
             issues.add(new MystemTextIssue(
                     MystemTextIssueType.UNMATCHED_TOKEN,
                     "Could not align MyStem token to original text: " + tokenText,
@@ -41,21 +42,21 @@ final class MystemOffsetAligner {
             return MystemTextRange.unknown();
         }
         cursor = index + tokenText.length();
-        return new MystemTextRange(originalOffsetFor.applyAsInt(index), originalOffsetFor.applyAsInt(cursor));
+        return mappedRange(index, cursor);
     }
 
-    private MystemTextRange fuzzyAlign(String tokenText) {
-        // Fallback for trusted MyStem JSON only: MyStem may drop selected code points
-        // such as soft hyphen from token text while offsets still need to point to the
-        // original input. Normal alignment uses String.indexOf from the current cursor.
-        for (int start = cursor; start < alignmentText.length(); start += Character.charCount(alignmentText.codePointAt(start))) {
+    private FuzzyMatch findFuzzyMatchBefore(String tokenText, int exactIndex) {
+        // A later exact occurrence must not win over the current occurrence when MyStem
+        // dropped a character such as soft hyphen from the current token surface.
+        for (int start = cursor;
+                start < alignmentText.length() && (exactIndex < 0 || start < exactIndex);
+                start += Character.charCount(alignmentText.codePointAt(start))) {
             int end = matchIgnoringMyStemDroppedCharacters(tokenText, start);
             if (end >= 0) {
-                cursor = end;
-                return new MystemTextRange(originalOffsetFor.applyAsInt(start), originalOffsetFor.applyAsInt(end));
+                return new FuzzyMatch(start, end);
             }
         }
-        return MystemTextRange.unknown();
+        return null;
     }
 
     private int matchIgnoringMyStemDroppedCharacters(String tokenText, int start) {
@@ -81,7 +82,14 @@ final class MystemOffsetAligner {
         return codePoint == SOFT_HYPHEN;
     }
 
+    private MystemTextRange mappedRange(int startOffset, int endOffset) {
+        return new MystemTextRange(
+                originalOffsetFor.applyAsInt(startOffset), originalOffsetFor.applyAsInt(endOffset));
+    }
+
     List<MystemTextIssue> issues() {
         return List.copyOf(issues);
     }
+
+    private record FuzzyMatch(int startOffset, int endOffset) {}
 }

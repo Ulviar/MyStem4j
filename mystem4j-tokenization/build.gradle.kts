@@ -50,6 +50,21 @@ tasks.register<Test>("memorySmokeTest") {
     }
 }
 
+tasks.register<Test>("unicodeContextStressTest") {
+    group = "verification"
+    description = "Runs tokenization invariants for every Unicode scalar value in rotating word/number contexts."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    systemProperty("mystem4j.unicodeContextStress", "true")
+    shouldRunAfter(tasks.named("test"))
+    filter {
+        includeTestsMatching(
+            "io.github.ulviar.mystem4j.tokenization.MystemUnicodeContextMatrixTest" +
+                ".allUnicodeScalarValuesPreserveTokenizationInvariantsAcrossRotatingContexts"
+        )
+    }
+}
+
 tasks.register<Test>("realMystemTest") {
     group = "verification"
     description = "Runs tokenization integration tests against a real MyStem executable."

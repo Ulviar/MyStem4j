@@ -50,6 +50,10 @@ final class FakeMystemClient implements MystemClient {
                 """.formatted(jsonString(input)));
     }
 
+    static FakeMystemClient mystemLikeOmissions() {
+        return new FakeMystemClient(FakeMystemClient::mystemLikeJson);
+    }
+
     static FakeMystemClient withOutputFormat(Function<String, String> output, MystemOutputFormat outputFormat) {
         return new FakeMystemClient(output, MystemClientExecutionProfile.UNKNOWN, Optional.of(outputFormat));
     }
@@ -111,7 +115,44 @@ final class FakeMystemClient implements MystemClient {
         }
     }
 
-    private static String jsonString(String value) {
+    private static String mystemLikeJson(String input) {
+        StringBuilder json = new StringBuilder("[");
+        boolean first = true;
+        for (int start = 0; start < input.length(); ) {
+            int codePoint = input.codePointAt(start);
+            if (!isMystemWordPart(codePoint)) {
+                start += Character.charCount(codePoint);
+                continue;
+            }
+            int end = start;
+            StringBuilder surface = new StringBuilder();
+            while (end < input.length()) {
+                codePoint = input.codePointAt(end);
+                if (!isMystemWordPart(codePoint)) {
+                    break;
+                }
+                if (codePoint != 0x00AD) {
+                    surface.appendCodePoint(codePoint);
+                }
+                end += Character.charCount(codePoint);
+            }
+            if (!surface.isEmpty()) {
+                if (!first) {
+                    json.append(',');
+                }
+                json.append("{\"analysis\":[],\"text\":").append(jsonString(surface.toString())).append('}');
+                first = false;
+            }
+            start = end;
+        }
+        return json.append(']').toString();
+    }
+
+    private static boolean isMystemWordPart(int codePoint) {
+        return Character.isLetterOrDigit(codePoint) || codePoint == 0x00AD;
+    }
+
+    static String jsonString(String value) {
         StringBuilder result = new StringBuilder(value.length() + 2);
         result.append('"');
         for (int index = 0; index < value.length(); index++) {

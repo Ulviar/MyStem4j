@@ -45,7 +45,40 @@ class RealMystemSearchTokenizerIntegrationTest {
         }
     }
 
+    @Test
+    void preservesObservedSurfaceSegmentationForSuffixQuirks() {
+        List<SurfaceFixture> fixtures = List.of(
+                new SurfaceFixture("Один+ two+ 3+ 4+", List.of("Один", "two", "3+", "4+")),
+                new SurfaceFixture("Один++ two++ 3++ 4++", List.of("Один", "two", "3++", "4++")),
+                new SurfaceFixture("Один+++ two+++ 3+++ 4+++", List.of("Один", "two", "3++", "4++")),
+                new SurfaceFixture("Один# two# 3# 4#", List.of("Один", "two", "3#", "4#")),
+                new SurfaceFixture("Один## two## 3## 4##", List.of("Один", "two", "3#", "4#")));
+
+        try (MystemClient client = Mystem.builder()
+                .executable(Path.of(System.getProperty("mystem4j.executable")))
+                .options(MystemOptions.builder()
+                        .format(MystemOutputFormat.JSON)
+                        .grammarInfo(true)
+                        .copyInput(true)
+                        .build())
+                .session()
+                .build()) {
+            for (SurfaceFixture fixture : fixtures) {
+                MystemRawResult rawResult = client.analyze(fixture.input());
+                MystemDocument document = parser.parse(fixture.input(), rawResult.output());
+                List<String> wordAndNumberSurfaces = document.tokens().stream()
+                        .map(io.github.ulviar.mystem4j.model.MystemToken::text)
+                        .filter(text -> text.codePoints().anyMatch(Character::isLetterOrDigit))
+                        .toList();
+
+                assertEquals(fixture.expectedWordAndNumberSurfaces(), wordAndNumberSurfaces, fixture.input());
+            }
+        }
+    }
+
     private static MystemSearchToken tokenByText(List<MystemSearchToken> tokens, String text) {
         return tokens.stream().filter(token -> token.text().equals(text)).findFirst().orElseThrow();
     }
+
+    private record SurfaceFixture(String input, List<String> expectedWordAndNumberSurfaces) {}
 }

@@ -114,6 +114,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         this.searchTokenizer = Objects.requireNonNull(searchTokenizer, "searchTokenizer");
         this.analysisOptions = Objects.requireNonNull(analysisOptions, "analysisOptions");
         requireJsonOutput(this.client);
+        MystemLuceneClientPolicies.apply(this.client, this.analysisOptions.clientPolicy());
     }
 
     @Override

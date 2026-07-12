@@ -14,6 +14,14 @@ as a substitute for focused unit tests.
   Unicode offsets, tokenization invariants, memory retention, and Lucene token
   lifecycle. Jazzer fuzz tests run in normal regression mode by default and can
   be switched to active fuzzing with `JAZZER_FUZZ=1`.
+- Context and metamorphic tests: generated inputs place Unicode code points before,
+  after, around, inside, and between Russian dictionary-like words, unknown Russian
+  words, non-Russian words, and numbers. Assertions use independent offset,
+  partition, determinism, and shift invariants instead of hand-built token tables.
+- Observed-behavior fixtures: compact MyStem 3.1 JSON samples preserve known surface
+  quirks such as soft hyphen, `+`, `++`, `+++`, `#`, and `##`. Unit tests replay the
+  samples without the native binary; real-MyStem tests verify only stable surface
+  segmentation and not dictionary-dependent lemmas.
 - Real-MyStem tests: opt-in tests that run with `-Dmystem4j.executable=...`.
   They validate assumptions about the external binary without making normal
   `test` depend on MyStem.
@@ -28,6 +36,9 @@ as a substitute for focused unit tests.
   tokenization, and Lucene.
 - `realMystemTest`: real-MyStem integration tests.
 - `realMystemUnicodeStress`: exhaustive real-MyStem Unicode offset check.
+- `unicodeContextStressTest`: Java-side tokenization invariants for every Unicode
+  scalar value with deterministic context rotation, plus the complete context
+  matrix for every defined non-letter and non-decimal code point.
 - `jmhCompileCheck` and `jmhSmoke`: benchmark wiring.
 - `coverageReport`: JaCoCo reports for published modules and the Gradle plugin.
 - `jpmsSmokeTest`, `publicationMetadataCheck`, `apiSurfaceCheck`: release
@@ -44,6 +55,9 @@ as a substitute for focused unit tests.
 - `MystemPreparedText` maps every prepared offset back to the original string.
 - JSON parsing preserves input order, analyses, grammar, weights, and text
   issues.
+- Offset alignment tests must include repeated surfaces where an earlier token
+  needs fuzzy alignment and a later occurrence is an exact match. The nearest
+  compatible occurrence must win.
 - Parser fuzz-style and Jazzer tests must cover generated valid Unicode JSON,
   malformed JSON-like input, and random grammar strings. Malformed parser input
   must fail with parser exceptions, not arbitrary runtime failures.
@@ -58,11 +72,25 @@ as a substitute for focused unit tests.
 - Gap synthesis, overlapping MyStem tokens, suffix recovery, URL/email merging,
   number classification, currency expansion, and Unicode marks are separate
   test concerns.
+- Unicode classification needs a full context matrix for representative category
+  members and boundary points. The exhaustive task distributes all scalar values
+  across the same contexts and must report the code point, base text, and context
+  on failure.
+- Entity merging needs valid, invalid, prefix, suffix, and adjacent-punctuation
+  cases. A merged range must not consume unrelated text in the same non-whitespace
+  group.
+- Checked-in MyStem output is an observed-behavior fixture, not an independent
+  oracle. Tests derive offsets from the original string and assert complete source
+  partitioning separately.
 
 `mystem4j-lucene`
 
 - Lucene token streams must pass Lucene test framework lifecycle checks with
   strict random-data offset validation.
+- At least one randomized Lucene client must mimic MyStem omissions and character
+  dropping instead of echoing the complete input as one token.
+- Model/tokenization quirks with offset significance must be replayed through
+  Lucene attributes or index/query round trips.
 - Offsets must remain correct through chunking and `CharFilter` correction.
 - Chunking must not split UTF-16 surrogate pairs.
 - Analyzer ownership rules must close supplied clients only when requested.
@@ -110,3 +138,8 @@ Place tests that require MyStem in dedicated source sets or opt-in tasks. Real
 MyStem tests should assert library invariants and protocol assumptions, not
 dictionary-specific morphology except where the assertion is intentionally
 loose.
+
+Do not permanently disable expensive behavioral tests. Put them behind explicit
+Gradle tasks or source sets, keep a representative regression subset in normal
+tests, and make failures include enough input and output data to reproduce the
+case.

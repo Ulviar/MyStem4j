@@ -164,6 +164,11 @@ public final class MystemSearchTokenizer {
                 && originalText.codePointAt(token.endOffset) == MystemSearchTokenClassifier.SOFT_HYPHEN) {
             token.endOffset += Character.charCount(MystemSearchTokenClassifier.SOFT_HYPHEN);
         }
+        if (token.features.contains(MystemTokenFeature.ENDS_WITH_PLUS)
+                || token.features.contains(MystemTokenFeature.ENDS_WITH_DOUBLE_PLUSES)
+                || token.features.contains(MystemTokenFeature.ENDS_WITH_NUMBER_SIGN)) {
+            return;
+        }
         if (token.endOffset >= originalText.length()) {
             return;
         }

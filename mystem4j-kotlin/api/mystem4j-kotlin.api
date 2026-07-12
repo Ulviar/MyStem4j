@@ -61,3 +61,4 @@ public final class io/github/ulviar/mystem4j/kotlin/MystemOptionsDsl {
 	public final fun weight (Z)V
 	public static synthetic fun weight$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
 }
+

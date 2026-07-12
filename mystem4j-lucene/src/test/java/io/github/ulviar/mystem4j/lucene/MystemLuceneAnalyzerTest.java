@@ -287,6 +287,31 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
     }
 
+    public void testRandomDataWithMystemLikeDroppedCharactersAndGaps() throws IOException {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.mystemLikeOmissions())) {
+            checkRandomData(random(), analyzer, 500, 512, true, true);
+        }
+    }
+
+    public void testRepeatedSoftHyphenAndExactTokensKeepOriginalOffsets() throws IOException {
+        FakeMystemClient client = new FakeMystemClient(input -> """
+                [
+                  {"analysis":[{"lex":"один","gr":"S"}],"text":"Один"},
+                  {"analysis":[{"lex":"один","gr":"S"}],"text":"Один"}
+                ]
+                """);
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
+            assertAnalyzesTo(
+                    analyzer,
+                    "О\u00ADдин Один",
+                    new String[] {"один", "один"},
+                    new int[] {0, 6},
+                    new int[] {5, 10},
+                    new String[] {"word", "word"},
+                    new int[] {1, 1});
+        }
+    }
+
     public void testRejectsOversizedFieldsBeforeCallingClient() {
         FakeMystemClient client = FakeMystemClient.echo();
         try (Analyzer analyzer = new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), 4)) {
@@ -430,6 +455,24 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         assertTrue(error.getMessage().contains("reusable-session MyStem client"));
     }
 
+    public void testTokenizerAppliesStrictClientPolicy() {
+        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
+                100,
+                100,
+                MystemLucenePositionPolicy.COMPACT,
+                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+
+        IllegalArgumentException error = expectThrows(
+                IllegalArgumentException.class,
+                () -> new MystemLuceneTokenizer(
+                        new FakeMystemClient(
+                                input -> "[]", MystemClientExecutionProfile.ONE_SHOT_PROCESS_PER_REQUEST),
+                        MystemSearchTokenizerOptions.conservative(),
+                        analysisOptions));
+
+        assertTrue(error.getMessage().contains("one-shot MyStem client"));
+    }
+
     public void testStrictClientPolicyAllowsUnknownAndPooledProfiles() {
         MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
                 100,
@@ -444,6 +487,15 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                         MystemSearchTokenizerOptions.conservative(),
                         analysisOptions)
                 .close();
+        try {
+            new MystemLuceneTokenizer(
+                            new FakeMystemClient(input -> "[]", MystemClientExecutionProfile.POOLED_SESSIONS),
+                            MystemSearchTokenizerOptions.conservative(),
+                            analysisOptions)
+                    .close();
+        } catch (IOException error) {
+            throw new AssertionError(error);
+        }
     }
 
     public void testRejectsNullClientExecutionProfile() {

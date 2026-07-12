@@ -1,7 +1,6 @@
 package io.github.ulviar.mystem4j.lucene;
 
 import io.github.ulviar.mystem4j.MystemClient;
-import io.github.ulviar.mystem4j.MystemClientExecutionProfile;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import java.util.Objects;
@@ -21,8 +20,6 @@ import org.apache.lucene.analysis.TokenStream;
  * {@link MystemClient} must be suitable for the caller's indexing or query-analysis concurrency.
  */
 public final class MystemLuceneAnalyzer extends Analyzer {
-    private static final System.Logger LOGGER = System.getLogger(MystemLuceneAnalyzer.class.getName());
-
     private final MystemClient client;
     private final MystemSearchTokenizerOptions options;
     private final boolean closeClientOnClose;
@@ -121,7 +118,7 @@ public final class MystemLuceneAnalyzer extends Analyzer {
         this.closeClientOnClose = closeClientOnClose;
         this.analysisOptions = Objects.requireNonNull(analysisOptions, "analysisOptions");
         requireJsonOutput(this.client);
-        applyClientPolicy(this.client, this.analysisOptions.clientPolicy());
+        MystemLuceneClientPolicies.apply(this.client, this.analysisOptions.clientPolicy());
     }
 
     @Override
@@ -142,22 +139,6 @@ public final class MystemLuceneAnalyzer extends Analyzer {
         }
     }
 
-    private static void applyClientPolicy(MystemClient client, MystemLuceneClientPolicy policy) {
-        MystemClientExecutionProfile profile =
-                Objects.requireNonNull(client.executionProfile(), "client.executionProfile()");
-        if (profile == MystemClientExecutionProfile.UNKNOWN
-                || profile == MystemClientExecutionProfile.POOLED_SESSIONS
-                || policy == MystemLuceneClientPolicy.ALLOW_ANY) {
-            return;
-        }
-
-        String message = clientPolicyMessage(profile);
-        if (policy == MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN) {
-            throw new IllegalArgumentException(message);
-        }
-        LOGGER.log(System.Logger.Level.WARNING, message);
-    }
-
     private static void requireJsonOutput(MystemClient client) {
         Objects.requireNonNull(client.outputFormat(), "client.outputFormat()").ifPresent(format -> {
             if (format != MystemOutputFormat.JSON) {
@@ -168,18 +149,4 @@ public final class MystemLuceneAnalyzer extends Analyzer {
         });
     }
 
-    private static String clientPolicyMessage(MystemClientExecutionProfile profile) {
-        return switch (profile) {
-            case ONE_SHOT_PROCESS_PER_REQUEST ->
-                "MystemLuceneAnalyzer received a one-shot MyStem client; indexing will start a native MyStem process "
-                        + "per analyzed field. Use a pooled client for indexing or set "
-                        + "MystemLuceneClientPolicy.ALLOW_ANY.";
-            case REUSABLE_SESSION ->
-                "MystemLuceneAnalyzer received a reusable-session MyStem client; concurrent Lucene indexing will "
-                        + "serialize requests through one MyStem process. Use a pooled client for indexing or set "
-                        + "MystemLuceneClientPolicy.ALLOW_ANY.";
-            case UNKNOWN, POOLED_SESSIONS ->
-                throw new IllegalArgumentException("No Lucene policy message for " + profile);
-        };
-    }
 }

@@ -81,6 +81,12 @@ tasks.register("realMystemUnicodeStress") {
     dependsOn(":mystem4j-model:realMystemUnicodeStress")
 }
 
+tasks.register("unicodeContextStressTest") {
+    group = "verification"
+    description = "Runs exhaustive Java-side Unicode context tokenization invariants."
+    dependsOn(":mystem4j-tokenization:unicodeContextStressTest")
+}
+
 tasks.register("memorySmokeTest") {
     group = "verification"
     description = "Runs lightweight memory-retention smoke tests."
@@ -246,6 +252,7 @@ tasks.register("releaseCandidateCheck") {
     dependsOn(
         "check",
         "memorySmokeTest",
+        "unicodeContextStressTest",
         "sampleSmokeTest",
         "publishToReleaseDryRunRepository",
         ":mystem4j-benchmarks:jmhSmoke"

@@ -65,7 +65,7 @@ final class MystemCompositeTokenMerger {
 
     private static List<MystemPreparedSearchToken> mergeUrl(
             String originalText, List<MystemPreparedSearchToken> group) {
-        MergeRange range = mergeRange(group);
+        MergeRange range = urlRange(originalText, group);
         if (range == null) {
             return List.of();
         }
@@ -78,6 +78,53 @@ final class MystemCompositeTokenMerger {
                 text, range.startOffset(), range.endOffset(), MystemTokenFeature.URL);
         token.forms.add(host);
         return mergedGroup(group, range, token);
+    }
+
+    private static MergeRange urlRange(String originalText, List<MystemPreparedSearchToken> group) {
+        for (int marker = 0; marker < group.size(); marker++) {
+            if (!group.get(marker).features.contains(MystemTokenFeature.URL_PART) || marker == 0) {
+                continue;
+            }
+            int first = marker - 1;
+            MystemPreparedSearchToken scheme = group.get(first);
+            if (!scheme.features.contains(MystemTokenFeature.WORD) || !isUriScheme(scheme.text)) {
+                continue;
+            }
+            for (int last = group.size() - 1; last > marker; last--) {
+                MystemPreparedSearchToken candidateEnd = group.get(last);
+                if (!candidateEnd.features.contains(MystemTokenFeature.WORD)
+                        && !candidateEnd.features.contains(MystemTokenFeature.NUMBER)) {
+                    continue;
+                }
+                MergeRange range = new MergeRange(first, last, scheme.startOffset, candidateEnd.endOffset);
+                String candidate = originalText.substring(range.startOffset(), range.endOffset());
+                if (urlHost(candidate) != null) {
+                    return range;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isUriScheme(String text) {
+        if (text.isEmpty() || !isAsciiLetter(text.charAt(0))) {
+            return false;
+        }
+        for (int index = 1; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (!isAsciiLetter(character)
+                    && !Character.isDigit(character)
+                    && character != '+'
+                    && character != '-'
+                    && character != '.') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isAsciiLetter(char character) {
+        return (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z');
     }
 
     private static List<MystemPreparedSearchToken> mergeEmail(
@@ -143,24 +190,6 @@ final class MystemCompositeTokenMerger {
         result.add(token);
         result.addAll(group.subList(range.lastIndex() + 1, group.size()));
         return List.copyOf(result);
-    }
-
-    private static MergeRange mergeRange(List<MystemPreparedSearchToken> group) {
-        int first = -1;
-        int last = -1;
-        for (int index = 0; index < group.size(); index++) {
-            if (group.get(index).features.contains(MystemTokenFeature.WORD)
-                    || group.get(index).features.contains(MystemTokenFeature.NUMBER)) {
-                if (first < 0) {
-                    first = index;
-                }
-                last = index;
-            }
-        }
-        if (first < 0) {
-            return null;
-        }
-        return new MergeRange(first, last, group.get(first).startOffset, group.get(last).endOffset);
     }
 
     private static String urlHost(String text) {
