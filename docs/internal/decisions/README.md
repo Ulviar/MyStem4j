@@ -31,3 +31,4 @@ and link both records.
 Records:
 
 - [ADR 0001: Agent context and artifact lifecycle](0001-agent-context-and-artifact-lifecycle.md)
+- [ADR 0002: Builder-only configuration APIs](0002-builder-only-configuration-apis.md)

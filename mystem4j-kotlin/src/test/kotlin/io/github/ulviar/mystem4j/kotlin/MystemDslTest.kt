@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 import org.junit.jupiter.api.io.TempDir
 
 class MystemDslTest {
@@ -34,16 +35,27 @@ class MystemDslTest {
 
     @Test
     fun buildsPoolOptions() {
-        val options =
-            MystemPoolOptions.builder()
-                .maxSize(2)
-                .warmupSize(1)
-                .minIdle(1)
-                .build()
+        val builder = MystemPoolOptions.builder()
+        MystemPoolOptionsDsl(builder).apply {
+            maxSize(3)
+            warmupSize(2)
+            minIdle(1)
+            acquireTimeout(2.seconds)
+            hookTimeout(java.time.Duration.ofSeconds(3))
+            maxRequestsPerWorker(100)
+            maxWorkerAge(1.minutes)
+            backgroundReplenishment(false)
+        }
+        val options = builder.build()
 
-        assertEquals(2, options.maxSize())
-        assertEquals(1, options.warmupSize())
+        assertEquals(3, options.maxSize())
+        assertEquals(2, options.warmupSize())
         assertEquals(1, options.minIdle())
+        assertEquals(java.time.Duration.ofSeconds(2), options.acquireTimeout())
+        assertEquals(java.time.Duration.ofSeconds(3), options.hookTimeout())
+        assertEquals(100, options.maxRequestsPerWorker())
+        assertEquals(java.time.Duration.ofMinutes(1), options.maxWorkerAge())
+        assertEquals(false, options.backgroundReplenishment())
     }
 
     @Test

@@ -9,27 +9,39 @@ import java.util.Optional;
 /**
  * Typed representation of MyStem CLI options.
  */
-public record MystemOptions(
-        boolean newLineEachWord,
-        boolean copyInput,
-        boolean dictionaryWordsOnly,
-        boolean lemmaOnly,
-        boolean grammarInfo,
-        boolean mergeWordForms,
-        boolean sentenceMarkers,
-        MystemEncoding encoding,
-        boolean disambiguate,
-        boolean englishGrammemes,
-        Optional<String> filterGrammar,
-        Optional<Path> fixlist,
-        MystemOutputFormat format,
-        boolean generateAll,
-        boolean weight) {
-    public MystemOptions {
-        encoding = Objects.requireNonNull(encoding, "encoding");
-        filterGrammar = Objects.requireNonNull(filterGrammar, "filterGrammar");
-        fixlist = Objects.requireNonNull(fixlist, "fixlist");
-        format = Objects.requireNonNull(format, "format");
+public final class MystemOptions {
+    private final boolean newLineEachWord;
+    private final boolean copyInput;
+    private final boolean dictionaryWordsOnly;
+    private final boolean lemmaOnly;
+    private final boolean grammarInfo;
+    private final boolean mergeWordForms;
+    private final boolean sentenceMarkers;
+    private final MystemEncoding encoding;
+    private final boolean disambiguate;
+    private final boolean englishGrammemes;
+    private final Optional<String> filterGrammar;
+    private final Optional<Path> fixlist;
+    private final MystemOutputFormat format;
+    private final boolean generateAll;
+    private final boolean weight;
+
+    private MystemOptions(Builder builder) {
+        newLineEachWord = builder.newLineEachWord;
+        copyInput = builder.copyInput;
+        dictionaryWordsOnly = builder.dictionaryWordsOnly;
+        lemmaOnly = builder.lemmaOnly;
+        grammarInfo = builder.grammarInfo;
+        mergeWordForms = builder.mergeWordForms;
+        sentenceMarkers = builder.sentenceMarkers;
+        encoding = Objects.requireNonNull(builder.encoding, "encoding");
+        disambiguate = builder.disambiguate;
+        englishGrammemes = builder.englishGrammemes;
+        filterGrammar = Objects.requireNonNull(builder.filterGrammar, "filterGrammar");
+        fixlist = Objects.requireNonNull(builder.fixlist, "fixlist");
+        format = Objects.requireNonNull(builder.format, "format");
+        generateAll = builder.generateAll;
+        weight = builder.weight;
         if (mergeWordForms && !grammarInfo) {
             throw new MystemInvalidOptionsException("mergeWordForms requires grammarInfo.");
         }
@@ -41,6 +53,66 @@ public record MystemOptions(
                 throw new MystemInvalidOptionsException("filterGrammar must not be blank.");
             }
         });
+    }
+
+    public boolean newLineEachWord() {
+        return newLineEachWord;
+    }
+
+    public boolean copyInput() {
+        return copyInput;
+    }
+
+    public boolean dictionaryWordsOnly() {
+        return dictionaryWordsOnly;
+    }
+
+    public boolean lemmaOnly() {
+        return lemmaOnly;
+    }
+
+    public boolean grammarInfo() {
+        return grammarInfo;
+    }
+
+    public boolean mergeWordForms() {
+        return mergeWordForms;
+    }
+
+    public boolean sentenceMarkers() {
+        return sentenceMarkers;
+    }
+
+    public MystemEncoding encoding() {
+        return encoding;
+    }
+
+    public boolean disambiguate() {
+        return disambiguate;
+    }
+
+    public boolean englishGrammemes() {
+        return englishGrammemes;
+    }
+
+    public Optional<String> filterGrammar() {
+        return filterGrammar;
+    }
+
+    public Optional<Path> fixlist() {
+        return fixlist;
+    }
+
+    public MystemOutputFormat format() {
+        return format;
+    }
+
+    public boolean generateAll() {
+        return generateAll;
+    }
+
+    public boolean weight() {
+        return weight;
     }
 
     public static Builder builder() {
@@ -113,6 +185,8 @@ public record MystemOptions(
         private MystemOutputFormat format = MystemOutputFormat.JSON;
         private boolean generateAll;
         private boolean weight;
+
+        private Builder() {}
 
         public Builder newLineEachWord(boolean newLineEachWord) {
             this.newLineEachWord = newLineEachWord;
@@ -190,22 +264,8 @@ public record MystemOptions(
         }
 
         public MystemOptions build() {
-            return new MystemOptions(
-                    newLineEachWord,
-                    copyInput,
-                    dictionaryWordsOnly,
-                    lemmaOnly,
-                    grammarInfo,
-                    mergeWordForms,
-                    sentenceMarkers,
-                    encoding,
-                    disambiguate,
-                    englishGrammemes,
-                    filterGrammar,
-                    fixlist,
-                    format,
-                    generateAll,
-                    weight);
+            return new MystemOptions(this);
         }
     }
+
 }

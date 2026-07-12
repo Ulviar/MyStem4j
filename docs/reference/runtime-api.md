@@ -110,7 +110,8 @@ See the MyStem documentation for the linguistic meaning of CLI options:
 
 ## Pool Options
 
-`MystemPoolOptions` controls pooled JSON-line sessions:
+Create `MystemPoolOptions` with `MystemPoolOptions.builder()`. It controls pooled
+JSON-line sessions:
 
 | Option | Default | Meaning |
 | --- | --- | --- |

@@ -124,12 +124,7 @@ public class io.github.ulviar.mystem4j.MystemInvalidOptionsException extends io.
 
 ## io.github.ulviar.mystem4j.MystemOptions
 Compiled from "MystemOptions.java"
-public final class io.github.ulviar.mystem4j.MystemOptions extends java.lang.Record {
-  public io.github.ulviar.mystem4j.MystemOptions(boolean, boolean, boolean, boolean, boolean, boolean, boolean, io.github.ulviar.mystem4j.MystemEncoding, boolean, boolean, java.util.Optional<java.lang.String>, java.util.Optional<java.nio.file.Path>, io.github.ulviar.mystem4j.MystemOutputFormat, boolean, boolean);
-  public static io.github.ulviar.mystem4j.MystemOptions$Builder builder();
-  public final java.lang.String toString();
-  public final int hashCode();
-  public final boolean equals(java.lang.Object);
+public final class io.github.ulviar.mystem4j.MystemOptions {
   public boolean newLineEachWord();
   public boolean copyInput();
   public boolean dictionaryWordsOnly();
@@ -145,12 +140,12 @@ public final class io.github.ulviar.mystem4j.MystemOptions extends java.lang.Rec
   public io.github.ulviar.mystem4j.MystemOutputFormat format();
   public boolean generateAll();
   public boolean weight();
+  public static io.github.ulviar.mystem4j.MystemOptions$Builder builder();
 }
 
 ## io.github.ulviar.mystem4j.MystemOptions$Builder
 Compiled from "MystemOptions.java"
 public final class io.github.ulviar.mystem4j.MystemOptions$Builder {
-  public io.github.ulviar.mystem4j.MystemOptions$Builder();
   public io.github.ulviar.mystem4j.MystemOptions$Builder newLineEachWord(boolean);
   public io.github.ulviar.mystem4j.MystemOptions$Builder copyInput(boolean);
   public io.github.ulviar.mystem4j.MystemOptions$Builder dictionaryWordsOnly(boolean);
@@ -193,12 +188,7 @@ public class io.github.ulviar.mystem4j.MystemPoolExhaustedException extends io.g
 
 ## io.github.ulviar.mystem4j.MystemPoolOptions
 Compiled from "MystemPoolOptions.java"
-public final class io.github.ulviar.mystem4j.MystemPoolOptions extends java.lang.Record {
-  public io.github.ulviar.mystem4j.MystemPoolOptions(int, int, int, java.time.Duration, java.time.Duration, int, java.time.Duration, boolean);
-  public static io.github.ulviar.mystem4j.MystemPoolOptions$Builder builder();
-  public final java.lang.String toString();
-  public final int hashCode();
-  public final boolean equals(java.lang.Object);
+public final class io.github.ulviar.mystem4j.MystemPoolOptions {
   public int maxSize();
   public int warmupSize();
   public int minIdle();
@@ -207,12 +197,12 @@ public final class io.github.ulviar.mystem4j.MystemPoolOptions extends java.lang
   public int maxRequestsPerWorker();
   public java.time.Duration maxWorkerAge();
   public boolean backgroundReplenishment();
+  public static io.github.ulviar.mystem4j.MystemPoolOptions$Builder builder();
 }
 
 ## io.github.ulviar.mystem4j.MystemPoolOptions$Builder
 Compiled from "MystemPoolOptions.java"
 public final class io.github.ulviar.mystem4j.MystemPoolOptions$Builder {
-  public io.github.ulviar.mystem4j.MystemPoolOptions$Builder();
   public io.github.ulviar.mystem4j.MystemPoolOptions$Builder maxSize(int);
   public io.github.ulviar.mystem4j.MystemPoolOptions$Builder warmupSize(int);
   public io.github.ulviar.mystem4j.MystemPoolOptions$Builder minIdle(int);

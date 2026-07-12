@@ -4,6 +4,8 @@ import io.github.ulviar.mystem4j.buildlogic.AgentInfrastructureCheckTask
 import io.github.ulviar.mystem4j.buildlogic.JpmsSmokeTestTask
 import io.github.ulviar.mystem4j.buildlogic.MarkdownLocalLinksCheckTask
 import io.github.ulviar.mystem4j.buildlogic.PublicationMetadataCheckTask
+import java.math.BigDecimal
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 
 plugins {
     base
@@ -23,7 +25,6 @@ val automaticModuleNames = mapOf(
     "mystem4j-kotlin" to "io.github.ulviar.mystem4j.kotlin",
     "mystem4j-gradle-plugin" to "io.github.ulviar.mystem4j.gradle.plugin"
 )
-val realMystemExecutable = providers.systemProperty("mystem4j.executable").orElse("")
 val libraryProjectNames = listOf(
     "mystem4j-runtime",
     "mystem4j-model",
@@ -61,7 +62,6 @@ apiValidation {
 tasks.register("realMystemTest") {
     group = "verification"
     description = "Runs test suites with real MyStem integration tests enabled."
-    inputs.property("mystem4j.executable", realMystemExecutable)
     dependsOn(
         ":mystem4j-runtime:test",
         ":mystem4j-model:test",
@@ -70,17 +70,18 @@ tasks.register("realMystemTest") {
         ":mystem4j-tokenization:realMystemTest",
         ":mystem4j-lucene:test"
     )
-    doFirst {
-        if (realMystemExecutable.get().isBlank()) {
-            throw GradleException("Set -Dmystem4j.executable=/path/to/mystem to run real MyStem integration tests.")
-        }
-    }
 }
 
 tasks.register("realMystemUnicodeStress") {
     group = "verification"
     description = "Runs the exhaustive real MyStem Unicode offset stress test."
     dependsOn(":mystem4j-model:realMystemUnicodeStress")
+}
+
+tasks.register("realMystemPoolSoak") {
+    group = "verification"
+    description = "Runs sustained real-MyStem pool load, latency, rotation, process, and descriptor checks."
+    dependsOn(":mystem4j-runtime:realMystemPoolSoak")
 }
 
 tasks.register("unicodeContextStressTest") {
@@ -110,6 +111,43 @@ tasks.register("coverageReport") {
     group = "verification"
     description = "Generates JaCoCo coverage reports for published modules and the Gradle plugin."
     dependsOn(apiSurfaceProjectNames.map { ":$it:jacocoTestReport" })
+}
+
+val coverageThresholds = mapOf(
+    "mystem4j-runtime" to ("0.82" to "0.65"),
+    "mystem4j-model" to ("0.90" to "0.75"),
+    "mystem4j-tokenization" to ("0.92" to "0.78"),
+    "mystem4j-lucene" to ("0.90" to "0.70"),
+    "mystem4j-kotlin" to ("0.58" to null),
+    "mystem4j-gradle-plugin" to ("0.68" to "0.50")
+)
+
+coverageThresholds.forEach { (projectName, thresholds) ->
+    project(":$projectName").tasks.withType<JacocoCoverageVerification>().configureEach {
+        dependsOn(project(":$projectName").tasks.named("test"))
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = BigDecimal(thresholds.first)
+                }
+                thresholds.second?.let { minimumBranchCoverage ->
+                    limit {
+                        counter = "BRANCH"
+                        value = "COVEREDRATIO"
+                        minimum = BigDecimal(minimumBranchCoverage)
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.register("coverageVerification") {
+    group = "verification"
+    description = "Enforces per-module JaCoCo line and branch coverage floors."
+    dependsOn(coverageThresholds.keys.map { ":$it:jacocoTestCoverageVerification" })
 }
 
 tasks.register<JpmsSmokeTestTask>("jpmsSmokeTest") {
@@ -173,6 +211,14 @@ tasks.register<ApiSurfaceCheckTask>("apiSurfaceCheck") {
     getBaselineDirectory().set(layout.projectDirectory.dir("config/api-baseline"))
     getReportDirectory().set(layout.buildDirectory.dir("reports/api-surface"))
     getUpdateBaseline().set(providers.gradleProperty("mystem4j.updateApiBaseline").map(String::toBoolean).orElse(false))
+    getBuilderOnlyConfigurationClasses().set(
+        listOf(
+            "io.github.ulviar.mystem4j.MystemOptions",
+            "io.github.ulviar.mystem4j.MystemPoolOptions",
+            "io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions",
+            "io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions"
+        )
+    )
     getJavapExecutable().set(javapExePath)
     for (projectName in apiSurfaceProjectNames) {
         getJarPathByProject().put(
@@ -263,6 +309,7 @@ tasks.named("check") {
     dependsOn(
         "unitTest",
         "coverageReport",
+        "coverageVerification",
         "jpmsSmokeTest",
         "publicationMetadataCheck",
         "apiSurfaceCheck",

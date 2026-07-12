@@ -65,6 +65,12 @@ val client = mystemClient {
 }
 ```
 
+## Pool DSL
+
+The `pooled { ... }` block uses `MystemPoolOptionsDsl`. It exposes pool sizing,
+timeouts, worker rotation, and replenishment. Timeout and worker-age methods
+accept Java or Kotlin durations.
+
 ## Extensions
 
 ```kotlin

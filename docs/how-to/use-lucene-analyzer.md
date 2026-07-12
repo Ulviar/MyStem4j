@@ -137,12 +137,13 @@ closes before the client.
 int maxInputChars = 100_000;
 int maxChunkChars = 16_384;
 
-MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-        maxInputChars,
-        maxChunkChars,
-        MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS,
-        MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN,
-        MystemLuceneOversizedInputPolicy.FAIL);
+MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+        .maxInputChars(maxInputChars)
+        .maxChunkChars(maxChunkChars)
+        .positionPolicy(MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS)
+        .clientPolicy(MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN)
+        .oversizedInputPolicy(MystemLuceneOversizedInputPolicy.FAIL)
+        .build();
 
 Analyzer analyzer = new MystemLuceneAnalyzer(
         client,

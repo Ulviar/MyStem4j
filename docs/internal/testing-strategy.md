@@ -36,16 +36,23 @@ as a substitute for focused unit tests.
   tokenization, and Lucene.
 - `realMystemTest`: real-MyStem integration tests.
 - `realMystemUnicodeStress`: exhaustive real-MyStem Unicode offset check.
+- `realMystemPoolSoak`: sustained real-MyStem load at 2x, 4x, and 8x pool
+  concurrency with worker rotation, response ownership, p95/p99, process-count,
+  process-release, and open-file-descriptor checks.
 - `unicodeContextStressTest`: Java-side tokenization invariants for every Unicode
   scalar value with deterministic context rotation, plus the complete context
   matrix for every defined non-letter and non-decimal code point.
 - `jmhCompileCheck` and `jmhSmoke`: benchmark wiring.
 - `coverageReport`: JaCoCo reports for published modules and the Gradle plugin.
+- `coverageVerification`: per-module JaCoCo line and branch floors that prevent
+  material regression; thresholds intentionally remain below current coverage.
 - `jpmsSmokeTest`, `publicationMetadataCheck`, `apiSurfaceCheck`: release
   metadata and public API gates.
 - `agentInfrastructureCheck`: LLM context routing, active-work lifecycle, and
   historical-document labeling.
 - `spotlessCheck`, `markdownLocalLinksCheck`: repository hygiene gates.
+- Java compilation treats actionable `-Xlint` warnings as errors; Kotlin
+  compilation treats warnings as errors.
 - Gradle dependency lockfiles keep resolved dependency versions stable. Update
   them with `--write-locks` only when dependency changes are intentional.
 
@@ -140,6 +147,11 @@ Place tests that require MyStem in dedicated source sets or opt-in tasks. Real
 MyStem tests should assert library invariants and protocol assumptions, not
 dictionary-specific morphology except where the assertion is intentionally
 loose.
+
+The pool soak runs 10,000 requests per concurrency level by default. Override
+`mystem4j.poolSoakRequests`, `mystem4j.poolSoakPoolSize`, or
+`mystem4j.poolSoakMaxRequestsPerWorker` only for diagnosis; release evidence uses
+the defaults.
 
 Do not permanently disable expensive behavioral tests. Put them behind explicit
 Gradle tasks or source sets, keep a representative regression subset in normal

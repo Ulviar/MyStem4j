@@ -19,7 +19,10 @@ import org.apache.lucene.tests.util.LuceneTestCase;
 public class MystemLuceneMemorySmokeTest extends LuceneTestCase {
     public void testRepeatedLargeFieldAnalysisFitsSmallHeap() throws IOException {
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(128_000, 128_000, MystemLucenePositionPolicy.COMPACT);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(128_000)
+                        .maxChunkChars(128_000)
+                        .build();
         try (Analyzer analyzer = new MystemLuceneAnalyzer(
                 new NonRetainingEchoClient(), MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
             for (int iteration = 0; iteration < 200; iteration++) {

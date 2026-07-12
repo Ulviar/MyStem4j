@@ -90,6 +90,7 @@ stream.
 `MystemLuceneAnalysisOptions.defaults()` returns the default values.
 `MystemLuceneAnalysisOptions.withMaxInputChars(value)` changes only the field
 length limit and keeps default chunking, position behavior, and client policy.
+Use `MystemLuceneAnalysisOptions.builder()` when changing multiple options.
 
 Chunking never splits a UTF-16 surrogate pair and prefers whitespace boundaries.
 If a single long run has no whitespace before `maxChunkChars`, the tokenizer must

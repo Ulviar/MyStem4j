@@ -31,3 +31,5 @@ file requests, limits, diagnostics, and runtime exceptions.
 ```
 
 Run root `realMystemTest` for protocol assumptions involving the native binary.
+Run root `realMystemPoolSoak` when pool lifecycle, concurrency, or performance can
+change.

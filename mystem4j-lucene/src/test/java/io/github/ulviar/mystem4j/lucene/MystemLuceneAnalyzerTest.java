@@ -128,7 +128,10 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                 [{"analysis":[],"text":"%s"}]
                 """.formatted(input.strip()));
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(100, 8, MystemLucenePositionPolicy.COMPACT);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(100)
+                        .maxChunkChars(8)
+                        .build();
         try (Analyzer analyzer =
                 new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
             assertAnalyzesTo(
@@ -150,7 +153,10 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     public void testChunkingDoesNotSplitSurrogatePairs() throws IOException {
         FakeMystemClient client = FakeMystemClient.echo();
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(16, 1, MystemLucenePositionPolicy.COMPACT);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(16)
+                        .maxChunkChars(1)
+                        .build();
         try (Analyzer analyzer =
                 new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
             assertAnalyzesTo(
@@ -182,7 +188,11 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                     """;
         });
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(100)
+                        .maxChunkChars(100)
+                        .positionPolicy(MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS)
+                        .build();
         try (Analyzer analyzer =
                 new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
             assertAnalyzesTo(
@@ -206,7 +216,11 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                     """;
         });
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(100)
+                        .maxChunkChars(100)
+                        .positionPolicy(MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS)
+                        .build();
         try (Analyzer analyzer =
                 new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions);
                 TokenStream stream = analyzer.tokenStream("field", new StringReader("A "))) {
@@ -322,12 +336,12 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
 
     public void testCanTruncateOversizedFieldsAtConfiguredLimit() throws IOException {
         FakeMystemClient client = FakeMystemClient.echo();
-        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-                4,
-                4,
-                MystemLucenePositionPolicy.COMPACT,
-                MystemLuceneClientPolicy.ALLOW_ANY,
-                MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY);
+        MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(4)
+                .maxChunkChars(4)
+                .clientPolicy(MystemLuceneClientPolicy.ALLOW_ANY)
+                .oversizedInputPolicy(MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY)
+                .build();
 
         try (Analyzer analyzer =
                 new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
@@ -348,12 +362,12 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
 
     public void testTruncationDoesNotLeaveUnpairedSurrogateAtLimit() throws IOException {
         FakeMystemClient client = FakeMystemClient.echo();
-        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-                2,
-                2,
-                MystemLucenePositionPolicy.COMPACT,
-                MystemLuceneClientPolicy.ALLOW_ANY,
-                MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY);
+        MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(2)
+                .maxChunkChars(2)
+                .clientPolicy(MystemLuceneClientPolicy.ALLOW_ANY)
+                .oversizedInputPolicy(MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY)
+                .build();
 
         try (Analyzer analyzer =
                 new MystemLuceneAnalyzer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
@@ -378,7 +392,10 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
                 [{"analysis":[],"text":"%s"}]
                 """.formatted(request));
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(input.length(), input.length(), MystemLucenePositionPolicy.COMPACT);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(input.length())
+                        .maxChunkChars(input.length())
+                        .build();
         MystemLuceneTokenizer tokenizer =
                 new MystemLuceneTokenizer(client, MystemSearchTokenizerOptions.conservative(), analysisOptions);
 
@@ -403,35 +420,54 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     public void testRejectsInvalidLuceneAnalysisOptions() {
         expectThrows(
                 IllegalArgumentException.class,
-                () -> new MystemLuceneAnalysisOptions(0, 1, MystemLucenePositionPolicy.COMPACT));
+                () -> MystemLuceneAnalysisOptions.builder().maxInputChars(0).build());
         expectThrows(
                 IllegalArgumentException.class,
-                () -> new MystemLuceneAnalysisOptions(1, 0, MystemLucenePositionPolicy.COMPACT));
+                () -> MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(1)
+                        .maxChunkChars(0)
+                        .build());
         expectThrows(
                 IllegalArgumentException.class,
-                () -> new MystemLuceneAnalysisOptions(1, 2, MystemLucenePositionPolicy.COMPACT));
-        expectThrows(NullPointerException.class, () -> new MystemLuceneAnalysisOptions(1, 1, null));
+                () -> MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(1)
+                        .maxChunkChars(2)
+                        .build());
+        expectThrows(NullPointerException.class, () -> MystemLuceneAnalysisOptions.builder().positionPolicy(null));
         expectThrows(
                 NullPointerException.class,
-                () -> new MystemLuceneAnalysisOptions(1, 1, MystemLucenePositionPolicy.COMPACT, null));
+                () -> MystemLuceneAnalysisOptions.builder().clientPolicy(null));
         expectThrows(
                 NullPointerException.class,
-                () -> new MystemLuceneAnalysisOptions(
-                        1,
-                        1,
-                        MystemLucenePositionPolicy.COMPACT,
-                        MystemLuceneClientPolicy.ALLOW_ANY,
-                        null));
+                () -> MystemLuceneAnalysisOptions.builder().oversizedInputPolicy(null));
+    }
+
+    public void testLuceneAnalysisOptionsToBuilderPreservesEverySetting() {
+        MystemLuceneAnalysisOptions original = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(4_096)
+                .maxChunkChars(1_024)
+                .positionPolicy(MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS)
+                .clientPolicy(MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN)
+                .oversizedInputPolicy(MystemLuceneOversizedInputPolicy.TRUNCATE_AT_CODE_POINT_BOUNDARY)
+                .build();
+
+        MystemLuceneAnalysisOptions copy = original.toBuilder().build();
+
+        assertEquals(original.maxInputChars(), copy.maxInputChars());
+        assertEquals(original.maxChunkChars(), copy.maxChunkChars());
+        assertSame(original.positionPolicy(), copy.positionPolicy());
+        assertSame(original.clientPolicy(), copy.clientPolicy());
+        assertSame(original.oversizedInputPolicy(), copy.oversizedInputPolicy());
     }
 
     public void testStrictClientPolicyRejectsOneShotRuntimeClient() {
         FakeMystemClient client = new FakeMystemClient(
                 input -> "[]", MystemClientExecutionProfile.ONE_SHOT_PROCESS_PER_REQUEST);
-        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-                100,
-                100,
-                MystemLucenePositionPolicy.COMPACT,
-                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+        MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(100)
+                .maxChunkChars(100)
+                .clientPolicy(MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN)
+                .build();
 
         IllegalArgumentException error = expectThrows(
                 IllegalArgumentException.class,
@@ -442,11 +478,11 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
 
     public void testStrictClientPolicyRejectsReusableRuntimeClient() {
         FakeMystemClient client = new FakeMystemClient(input -> "[]", MystemClientExecutionProfile.REUSABLE_SESSION);
-        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-                100,
-                100,
-                MystemLucenePositionPolicy.COMPACT,
-                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+        MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(100)
+                .maxChunkChars(100)
+                .clientPolicy(MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN)
+                .build();
 
         IllegalArgumentException error = expectThrows(
                 IllegalArgumentException.class,
@@ -456,11 +492,11 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     }
 
     public void testTokenizerAppliesStrictClientPolicy() {
-        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-                100,
-                100,
-                MystemLucenePositionPolicy.COMPACT,
-                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+        MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(100)
+                .maxChunkChars(100)
+                .clientPolicy(MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN)
+                .build();
 
         IllegalArgumentException error = expectThrows(
                 IllegalArgumentException.class,
@@ -474,11 +510,11 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
     }
 
     public void testStrictClientPolicyAllowsUnknownAndPooledProfiles() {
-        MystemLuceneAnalysisOptions analysisOptions = new MystemLuceneAnalysisOptions(
-                100,
-                100,
-                MystemLucenePositionPolicy.COMPACT,
-                MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN);
+        MystemLuceneAnalysisOptions analysisOptions = MystemLuceneAnalysisOptions.builder()
+                .maxInputChars(100)
+                .maxChunkChars(100)
+                .clientPolicy(MystemLuceneClientPolicy.REQUIRE_POOLED_OR_UNKNOWN)
+                .build();
 
         new MystemLuceneAnalyzer(FakeMystemClient.echo(), MystemSearchTokenizerOptions.conservative(), analysisOptions)
                 .close();
@@ -500,7 +536,10 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
 
     public void testRejectsNullClientExecutionProfile() {
         MystemLuceneAnalysisOptions analysisOptions =
-                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.COMPACT);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(100)
+                        .maxChunkChars(100)
+                        .build();
 
         expectThrows(
                 NullPointerException.class,

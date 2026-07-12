@@ -53,11 +53,6 @@ class MystemSearchTokenizerTest {
     @Test
     void rejectsCurrencyExpansionWithoutCurrencyClassification() {
         assertThrows(IllegalArgumentException.class,
-                () -> new MystemSearchTokenizerOptions(false, false, false, false, true));
-        assertThrows(NullPointerException.class,
-                () -> new MystemSearchTokenizerOptions(
-                        false, false, false, false, false, null));
-        assertThrows(IllegalArgumentException.class,
                 () -> MystemSearchTokenizerOptions.builder()
                         .expandCurrencyForms(true)
                         .build());
@@ -79,16 +74,22 @@ class MystemSearchTokenizerTest {
                 .lemmaSelectionPolicy(MystemLemmaSelectionPolicy.BEST_WEIGHT)
                 .build();
 
-        assertEquals(new MystemSearchTokenizerOptions(
-                        true,
-                        true,
-                        true,
-                        true,
-                        true,
-                        MystemUnmatchedTokenPolicy.FAIL,
-                        MystemLemmaSelectionPolicy.BEST_WEIGHT),
-                options);
-        assertEquals(options, options.toBuilder().build());
+        assertTrue(options.classifyNumbers());
+        assertTrue(options.mergeUrls());
+        assertTrue(options.mergeEmails());
+        assertTrue(options.classifyCurrencies());
+        assertTrue(options.expandCurrencyForms());
+        assertEquals(MystemUnmatchedTokenPolicy.FAIL, options.unmatchedTokenPolicy());
+        assertEquals(MystemLemmaSelectionPolicy.BEST_WEIGHT, options.lemmaSelectionPolicy());
+
+        MystemSearchTokenizerOptions copy = options.toBuilder().build();
+        assertEquals(options.classifyNumbers(), copy.classifyNumbers());
+        assertEquals(options.mergeUrls(), copy.mergeUrls());
+        assertEquals(options.mergeEmails(), copy.mergeEmails());
+        assertEquals(options.classifyCurrencies(), copy.classifyCurrencies());
+        assertEquals(options.expandCurrencyForms(), copy.expandCurrencyForms());
+        assertEquals(options.unmatchedTokenPolicy(), copy.unmatchedTokenPolicy());
+        assertEquals(options.lemmaSelectionPolicy(), copy.lemmaSelectionPolicy());
     }
 
     @Test
@@ -128,14 +129,14 @@ class MystemSearchTokenizerTest {
 
     @Test
     void presetsMatchNamedOptionCombinations() {
-        assertEquals(MystemSearchTokenizerOptions.builder().build(), MystemSearchTokenizerOptions.conservative());
-        assertEquals(
+        assertOptionsEqual(MystemSearchTokenizerOptions.builder().build(), MystemSearchTokenizerOptions.conservative());
+        assertOptionsEqual(
                 MystemSearchTokenizerOptions.builder()
                         .classifyNumbers(true)
                         .classifyCurrencies(true)
                         .build(),
                 MystemSearchTokenizerOptions.search());
-        assertEquals(
+        assertOptionsEqual(
                 MystemSearchTokenizerOptions.builder()
                         .classifyNumbers(true)
                         .mergeUrls(true)
@@ -384,8 +385,10 @@ class MystemSearchTokenizerTest {
 
     @Test
     void rejectsUnknownOffsetsInStrictMode() {
-        MystemSearchTokenizer strictTokenizer = new MystemSearchTokenizer(new MystemSearchTokenizerOptions(
-                true, true, true, true, true, MystemUnmatchedTokenPolicy.FAIL));
+        MystemSearchTokenizer strictTokenizer = new MystemSearchTokenizer(MystemSearchTokenizerOptions.entityAware()
+                .toBuilder()
+                .unmatchedTokenPolicy(MystemUnmatchedTokenPolicy.FAIL)
+                .build());
         MystemDocument document = document("text", new MystemToken("text", -1, -1, List.of()));
 
         assertThrows(MystemTokenizationException.class, () -> strictTokenizer.tokenize(document));
@@ -409,6 +412,17 @@ class MystemSearchTokenizerTest {
 
     private static MystemSearchToken tokenByText(List<MystemSearchToken> tokens, String text) {
         return tokens.stream().filter(token -> token.text().equals(text)).findFirst().orElseThrow();
+    }
+
+    private static void assertOptionsEqual(
+            MystemSearchTokenizerOptions expected, MystemSearchTokenizerOptions actual) {
+        assertEquals(expected.classifyNumbers(), actual.classifyNumbers());
+        assertEquals(expected.mergeUrls(), actual.mergeUrls());
+        assertEquals(expected.mergeEmails(), actual.mergeEmails());
+        assertEquals(expected.classifyCurrencies(), actual.classifyCurrencies());
+        assertEquals(expected.expandCurrencyForms(), actual.expandCurrencyForms());
+        assertEquals(expected.unmatchedTokenPolicy(), actual.unmatchedTokenPolicy());
+        assertEquals(expected.lemmaSelectionPolicy(), actual.lemmaSelectionPolicy());
     }
 
     private static MystemDocument document(String text, MystemToken... tokens) {

@@ -93,8 +93,9 @@ repository-ready change, run:
 ```
 
 Use `memorySmokeTest`, `unicodeContextStressTest`, `realMystemTest`,
-`realMystemUnicodeStress`, and `releaseCandidateCheck` when the changed invariant
-falls within those gates. Real-MyStem commands require an explicit executable.
+`realMystemUnicodeStress`, `realMystemPoolSoak`, and `releaseCandidateCheck` when
+the changed invariant falls within those gates. Real-MyStem commands require an
+explicit executable.
 
 Work is complete only when implementation, tests, public/internal documentation,
 API metadata, and active-work cleanup agree with the objective. A green narrow test

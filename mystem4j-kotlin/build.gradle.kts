@@ -21,6 +21,7 @@ kotlin {
     explicitApi()
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
+        allWarningsAsErrors.set(true)
     }
 }
 

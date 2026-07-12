@@ -35,6 +35,7 @@ public final class Mystem4jJavaConventionsPlugin implements Plugin<Project> {
         project.getTasks().withType(JavaCompile.class).configureEach(task -> {
             task.getOptions().getRelease().set(21);
             task.getOptions().setEncoding("UTF-8");
+            task.getOptions().getCompilerArgs().addAll(java.util.List.of("-Xlint:all,-serial,-processing", "-Werror"));
         });
 
         project.getTasks().withType(Jar.class).configureEach(task -> {

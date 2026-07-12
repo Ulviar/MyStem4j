@@ -8,6 +8,12 @@ java {
     }
 }
 
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-processing", "-Werror"))
+}
+
 gradlePlugin {
     plugins {
         create("mystem4jJavaConventions") {

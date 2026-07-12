@@ -12,6 +12,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
@@ -22,6 +23,9 @@ import org.gradle.api.tasks.TaskAction;
 public abstract class ApiSurfaceCheckTask extends DefaultTask {
     @Input
     public abstract MapProperty<String, String> getJarPathByProject();
+
+    @Input
+    public abstract ListProperty<String> getBuilderOnlyConfigurationClasses();
 
     @Classpath
     public abstract ConfigurableFileCollection getJarFiles();
@@ -94,6 +98,11 @@ public abstract class ApiSurfaceCheckTask extends DefaultTask {
                         jarFile.getParentFile())
                 .replace("\r\n", "\n")
                 .strip();
+        if (getBuilderOnlyConfigurationClasses().get().contains(className)
+                && output.lines().anyMatch(line -> line.startsWith("  public " + className + "("))) {
+            throw new GradleException("Builder-only configuration class " + className
+                    + " exposes a public positional constructor. Keep construction behind builder().");
+        }
         boolean hasPublicDeclaration =
                 output.lines().anyMatch(line -> line.startsWith("public ") || line.startsWith("protected "));
         if (hasPublicDeclaration) {

@@ -3,42 +3,28 @@ package io.github.ulviar.mystem4j.lucene;
 import java.util.Objects;
 
 /**
- * Controls Lucene-side MyStem analysis limits and token position behavior.
+ * Controls Lucene-side MyStem analysis limits, client policy, and token positions.
  *
- * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
- * @param maxChunkChars maximum number of UTF-16 code units sent to MyStem in one request
- * @param positionPolicy policy for Lucene position increments across skipped tokens
- * @param clientPolicy policy for known runtime client execution profiles
- * @param oversizedInputPolicy policy for fields longer than {@code maxInputChars}
+ * <p>Create instances with {@link #builder()} so additional analysis controls do not change a positional constructor.
  */
-public record MystemLuceneAnalysisOptions(
-        int maxInputChars,
-        int maxChunkChars,
-        MystemLucenePositionPolicy positionPolicy,
-        MystemLuceneClientPolicy clientPolicy,
-        MystemLuceneOversizedInputPolicy oversizedInputPolicy) {
+public final class MystemLuceneAnalysisOptions {
     public static final int DEFAULT_MAX_INPUT_CHARS = 1_000_000;
     public static final int DEFAULT_MAX_CHUNK_CHARS = 32_768;
 
-    public MystemLuceneAnalysisOptions(
-            int maxInputChars, int maxChunkChars, MystemLucenePositionPolicy positionPolicy) {
-        this(maxInputChars, maxChunkChars, positionPolicy, MystemLuceneClientPolicy.WARN_ON_KNOWN_SLOW_CLIENTS);
-    }
+    private final int maxInputChars;
+    private final int maxChunkChars;
+    private final MystemLucenePositionPolicy positionPolicy;
+    private final MystemLuceneClientPolicy clientPolicy;
+    private final MystemLuceneOversizedInputPolicy oversizedInputPolicy;
 
-    public MystemLuceneAnalysisOptions(
-            int maxInputChars,
-            int maxChunkChars,
-            MystemLucenePositionPolicy positionPolicy,
-            MystemLuceneClientPolicy clientPolicy) {
-        this(
-                maxInputChars,
-                maxChunkChars,
-                positionPolicy,
-                clientPolicy,
-                MystemLuceneOversizedInputPolicy.FAIL);
-    }
-
-    public MystemLuceneAnalysisOptions {
+    private MystemLuceneAnalysisOptions(Builder builder) {
+        maxInputChars = builder.maxInputChars;
+        maxChunkChars = builder.maxChunkCharsSet
+                ? builder.maxChunkChars
+                : Math.min(DEFAULT_MAX_CHUNK_CHARS, builder.maxInputChars);
+        positionPolicy = Objects.requireNonNull(builder.positionPolicy, "positionPolicy");
+        clientPolicy = Objects.requireNonNull(builder.clientPolicy, "clientPolicy");
+        oversizedInputPolicy = Objects.requireNonNull(builder.oversizedInputPolicy, "oversizedInputPolicy");
         if (maxInputChars <= 0) {
             throw new IllegalArgumentException("maxInputChars must be positive");
         }
@@ -48,9 +34,49 @@ public record MystemLuceneAnalysisOptions(
         if (maxChunkChars > maxInputChars) {
             throw new IllegalArgumentException("maxChunkChars must not exceed maxInputChars");
         }
-        positionPolicy = Objects.requireNonNull(positionPolicy, "positionPolicy");
-        clientPolicy = Objects.requireNonNull(clientPolicy, "clientPolicy");
-        oversizedInputPolicy = Objects.requireNonNull(oversizedInputPolicy, "oversizedInputPolicy");
+    }
+
+    public int maxInputChars() {
+        return maxInputChars;
+    }
+
+    public int maxChunkChars() {
+        return maxChunkChars;
+    }
+
+    public MystemLucenePositionPolicy positionPolicy() {
+        return positionPolicy;
+    }
+
+    public MystemLuceneClientPolicy clientPolicy() {
+        return clientPolicy;
+    }
+
+    public MystemLuceneOversizedInputPolicy oversizedInputPolicy() {
+        return oversizedInputPolicy;
+    }
+
+    /**
+     * Returns a builder with conservative defaults.
+     *
+     * @return options builder
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Returns a builder initialized from this option set.
+     *
+     * @return options builder
+     */
+    public Builder toBuilder() {
+        return builder()
+                .maxInputChars(maxInputChars)
+                .maxChunkChars(maxChunkChars)
+                .positionPolicy(positionPolicy)
+                .clientPolicy(clientPolicy)
+                .oversizedInputPolicy(oversizedInputPolicy);
     }
 
     /**
@@ -59,20 +85,58 @@ public record MystemLuceneAnalysisOptions(
      * @return default Lucene analysis options
      */
     public static MystemLuceneAnalysisOptions defaults() {
-        return new MystemLuceneAnalysisOptions(
-                DEFAULT_MAX_INPUT_CHARS, DEFAULT_MAX_CHUNK_CHARS, MystemLucenePositionPolicy.COMPACT);
+        return builder().build();
     }
 
     /**
-     * Returns options with a custom field limit and default chunking and position behavior.
+     * Returns options with a custom field limit and bounded default chunk size.
      *
      * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
      * @return Lucene analysis options
      */
     public static MystemLuceneAnalysisOptions withMaxInputChars(int maxInputChars) {
-        return new MystemLuceneAnalysisOptions(
-                maxInputChars,
-                Math.min(DEFAULT_MAX_CHUNK_CHARS, maxInputChars),
-                MystemLucenePositionPolicy.COMPACT);
+        return builder().maxInputChars(maxInputChars).build();
     }
+
+    public static final class Builder {
+        private int maxInputChars = DEFAULT_MAX_INPUT_CHARS;
+        private int maxChunkChars = DEFAULT_MAX_CHUNK_CHARS;
+        private boolean maxChunkCharsSet;
+        private MystemLucenePositionPolicy positionPolicy = MystemLucenePositionPolicy.COMPACT;
+        private MystemLuceneClientPolicy clientPolicy = MystemLuceneClientPolicy.WARN_ON_KNOWN_SLOW_CLIENTS;
+        private MystemLuceneOversizedInputPolicy oversizedInputPolicy = MystemLuceneOversizedInputPolicy.FAIL;
+
+        private Builder() {}
+
+        public Builder maxInputChars(int maxInputChars) {
+            this.maxInputChars = maxInputChars;
+            return this;
+        }
+
+        public Builder maxChunkChars(int maxChunkChars) {
+            this.maxChunkChars = maxChunkChars;
+            maxChunkCharsSet = true;
+            return this;
+        }
+
+        public Builder positionPolicy(MystemLucenePositionPolicy positionPolicy) {
+            this.positionPolicy = Objects.requireNonNull(positionPolicy, "positionPolicy");
+            return this;
+        }
+
+        public Builder clientPolicy(MystemLuceneClientPolicy clientPolicy) {
+            this.clientPolicy = Objects.requireNonNull(clientPolicy, "clientPolicy");
+            return this;
+        }
+
+        public Builder oversizedInputPolicy(MystemLuceneOversizedInputPolicy oversizedInputPolicy) {
+            this.oversizedInputPolicy = Objects.requireNonNull(oversizedInputPolicy, "oversizedInputPolicy");
+            return this;
+        }
+
+        public MystemLuceneAnalysisOptions build() {
+            return new MystemLuceneAnalysisOptions(this);
+        }
+    }
+
 }

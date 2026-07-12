@@ -12,6 +12,7 @@ Use this checklist before publishing a MyStem4j release.
 - Run `./gradlew javadoc javadocJar jar generatePomFileForMavenJavaPublication :mystem4j-gradle-plugin:generatePomFileForPluginMavenPublication :mystem4j-gradle-plugin:generatePomFileForMystem4jPluginMarkerMavenPublication -Pmystem4j.useMavenLocal=true`.
 - Run `./gradlew realMystemTest -Pmystem4j.useMavenLocal=true -Dmystem4j.executable=/path/to/mystem`.
 - Run `./gradlew realMystemUnicodeStress -Pmystem4j.useMavenLocal=true -Dmystem4j.executable=/path/to/mystem`.
+- Run `./gradlew realMystemPoolSoak -Pmystem4j.useMavenLocal=true -Dmystem4j.executable=/path/to/mystem` and retain its throughput and p95/p99 output with the release evidence.
 - Run `./gradlew :mystem4j-benchmarks:jmhSmoke -Pmystem4j.useMavenLocal=true`.
 - Run `./gradlew releaseCandidateCheck -Pmystem4j.useMavenLocal=true`.
 - Review `config/api-baseline`.
@@ -23,4 +24,5 @@ Use this checklist before publishing a MyStem4j release.
 
 - Run the quality gates with `--configuration-cache` twice and confirm cache reuse.
 - Publish to a temporary local Maven repository and test a separate consumer project on classpath and module path.
-- Run a real MyStem pool soak with JFR or heap histograms.
+- Profile the real MyStem pool soak with JFR or heap histograms when runtime or
+  iCLI process management changed.

@@ -62,3 +62,17 @@ public final class io/github/ulviar/mystem4j/kotlin/MystemOptionsDsl {
 	public static synthetic fun weight$default (Lio/github/ulviar/mystem4j/kotlin/MystemOptionsDsl;ZILjava/lang/Object;)V
 }
 
+public final class io/github/ulviar/mystem4j/kotlin/MystemPoolOptionsDsl {
+	public final fun acquireTimeout (Ljava/time/Duration;)V
+	public final fun acquireTimeoutKotlinDuration (J)V
+	public final fun backgroundReplenishment (Z)V
+	public final fun hookTimeout (Ljava/time/Duration;)V
+	public final fun hookTimeoutKotlinDuration (J)V
+	public final fun maxRequestsPerWorker (I)V
+	public final fun maxSize (I)V
+	public final fun maxWorkerAge (Ljava/time/Duration;)V
+	public final fun maxWorkerAgeKotlinDuration (J)V
+	public final fun minIdle (I)V
+	public final fun warmupSize (I)V
+}
+

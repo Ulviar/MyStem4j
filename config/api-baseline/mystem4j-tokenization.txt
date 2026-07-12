@@ -47,18 +47,7 @@ public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer 
 
 ## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions
 Compiled from "MystemSearchTokenizerOptions.java"
-public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions extends java.lang.Record {
-  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean, io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy, io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy);
-  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean, io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy);
-  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions(boolean, boolean, boolean, boolean, boolean);
-  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions conservative();
-  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions search();
-  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions entityAware();
-  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder builder();
-  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder toBuilder();
-  public final java.lang.String toString();
-  public final int hashCode();
-  public final boolean equals(java.lang.Object);
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions {
   public boolean classifyNumbers();
   public boolean mergeUrls();
   public boolean mergeEmails();
@@ -66,6 +55,11 @@ public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerO
   public boolean expandCurrencyForms();
   public io.github.ulviar.mystem4j.tokenization.MystemUnmatchedTokenPolicy unmatchedTokenPolicy();
   public io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy lemmaSelectionPolicy();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions conservative();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions search();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions entityAware();
+  public static io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder builder();
+  public io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder toBuilder();
 }
 
 ## io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions$Builder

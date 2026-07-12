@@ -126,6 +126,7 @@ public abstract class MystemDownloadTask extends DefaultTask {
         }
     }
 
+    @SuppressWarnings("try")
     private void materializeArchive(
             URI archiveUri, Path destination, String archiveName, long maxArchiveBytes, String expectedSha256)
             throws IOException {

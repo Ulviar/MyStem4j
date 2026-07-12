@@ -108,8 +108,8 @@ public class MystemClientDsl internal constructor(
     }
 
     /** Uses a pool of reusable JSON-line MyStem processes and configures it inline. */
-    public fun pooled(configure: MystemPoolOptions.Builder.() -> Unit): Unit {
-        builder.pooled { pool -> pool.configure() }
+    public fun pooled(configure: MystemPoolOptionsDsl.() -> Unit): Unit {
+        builder.pooled { pool -> MystemPoolOptionsDsl(pool).configure() }
     }
 
     /** Uses a pool of reusable JSON-line MyStem processes with default pool options. */
@@ -145,6 +145,75 @@ public class MystemClientDsl internal constructor(
     /** Allows full input text in diagnostics when enabled. */
     public fun includeInputInDiagnostics(enabled: Boolean): Unit {
         builder.includeInputInDiagnostics(enabled)
+    }
+}
+
+/**
+ * Kotlin DSL facade for [MystemPoolOptions.Builder].
+ *
+ * This receiver carries [MystemDslMarker], so client-level operations cannot be
+ * called accidentally from inside `pooled { }`.
+ */
+@MystemDslMarker
+public class MystemPoolOptionsDsl internal constructor(
+    private val builder: MystemPoolOptions.Builder,
+) {
+    /** Sets the maximum number of live MyStem workers. */
+    public fun maxSize(value: Int): Unit {
+        builder.maxSize(value)
+    }
+
+    /** Sets the number of workers started when the pool opens. */
+    public fun warmupSize(value: Int): Unit {
+        builder.warmupSize(value)
+    }
+
+    /** Sets the minimum number of idle workers maintained by the pool. */
+    public fun minIdle(value: Int): Unit {
+        builder.minIdle(value)
+    }
+
+    /** Sets the maximum wait for an available worker. */
+    public fun acquireTimeout(timeout: Duration): Unit {
+        builder.acquireTimeout(timeout)
+    }
+
+    /** Sets the maximum wait for an available worker as a Kotlin duration. */
+    @JvmName("acquireTimeoutKotlinDuration")
+    public fun acquireTimeout(timeout: KotlinDuration): Unit {
+        acquireTimeout(timeout.toJavaDuration())
+    }
+
+    /** Sets the timeout for worker lifecycle hooks. */
+    public fun hookTimeout(timeout: Duration): Unit {
+        builder.hookTimeout(timeout)
+    }
+
+    /** Sets the timeout for worker lifecycle hooks as a Kotlin duration. */
+    @JvmName("hookTimeoutKotlinDuration")
+    public fun hookTimeout(timeout: KotlinDuration): Unit {
+        hookTimeout(timeout.toJavaDuration())
+    }
+
+    /** Sets the number of requests served before a worker is replaced. */
+    public fun maxRequestsPerWorker(value: Int): Unit {
+        builder.maxRequestsPerWorker(value)
+    }
+
+    /** Sets the maximum worker age, or zero to disable age-based replacement. */
+    public fun maxWorkerAge(age: Duration): Unit {
+        builder.maxWorkerAge(age)
+    }
+
+    /** Sets the maximum worker age as a Kotlin duration. */
+    @JvmName("maxWorkerAgeKotlinDuration")
+    public fun maxWorkerAge(age: KotlinDuration): Unit {
+        maxWorkerAge(age.toJavaDuration())
+    }
+
+    /** Enables or disables background idle-worker replenishment. */
+    public fun backgroundReplenishment(enabled: Boolean): Unit {
+        builder.backgroundReplenishment(enabled)
     }
 }
 

@@ -15,7 +15,7 @@ public final class io.github.ulviar.mystem4j.kotlin.MystemClientDsl {
   public final void idleTimeout(java.time.Duration);
   public final void idleTimeoutKotlinDuration(long);
   public final void session();
-  public final void pooled(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.MystemPoolOptions$Builder, kotlin.Unit>);
+  public final void pooled(kotlin.jvm.functions.Function1<? super io.github.ulviar.mystem4j.kotlin.MystemPoolOptionsDsl, kotlin.Unit>);
   public final void pooled();
   public final void pooled(io.github.ulviar.mystem4j.MystemPoolOptions);
   public final void maxRequestChars(int);
@@ -72,4 +72,21 @@ public final class io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl {
   public static void generateAll$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
   public final void weight(boolean);
   public static void weight$default(io.github.ulviar.mystem4j.kotlin.MystemOptionsDsl, boolean, int, java.lang.Object);
+}
+
+## io.github.ulviar.mystem4j.kotlin.MystemPoolOptionsDsl
+Compiled from "MystemDsl.kt"
+public final class io.github.ulviar.mystem4j.kotlin.MystemPoolOptionsDsl {
+  public io.github.ulviar.mystem4j.kotlin.MystemPoolOptionsDsl(io.github.ulviar.mystem4j.MystemPoolOptions$Builder);
+  public final void maxSize(int);
+  public final void warmupSize(int);
+  public final void minIdle(int);
+  public final void acquireTimeout(java.time.Duration);
+  public final void acquireTimeoutKotlinDuration(long);
+  public final void hookTimeout(java.time.Duration);
+  public final void hookTimeoutKotlinDuration(long);
+  public final void maxRequestsPerWorker(int);
+  public final void maxWorkerAge(java.time.Duration);
+  public final void maxWorkerAgeKotlinDuration(long);
+  public final void backgroundReplenishment(boolean);
 }

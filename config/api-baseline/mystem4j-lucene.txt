@@ -2,22 +2,29 @@
 
 ## io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions
 Compiled from "MystemLuceneAnalysisOptions.java"
-public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions extends java.lang.Record {
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions {
   public static final int DEFAULT_MAX_INPUT_CHARS;
   public static final int DEFAULT_MAX_CHUNK_CHARS;
-  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy);
-  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy, io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy);
-  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions(int, int, io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy, io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy, io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy);
-  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions defaults();
-  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions withMaxInputChars(int);
-  public final java.lang.String toString();
-  public final int hashCode();
-  public final boolean equals(java.lang.Object);
   public int maxInputChars();
   public int maxChunkChars();
   public io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy positionPolicy();
   public io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy clientPolicy();
   public io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy oversizedInputPolicy();
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder builder();
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder toBuilder();
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions defaults();
+  public static io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions withMaxInputChars(int);
+}
+
+## io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder
+Compiled from "MystemLuceneAnalysisOptions.java"
+public final class io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder {
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder maxInputChars(int);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder maxChunkChars(int);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder positionPolicy(io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder clientPolicy(io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions$Builder oversizedInputPolicy(io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy);
+  public io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions build();
 }
 
 ## io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer

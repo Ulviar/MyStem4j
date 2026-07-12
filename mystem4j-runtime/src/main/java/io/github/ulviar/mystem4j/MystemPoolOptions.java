@@ -5,25 +5,29 @@ import java.time.Duration;
 /**
  * Pool configuration for pooled MyStem JSON-line sessions.
  *
- * @param maxSize maximum number of live workers in the pool
- * @param warmupSize number of workers started when the pool is opened
- * @param minIdle minimum number of idle workers the pool tries to keep available
- * @param acquireTimeout maximum time to wait for an available worker
- * @param hookTimeout maximum time allowed for worker lifecycle hooks
- * @param maxRequestsPerWorker maximum requests served by one worker before it is replaced
- * @param maxWorkerAge maximum worker lifetime, or {@link Duration#ZERO} to disable age-based replacement
- * @param backgroundReplenishment whether the pool may replenish idle workers in the background
+ *
+ * <p>Create instances with {@link #builder()} so new pool controls can be added without changing a positional
+ * constructor.
  */
-public record MystemPoolOptions(
-        int maxSize,
-        int warmupSize,
-        int minIdle,
-        Duration acquireTimeout,
-        Duration hookTimeout,
-        int maxRequestsPerWorker,
-        Duration maxWorkerAge,
-        boolean backgroundReplenishment) {
-    public MystemPoolOptions {
+public final class MystemPoolOptions {
+    private final int maxSize;
+    private final int warmupSize;
+    private final int minIdle;
+    private final Duration acquireTimeout;
+    private final Duration hookTimeout;
+    private final int maxRequestsPerWorker;
+    private final Duration maxWorkerAge;
+    private final boolean backgroundReplenishment;
+
+    private MystemPoolOptions(Builder builder) {
+        maxSize = builder.maxSize;
+        warmupSize = builder.warmupSize;
+        minIdle = builder.minIdle;
+        acquireTimeout = builder.acquireTimeout;
+        hookTimeout = builder.hookTimeout;
+        maxRequestsPerWorker = builder.maxRequestsPerWorker;
+        maxWorkerAge = builder.maxWorkerAge;
+        backgroundReplenishment = builder.backgroundReplenishment;
         if (maxSize <= 0) {
             throw new IllegalArgumentException("maxSize must be positive");
         }
@@ -47,6 +51,38 @@ public record MystemPoolOptions(
         }
     }
 
+    public int maxSize() {
+        return maxSize;
+    }
+
+    public int warmupSize() {
+        return warmupSize;
+    }
+
+    public int minIdle() {
+        return minIdle;
+    }
+
+    public Duration acquireTimeout() {
+        return acquireTimeout;
+    }
+
+    public Duration hookTimeout() {
+        return hookTimeout;
+    }
+
+    public int maxRequestsPerWorker() {
+        return maxRequestsPerWorker;
+    }
+
+    public Duration maxWorkerAge() {
+        return maxWorkerAge;
+    }
+
+    public boolean backgroundReplenishment() {
+        return backgroundReplenishment;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -60,6 +96,8 @@ public record MystemPoolOptions(
         private int maxRequestsPerWorker = Integer.MAX_VALUE;
         private Duration maxWorkerAge = Duration.ZERO;
         private boolean backgroundReplenishment = true;
+
+        private Builder() {}
 
         public Builder maxSize(int maxSize) {
             this.maxSize = maxSize;
@@ -102,15 +140,8 @@ public record MystemPoolOptions(
         }
 
         public MystemPoolOptions build() {
-            return new MystemPoolOptions(
-                    maxSize,
-                    warmupSize,
-                    minIdle,
-                    acquireTimeout,
-                    hookTimeout,
-                    maxRequestsPerWorker,
-                    maxWorkerAge,
-                    backgroundReplenishment);
+            return new MystemPoolOptions(this);
         }
     }
+
 }

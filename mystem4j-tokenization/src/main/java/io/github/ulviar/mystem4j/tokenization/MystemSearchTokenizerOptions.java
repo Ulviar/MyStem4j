@@ -9,53 +9,54 @@ import java.util.Objects;
  * control semantic enrichment that is useful for some search applications but should not be forced on every Lucene
  * pipeline.
  */
-public record MystemSearchTokenizerOptions(
-        boolean classifyNumbers,
-        boolean mergeUrls,
-        boolean mergeEmails,
-        boolean classifyCurrencies,
-        boolean expandCurrencyForms,
-        MystemUnmatchedTokenPolicy unmatchedTokenPolicy,
-        MystemLemmaSelectionPolicy lemmaSelectionPolicy) {
-    public MystemSearchTokenizerOptions {
-        unmatchedTokenPolicy = Objects.requireNonNull(unmatchedTokenPolicy, "unmatchedTokenPolicy");
-        lemmaSelectionPolicy = Objects.requireNonNull(lemmaSelectionPolicy, "lemmaSelectionPolicy");
+public final class MystemSearchTokenizerOptions {
+    private final boolean classifyNumbers;
+    private final boolean mergeUrls;
+    private final boolean mergeEmails;
+    private final boolean classifyCurrencies;
+    private final boolean expandCurrencyForms;
+    private final MystemUnmatchedTokenPolicy unmatchedTokenPolicy;
+    private final MystemLemmaSelectionPolicy lemmaSelectionPolicy;
+
+    private MystemSearchTokenizerOptions(Builder builder) {
+        classifyNumbers = builder.classifyNumbers;
+        mergeUrls = builder.mergeUrls;
+        mergeEmails = builder.mergeEmails;
+        classifyCurrencies = builder.classifyCurrencies;
+        expandCurrencyForms = builder.expandCurrencyForms;
+        unmatchedTokenPolicy = Objects.requireNonNull(builder.unmatchedTokenPolicy, "unmatchedTokenPolicy");
+        lemmaSelectionPolicy = Objects.requireNonNull(builder.lemmaSelectionPolicy, "lemmaSelectionPolicy");
         if (expandCurrencyForms && !classifyCurrencies) {
             throw new IllegalArgumentException("expandCurrencyForms requires classifyCurrencies.");
         }
     }
 
-    public MystemSearchTokenizerOptions(
-            boolean classifyNumbers,
-            boolean mergeUrls,
-            boolean mergeEmails,
-            boolean classifyCurrencies,
-            boolean expandCurrencyForms,
-            MystemUnmatchedTokenPolicy unmatchedTokenPolicy) {
-        this(
-                classifyNumbers,
-                mergeUrls,
-                mergeEmails,
-                classifyCurrencies,
-                expandCurrencyForms,
-                unmatchedTokenPolicy,
-                MystemLemmaSelectionPolicy.ALL);
+    public boolean classifyNumbers() {
+        return classifyNumbers;
     }
 
-    public MystemSearchTokenizerOptions(
-            boolean classifyNumbers,
-            boolean mergeUrls,
-            boolean mergeEmails,
-            boolean classifyCurrencies,
-            boolean expandCurrencyForms) {
-        this(
-                classifyNumbers,
-                mergeUrls,
-                mergeEmails,
-                classifyCurrencies,
-                expandCurrencyForms,
-                MystemUnmatchedTokenPolicy.SYNTHESIZE_FROM_ORIGINAL_TEXT,
-                MystemLemmaSelectionPolicy.ALL);
+    public boolean mergeUrls() {
+        return mergeUrls;
+    }
+
+    public boolean mergeEmails() {
+        return mergeEmails;
+    }
+
+    public boolean classifyCurrencies() {
+        return classifyCurrencies;
+    }
+
+    public boolean expandCurrencyForms() {
+        return expandCurrencyForms;
+    }
+
+    public MystemUnmatchedTokenPolicy unmatchedTokenPolicy() {
+        return unmatchedTokenPolicy;
+    }
+
+    public MystemLemmaSelectionPolicy lemmaSelectionPolicy() {
+        return lemmaSelectionPolicy;
     }
 
     /**
@@ -173,14 +174,8 @@ public record MystemSearchTokenizerOptions(
         }
 
         public MystemSearchTokenizerOptions build() {
-            return new MystemSearchTokenizerOptions(
-                    classifyNumbers,
-                    mergeUrls,
-                    mergeEmails,
-                    classifyCurrencies,
-                    expandCurrencyForms,
-                    unmatchedTokenPolicy,
-                    lemmaSelectionPolicy);
+            return new MystemSearchTokenizerOptions(this);
         }
     }
+
 }

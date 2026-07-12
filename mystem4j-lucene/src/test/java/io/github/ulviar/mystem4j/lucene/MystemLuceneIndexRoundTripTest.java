@@ -162,7 +162,11 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
         }
 
         MystemLuceneAnalysisOptions preserveSkippedTokens =
-                new MystemLuceneAnalysisOptions(100, 100, MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS);
+                MystemLuceneAnalysisOptions.builder()
+                        .maxInputChars(100)
+                        .maxChunkChars(100)
+                        .positionPolicy(MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS)
+                        .build();
         try (Analyzer analyzer = new MystemLuceneAnalyzer(
                         client, MystemSearchTokenizerOptions.conservative(), preserveSkippedTokens);
                 Directory directory = indexOne(analyzer, "Мама Папа")) {
