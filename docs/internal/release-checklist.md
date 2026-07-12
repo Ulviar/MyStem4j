@@ -15,6 +15,8 @@ Use this checklist before publishing a MyStem4j release.
 - Run `./gradlew :mystem4j-benchmarks:jmhSmoke -Pmystem4j.useMavenLocal=true`.
 - Run `./gradlew releaseCandidateCheck -Pmystem4j.useMavenLocal=true`.
 - Review `config/api-baseline`.
+- Confirm `docs/internal/agent-work/active` contains only its `README.md`; promote
+  durable outcomes and delete completed work files before tagging the release.
 - Confirm the native MyStem binary is not bundled into published artifacts.
 
 ## Recommended

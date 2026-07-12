@@ -43,6 +43,8 @@ as a substitute for focused unit tests.
 - `coverageReport`: JaCoCo reports for published modules and the Gradle plugin.
 - `jpmsSmokeTest`, `publicationMetadataCheck`, `apiSurfaceCheck`: release
   metadata and public API gates.
+- `agentInfrastructureCheck`: LLM context routing, active-work lifecycle, and
+  historical-document labeling.
 - `spotlessCheck`, `markdownLocalLinksCheck`: repository hygiene gates.
 - Gradle dependency lockfiles keep resolved dependency versions stable. Update
   them with `--write-locks` only when dependency changes are intentional.

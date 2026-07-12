@@ -30,6 +30,10 @@ Each finding should state:
 - the page and heading where it happened;
 - the smallest useful documentation or API change.
 
+Keep the raw report under `build/agent/audits`. Promote accepted findings to the
+owning documentation, tests, code, or an ADR. Do not commit the report as a second
+backlog; the [artifact policy](agent/artifact-policy.md) defines its lifecycle.
+
 ## Core Scenarios
 
 ### Runtime Request

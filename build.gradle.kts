@@ -1,5 +1,6 @@
 import java.nio.file.Path
 import io.github.ulviar.mystem4j.buildlogic.ApiSurfaceCheckTask
+import io.github.ulviar.mystem4j.buildlogic.AgentInfrastructureCheckTask
 import io.github.ulviar.mystem4j.buildlogic.JpmsSmokeTestTask
 import io.github.ulviar.mystem4j.buildlogic.MarkdownLocalLinksCheckTask
 import io.github.ulviar.mystem4j.buildlogic.PublicationMetadataCheckTask
@@ -31,6 +32,7 @@ val libraryProjectNames = listOf(
     "mystem4j-kotlin"
 )
 val apiSurfaceProjectNames = libraryProjectNames + "mystem4j-gradle-plugin"
+val scopedAgentDirectories = libraryProjectNames + listOf("mystem4j-gradle-plugin", "mystem4j-benchmarks", "buildSrc")
 val unitTestProjectNames = apiSurfaceProjectNames + "mystem4j-benchmarks"
 val javaBinSuffix = if (System.getProperty("os.name").startsWith("Windows")) ".exe" else ""
 val javaHome = Path.of(System.getProperty("java.home"))
@@ -209,11 +211,51 @@ tasks.register<MarkdownLocalLinksCheckTask>("markdownLocalLinksCheck") {
     description = "Checks local Markdown links in README, CHANGELOG, and docs."
     getMarkdownFiles().from(
         "README.md",
+        "AGENTS.md",
         "CHANGELOG.md",
+        scopedAgentDirectories.map { "$it/AGENTS.md" },
         fileTree("docs") {
             include("**/*.md")
         }
     )
+    getProjectDirectory().set(layout.projectDirectory)
+}
+
+tasks.register<AgentInfrastructureCheckTask>("agentInfrastructureCheck") {
+    group = "verification"
+    description = "Checks LLM instruction routing, active-work artifacts, and historical context boundaries."
+
+    val scopedInstructionPaths = scopedAgentDirectories.map { "$it/AGENTS.md" }
+    val agentPolicyPaths = listOf(
+        "docs/internal/agent/README.md",
+        "docs/internal/agent/context-map.md",
+        "docs/internal/agent/artifact-policy.md",
+        "docs/internal/agent/templates/active-work.md",
+        "docs/internal/agent/evals.md",
+        "docs/internal/decisions/README.md",
+        "docs/internal/decisions/0001-agent-context-and-artifact-lifecycle.md",
+        "docs/internal/agent-work/active/README.md",
+        "docs/internal/history/README.md"
+    )
+    val historicalPaths = listOf(
+        "docs/internal/history/specs/mystem-runtime-spec.md",
+        "docs/internal/history/specs/mystem-model-spec.md",
+        "docs/internal/history/specs/mystem-tokenization-spec.md",
+        "docs/internal/history/specs/mystem-lucene-spec.md"
+    )
+
+    getExpectedInstructionPaths().set(listOf("AGENTS.md") + scopedInstructionPaths + agentPolicyPaths)
+    getScopedInstructionPaths().set(scopedInstructionPaths)
+    getExpectedHistoricalPaths().set(historicalPaths)
+    getInstructionFiles().from((listOf("AGENTS.md") + scopedInstructionPaths + agentPolicyPaths).map(::file))
+    getActiveWorkFiles().from(fileTree("docs/internal/agent-work/active") { include("*.md") })
+    getHistoricalFiles().from(fileTree("docs/internal/history/specs") { include("**/*.md") })
+    getInternalMarkdownFiles().from(fileTree("docs/internal") { include("**/*.md") })
+    getRootMarkdownFiles().from(fileTree(layout.projectDirectory) { include("*.md") })
+    getGitIgnoreFile().set(layout.projectDirectory.file(".gitignore"))
+    getMaxRootInstructionLines().set(130)
+    getMaxScopedInstructionLines().set(60)
+    getMaxActiveWorkLines().set(160)
     getProjectDirectory().set(layout.projectDirectory)
 }
 
@@ -224,6 +266,7 @@ tasks.named("check") {
         "jpmsSmokeTest",
         "publicationMetadataCheck",
         "apiSurfaceCheck",
+        "agentInfrastructureCheck",
         ":mystem4j-kotlin:apiCheck",
         "spotlessCheck",
         "markdownLocalLinksCheck")

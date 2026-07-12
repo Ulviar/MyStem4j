@@ -1,5 +1,9 @@
 # Спецификация компонента Lucene integration
 
+> Historical baseline. This file records pre-0.1 implementation intent and is not
+> a current source of truth. Use current code, tests, user documentation, and
+> accepted ADRs for present behavior.
+
 Статус: baseline 0.1
 Дата: 2026-05-25
 
