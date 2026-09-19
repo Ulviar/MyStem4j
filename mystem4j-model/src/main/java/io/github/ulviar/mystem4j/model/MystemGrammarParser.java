@@ -12,6 +12,17 @@ import java.util.Set;
 public final class MystemGrammarParser {
     private MystemGrammarParser() {}
 
+    /**
+     * Splits a MyStem grammar string into shared features and inflection alternatives.
+     *
+     * <p>The first comma-separated item before {@code =} is the part of speech. The remaining items
+     * there are common grammemes; {@code |} separates alternatives after {@code =}. Whitespace and
+     * outer alternative parentheses are trimmed. Unknown tags are preserved without validating them
+     * against a fixed grammar vocabulary. A missing or blank right side produces one empty alternative.
+     *
+     * @param grammar MyStem {@code gr} string; {@code null} is treated as an empty string
+     * @return immutable parsed view retaining the raw string, or an empty raw string for {@code null}
+     */
     public static MystemGrammar parse(String grammar) {
         String raw = grammar == null ? "" : grammar;
         String[] parts = raw.split("=", 2);

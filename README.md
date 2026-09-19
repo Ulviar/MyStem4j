@@ -16,9 +16,12 @@ Use MyStem4j to:
 
 ## Requirements
 
-- Java 21 or newer.
+- Java 25 or newer for every library and the Gradle plugin. Run Gradle on JDK 25
+  when applying the plugin; a Java compilation toolchain alone does not select
+  the Gradle JVM.
 - To parse existing JSON, declare `mystem4j-model`; no native MyStem executable is needed.
 - To run or download MyStem, use MyStem 3.1. MyStem4j does not bundle the native executable.
+- On Apple Silicon, the plugin's Intel macOS MyStem binary requires [Rosetta](docs/how-to/troubleshooting.md#mystem-reports-bad-cpu-type-on-apple-silicon).
 - Accept the Yandex MyStem license before using the Gradle plugin to download MyStem.
 
 Links:
@@ -47,7 +50,8 @@ Lucene applications do not need to declare those modules separately.
 ## Quick Start
 
 The quickest smoke test is a Gradle test. The plugin downloads MyStem, probes it,
-and passes the executable path to the test as `mystem4j.executable`.
+and passes the executable path to the test as `mystem4j.executable`. Use Gradle
+9.7.1 running on JDK 25 for this example.
 
 `settings.gradle.kts`:
 
@@ -80,14 +84,14 @@ repositories {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 
 dependencies {
     testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 }
 
 mystem4j {

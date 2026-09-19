@@ -8,8 +8,6 @@ import java.util.Locale;
 import java.util.Set;
 
 final class MystemSearchTokenForms {
-    private static final Set<Integer> EXCEPTIONAL_DIACRITICS = Set.of(0x0301, 0x0341);
-
     private MystemSearchTokenForms() {}
 
     static List<MystemTokenForm> forms(
@@ -41,14 +39,26 @@ final class MystemSearchTokenForms {
         }
         LinkedHashSet<String> expanded = new LinkedHashSet<>();
         for (String value : values) {
-            if (containsExceptionalDiacritics(value)) {
-                expanded.add(removeExceptionalDiacritics(value));
-            } else {
-                expanded.add(value);
-                suffixless(value, token.features).ifPresent(expanded::add);
+            addNormalizedWordForms(expanded, value, token.features);
+        }
+        if (expanded.isEmpty()) {
+            addNormalizedWordForms(expanded, sourceText, token.features);
+            if (expanded.isEmpty()) {
+                // A custom model may provide only removable marks as a lemma and source.
+                // Keep its source token representable without manufacturing an empty term.
+                expanded.add(sourceText);
             }
         }
         return toForms(expanded, keyword);
+    }
+
+    private static void addNormalizedWordForms(
+            Set<String> forms, String value, EnumSet<MystemTokenFeature> features) {
+        String normalized = normalizeWordForm(value);
+        if (!normalized.isEmpty()) {
+            forms.add(normalized);
+            suffixless(normalized, features).filter(form -> !form.isEmpty()).ifPresent(forms::add);
+        }
     }
 
     private static java.util.Optional<String> suffixless(String value, EnumSet<MystemTokenFeature> features) {
@@ -77,23 +87,40 @@ final class MystemSearchTokenForms {
     }
 
     private static List<MystemTokenForm> toForms(Set<String> values, boolean keyword) {
-        ArrayList<MystemTokenForm> forms = new ArrayList<>();
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
         for (String value : values) {
             if (!value.isEmpty()) {
-                forms.add(new MystemTokenForm(value.toLowerCase(Locale.ROOT), keyword));
+                terms.add(value.toLowerCase(Locale.ROOT));
             }
         }
+        // Keep literal forms first, especially full URL/email values and their domains.
+        // Normalize the original values: lowercasing first loses the source casing needed
+        // to agree with single-term query normalization (for example, Greek final sigma).
+        for (String value : values) {
+            String alias = MystemSearchTermNormalizer.normalize(value);
+            if (!alias.isEmpty()) {
+                terms.add(alias);
+            }
+        }
+        ArrayList<MystemTokenForm> forms = new ArrayList<>(terms.size());
+        terms.forEach(term -> forms.add(new MystemTokenForm(term, keyword)));
         return List.copyOf(forms);
     }
 
-    private static boolean containsExceptionalDiacritics(String text) {
-        return text.codePoints().anyMatch(EXCEPTIONAL_DIACRITICS::contains);
-    }
-
-    private static String removeExceptionalDiacritics(String text) {
-        int[] codePoints = text.codePoints()
-                .filter(codePoint -> !EXCEPTIONAL_DIACRITICS.contains(codePoint))
-                .toArray();
-        return new String(codePoints, 0, codePoints.length);
+    private static String normalizeWordForm(String text) {
+        StringBuilder normalized = null;
+        for (int index = 0; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (character == MystemSearchTokenClassifier.SOFT_HYPHEN
+                    || character == '\u0301'
+                    || character == '\u0341') {
+                if (normalized == null) {
+                    normalized = new StringBuilder(text.length()).append(text, 0, index);
+                }
+            } else if (normalized != null) {
+                normalized.append(character);
+            }
+        }
+        return normalized == null ? text : normalized.toString();
     }
 }

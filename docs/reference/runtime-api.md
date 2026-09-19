@@ -17,6 +17,9 @@ use only an explicit path, system property, or environment variable.
 
 `MystemExecutableNotFoundException` is thrown when no executable can be resolved or
 the resolved path is not executable.
+PATH discovery skips directories and other non-regular files, continuing to the
+next candidate. Explicit paths, the property and `MYSTEM_PATH` must name a regular
+executable file; a symlink to one is accepted.
 
 ## Client Modes
 
@@ -33,6 +36,9 @@ multiline input before calling these modes.
 Reusable session and pooled clients also reject `newLineEachWord(true)`. MyStem
 then writes one JSON line per word, which is incompatible with the one-line-per-request
 protocol used by these modes.
+
+These mode constraints and the readable, regular-file requirement for `fixlist`
+are checked before resolving or starting the executable.
 
 ## Main Types
 
@@ -69,6 +75,30 @@ client implementations may keep the default empty value.
 - `MystemFileContentResult` - input path, captured stdout, format, request stats.
 - `MystemFileResult` - input path, output path, format, request stats.
 - `MystemRequestStats` - elapsed time, execution mode, and input/output sizes.
+
+### Request Statistics
+
+Statistics describe successful requests; a failed request throws without returning
+statistics. `elapsed` has these boundaries:
+
+| Mode | Included | Excluded |
+| --- | --- | --- |
+| One-shot text/file | process startup, execution, output collection and cleanup | runtime argument validation and file-size inspection |
+| Session | sending the request and receiving its response | waiting behind another caller on the same client; process startup |
+| Pool | FIFO admission, worker acquisition (including creation if needed), and execution | client construction and initial warmup |
+
+Character counts are Java UTF-16 code units. Text input bytes use the configured
+encoding and exclude the protocol newline added by session/pool modes. Captured
+output counts include line endings. One-shot output bytes count raw captured bytes;
+session/pool output bytes count the decoded response re-encoded with the configured
+encoding. These can differ from original process bytes if decoding replaced malformed
+input. Counts use `-1` when unknown, never to mean zero.
+
+For file input, `inputChars` is `-1` and `inputBytes` is the file size inspected after
+successful execution. Direct file output likewise has `outputChars == -1` and the
+post-execution file size in `outputBytes`. File byte sizes become `-1` if unavailable;
+concurrent external file changes can affect these measurements. Returned file paths
+are the supplied paths, not necessarily absolute paths.
 
 ## Options
 
@@ -108,6 +138,38 @@ See the MyStem documentation for the linguistic meaning of CLI options:
 - `maxResponseBytes(int)`, default `32_000_000`;
 - `includeInputInDiagnostics(boolean)`, default `false`.
 
+`requestTimeout` bounds execution. It excludes a session caller's wait behind
+another caller and the pool's admission/acquisition waits. It is therefore not an
+end-to-end deadline for the entire `analyze` call.
+
+`idleTimeout` measures process I/O inactivity (stdin/stdout/stderr), including during
+an active request. A silent request can lose its worker before `requestTimeout`
+expires. A reusable client whose process has stopped must be closed and replaced;
+a pool replaces failed workers. This timeout does not apply to one-shot requests,
+including file requests.
+
+Request limits apply to the payload passed to `analyze(String)`: UTF-16 code units
+and bytes in the configured encoding. The protocol newline added by session and
+pool modes is excluded. A payload exactly at either limit is accepted. Rejected
+oversized input leaves the client usable for the next valid request.
+
+Response limits apply to captured process output in every mode, including line
+endings. `maxResponseChars` bounds decoded stdout; `maxResponseBytes` bounds
+captured output and protocol buffers. File inputs and output written directly to a
+file are not bounded by these in-memory payload limits.
+
+## Closing And Interruption
+
+Built-in clients have idempotent `close()`. Closing waits for active requests to
+finish or time out, releases their process resources, and rejects later requests
+with `MystemClosedException`. Use a finite `requestTimeout` appropriate for the
+largest request; `close()` is graceful shutdown, not immediate cancellation.
+
+Interrupting a thread executing a request fails that request with `MystemException`
+and preserves its interrupt flag. The affected child process is terminated. A
+failed reusable session must be closed and replaced; a pool replaces a failed
+worker. Oversized input rejected before execution does not have this effect.
+
 ## Pool Options
 
 Create `MystemPoolOptions` with `MystemPoolOptions.builder()`. It controls pooled
@@ -118,21 +180,32 @@ JSON-line sessions:
 | `maxSize` | available processors | maximum number of live MyStem workers |
 | `warmupSize` | `0` | workers started when the pool is opened |
 | `minIdle` | `0` | idle workers the pool tries to keep available |
-| `acquireTimeout` | `2` seconds | maximum wait for an available worker |
-| `hookTimeout` | `2` seconds | maximum time for worker lifecycle hooks |
+| `acquireTimeout` | `2` seconds | maximum wait for admission; also bounds worker acquisition after admission |
+| `hookTimeout` | `2` seconds | maximum time for one worker health-check or reset hook |
 | `maxRequestsPerWorker` | `Integer.MAX_VALUE` | requests served by one worker before replacement |
 | `maxWorkerAge` | `Duration.ZERO` | worker lifetime limit; zero disables age-based replacement |
 | `backgroundReplenishment` | `true` | whether idle workers may be replenished in the background |
 
 Use `maxSize` to match expected concurrent analysis work. Use `maxRequestsPerWorker`
 or `maxWorkerAge` when the MyStem process should be periodically replaced during
-long-running indexing jobs.
+long-running indexing jobs. Worker-age rotation does not interrupt an active request.
+Calling `pooled()` after explicitly configuring pool options preserves those options;
+on a fresh client builder it uses the defaults above.
+
+Text requests enter the pool through a FIFO admission queue with `maxSize` slots.
+Repeated callers cannot bypass callers already waiting for capacity. The admission
+wait has an `acquireTimeout` deadline; if a worker must be replenished afterward,
+its separate acquisition stage uses the same timeout. A request timeout begins
+when the worker executes the request. Interruption while waiting for admission
+preserves the interrupt flag and does not terminate another caller's worker.
 
 ## Diagnostics
 
-`includeInputInDiagnostics(false)` is the default so exception messages do not
-include the full request text. `MystemProcessException.stderr()` exposes captured
-stderr-like diagnostics when available.
+`includeInputInDiagnostics(false)` is the default: the runtime does not append the
+full request text to one-shot process-failure messages. This also controls file-path
+diagnostics for file requests in every mode. It does not redact text printed by
+MyStem to stderr. `MystemProcessException.stderr()` exposes bounded, possibly
+truncated stderr-like diagnostics when available.
 
 Reusable session and pooled clients drain process stdout and stderr through
 bounded protocol buffers. A process that writes excessive stderr without a valid

@@ -46,6 +46,31 @@ class RealMystemSearchTokenizerIntegrationTest {
     }
 
     @Test
+    void mergesAdjacentEntitiesWithCopiedAndOmittedSeparators() {
+        List<String> entities = List.of("a@one.test", "https://two.test/path?q=1#part", "b@three.test");
+        String text = "😀[" + String.join(",", entities) + "]";
+        for (boolean copyInput : List.of(false, true)) {
+            try (MystemClient client = Mystem.builder()
+                    .executable(Path.of(System.getProperty("mystem4j.executable")))
+                    .options(MystemOptions.builder().grammarInfo(true).copyInput(copyInput).build())
+                    .session().build()) {
+                List<MystemSearchToken> tokens = tokenizer.tokenize(parser.parse(text, client.analyze(text).output()));
+                assertEquals(entities, tokens.stream()
+                        .filter(token -> token.type() == MystemSearchTokenType.EMAIL
+                                || token.type() == MystemSearchTokenType.URL)
+                        .map(MystemSearchToken::text).toList());
+                int cursor = 0;
+                for (MystemSearchToken token : tokens) {
+                    assertEquals(cursor, token.startOffset());
+                    assertEquals(text.substring(token.startOffset(), token.endOffset()), token.text());
+                    cursor = token.endOffset();
+                }
+                assertEquals(text.length(), cursor);
+            }
+        }
+    }
+
+    @Test
     void preservesObservedSurfaceSegmentationForSuffixQuirks() {
         List<SurfaceFixture> fixtures = List.of(
                 new SurfaceFixture("Один+ two+ 3+ 4+", List.of("Один", "two", "3+", "4+")),

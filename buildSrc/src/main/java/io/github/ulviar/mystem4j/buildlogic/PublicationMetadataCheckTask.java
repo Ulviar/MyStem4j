@@ -3,14 +3,19 @@ package io.github.ulviar.mystem4j.buildlogic;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.StringReader;
 import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Set;
 import java.util.spi.ToolProvider;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
@@ -69,10 +74,12 @@ public abstract class PublicationMetadataCheckTask extends DefaultTask {
             requireMetadata(projectName, read(getPomPathByProject().get().get(projectName)));
         }
         requireMetadata("mystem4j-gradle-plugin", read(getPluginPomPath().get()));
+        requireDependencyArtifacts("mystem4j-gradle-plugin", read(getPluginPomPath().get()), Set.of());
 
         for (Map.Entry<String, String> entry : getDependencyScopesByProject().get().entrySet()) {
             String projectName = entry.getKey();
             String pom = read(getPomPathByProject().get().get(projectName));
+            Set<String> expectedArtifacts = new java.util.HashSet<>();
             for (String dependency : entry.getValue().split(",")) {
                 String spec = dependency.strip();
                 if (spec.isEmpty()) {
@@ -84,8 +91,10 @@ public abstract class PublicationMetadataCheckTask extends DefaultTask {
                 }
                 String artifactId = spec.substring(0, separator);
                 String scope = spec.substring(separator + 1);
+                expectedArtifacts.add(artifactId);
                 requireDependencyScope(projectName, pom, artifactId, scope);
             }
+            requireDependencyArtifacts(projectName, pom, expectedArtifacts);
         }
     }
 
@@ -118,15 +127,57 @@ public abstract class PublicationMetadataCheckTask extends DefaultTask {
         }
     }
 
-    private static void requireDependencyScope(String projectName, String pom, String artifactId, String scope) {
-        Pattern pattern = Pattern.compile(
-                "<dependency>.*?<artifactId>\\Q" + artifactId + "\\E</artifactId>.*?<scope>\\Q" + scope
-                        + "\\E</scope>.*?</dependency>",
-                Pattern.DOTALL);
-        if (!pattern.matcher(pom).find()) {
+    static void requireDependencyScope(String projectName, String pom, String artifactId, String scope) {
+        if (!scope.equals(dependencyScopes(projectName, pom).get(artifactId))) {
             throw new GradleException(
-                    "Expected " + projectName + " POM to expose " + artifactId + " with " + scope + " scope.");
+                    "Expected " + projectName + " POM to declare " + artifactId + " with " + scope + " scope.");
         }
+    }
+
+    static void requireDependencyArtifacts(String projectName, String pom, Set<String> expected) {
+        Set<String> actual = dependencyScopes(projectName, pom).keySet();
+        if (!actual.equals(expected)) {
+            throw new GradleException(projectName + " POM dependencies differ: expected="
+                    + new java.util.TreeSet<>(expected) + ", actual=" + new java.util.TreeSet<>(actual));
+        }
+    }
+
+    private static Map<String, String> dependencyScopes(String projectName, String pom) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            Element project = factory.newDocumentBuilder().parse(new InputSource(new StringReader(pom)))
+                    .getDocumentElement();
+            Map<String, String> scopes = new java.util.HashMap<>();
+            for (Element dependencies : children(project, "dependencies")) {
+                for (Element dependency : children(dependencies, "dependency")) {
+                    String artifactId = childText(dependency, "artifactId");
+                    String scope = childText(dependency, "scope");
+                    if (scopes.put(artifactId, scope.isEmpty() ? "compile" : scope) != null) {
+                        throw new GradleException(projectName + " POM has ambiguous dependency " + artifactId);
+                    }
+                }
+            }
+            return scopes;
+        } catch (javax.xml.parsers.ParserConfigurationException | org.xml.sax.SAXException | java.io.IOException error) {
+            throw new GradleException("Failed to parse " + projectName + " POM.", error);
+        }
+    }
+
+    private static java.util.List<Element> children(Element parent, String name) {
+        var result = new java.util.ArrayList<Element>();
+        for (var child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof Element element && element.getTagName().equals(name)) {
+                result.add(element);
+            }
+        }
+        return result;
+    }
+
+    private static String childText(Element parent, String name) {
+        return children(parent, name).stream().findFirst().map(Element::getTextContent).orElse("").strip();
     }
 
     private static String read(String path) {

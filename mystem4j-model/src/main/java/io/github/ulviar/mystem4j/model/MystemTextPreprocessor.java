@@ -10,6 +10,17 @@ import java.util.Objects;
 public final class MystemTextPreprocessor {
     private MystemTextPreprocessor() {}
 
+    /**
+     * Replaces unsafe input characters while preserving a mapping to the original text.
+     *
+     * <p>Unpaired surrogates become {@code U+FFFD}; Unicode noncharacters and ISO control characters
+     * other than CR, LF, and tab become spaces. Each replacement creates a text issue. Valid
+     * supplementary characters, soft hyphens, and combining marks are preserved.
+     *
+     * @param text caller's original Java string
+     * @return immutable prepared text, original-text offset mapping, and replacement issues
+     * @throws NullPointerException if text is {@code null}
+     */
     public static MystemPreparedText prepare(String text) {
         return prepare(text, false);
     }
@@ -22,6 +33,7 @@ public final class MystemTextPreprocessor {
      *
      * @param text source text
      * @return prepared text with CR/LF replaced
+     * @throws NullPointerException if text is {@code null}
      */
     public static MystemPreparedText prepareJsonLine(String text) {
         return prepare(text, true);

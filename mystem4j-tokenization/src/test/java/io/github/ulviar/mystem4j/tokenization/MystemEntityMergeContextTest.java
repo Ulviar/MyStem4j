@@ -58,6 +58,51 @@ class MystemEntityMergeContextTest {
     }
 
     @Test
+    void mergesEveryAdjacentEntityAndPreservesDelimiters() {
+        List<String> entities = List.of("a@one.test", "https://two.test/path?q=1#part");
+        for (String first : entities) {
+            for (String second : entities) {
+                for (String delimiter : List.of(",", ";", ")[")) {
+                    String input = "😀до[" + first + delimiter + second + "]после";
+                    List<MystemSearchToken> tokens = tokenizeOriginalText(input);
+                    List<MystemSearchToken> actual = tokens.stream()
+                            .filter(token -> token.type() == MystemSearchTokenType.EMAIL
+                                    || token.type() == MystemSearchTokenType.URL).toList();
+                    assertEquals(List.of(first, second), actual.stream().map(MystemSearchToken::text).toList(), input);
+                    for (int index = 0; index < actual.size(); index++) {
+                        String text = List.of(first, second).get(index);
+                        String domain = text.startsWith("https:") ? "two.test" : "one.test";
+                        assertEquals(List.of(new MystemTokenForm(text, true), new MystemTokenForm(domain, true)),
+                                actual.get(index).forms(), input);
+                    }
+                    assertPartition(input, tokens);
+                }
+            }
+        }
+    }
+
+    @Test
+    void invalidCandidateDoesNotHideLaterValidEmail() {
+        String input = "invalid@host,a@one.test,b@two.test";
+        List<MystemSearchToken> tokens = tokenizeOriginalText(input);
+        assertEquals(List.of("a@one.test", "b@two.test"), tokens.stream()
+                .filter(token -> token.type() == MystemSearchTokenType.EMAIL).map(MystemSearchToken::text).toList());
+        assertPartition(input, tokens);
+    }
+
+    @Test
+    void keepsEmailCharactersAndOrdinaryCommasInsideUrls() {
+        for (String input : List.of("https://user@example.com/path", "https://one.test/path?email=a@two.test",
+                "https://one.test/a,b;c?q=x,y")) {
+            List<MystemSearchToken> tokens = tokenizeOriginalText(input);
+            MystemSearchToken url = onlyTokenOfType(tokens, MystemSearchTokenType.URL, input);
+            assertEquals(input, url.text());
+            assertTrue(tokens.stream().noneMatch(token -> token.type() == MystemSearchTokenType.EMAIL));
+            assertPartition(input, tokens);
+        }
+    }
+
+    @Test
     void leavesInvalidEntityCandidatesUnmerged() {
         for (String input : List.of("not-a-url://", "https://", "invalid@@example.com", "me@example")) {
             List<MystemSearchToken> tokens = tokenizeOriginalText(input);

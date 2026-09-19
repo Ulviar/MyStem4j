@@ -96,11 +96,11 @@ final class MystemDistribution {
             throw new GradleException(
                     "Unsupported MyStem target architecture in " + os + ". MyStem4j currently supports x64 MyStem distributions.");
         }
-        if (normalized.contains("win")) {
-            return "windows";
-        }
         if (normalized.contains("mac") || normalized.contains("darwin") || normalized.contains("os-x")) {
             return "macos";
+        }
+        if (normalized.contains("win")) {
+            return "windows";
         }
         if (normalized.contains("linux")) {
             return "linux";

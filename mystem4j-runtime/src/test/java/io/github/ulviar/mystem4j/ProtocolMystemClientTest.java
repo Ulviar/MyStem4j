@@ -59,6 +59,18 @@ class ProtocolMystemClientTest {
     }
 
     @Test
+    void validatesModeBeforeExecutableResolution() {
+        assertThrows(MystemInvalidOptionsException.class, () -> Mystem.builder()
+                .executable(temporaryDirectory.resolve("missing-mystem"))
+                .options(MystemOptions.builder().format(MystemOutputFormat.TEXT).build())
+                .session().build());
+        assertThrows(MystemInvalidOptionsException.class, () -> Mystem.builder()
+                .executable(temporaryDirectory.resolve("missing-mystem"))
+                .options(MystemOptions.builder().newLineEachWord(true).build())
+                .pooled().build());
+    }
+
+    @Test
     void rejectsNewLineEachWordInReusableSession() throws IOException {
         Path executable = fakeInteractiveMystem();
 

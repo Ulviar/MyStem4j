@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import io.github.ulviar.mystem4j.MystemInvalidOptionsException
+import io.github.ulviar.mystem4j.MystemClosedException
 import io.github.ulviar.mystem4j.MystemOutputFormat
 import io.github.ulviar.mystem4j.MystemPoolOptions
 import kotlin.test.Test
@@ -12,6 +13,8 @@ import kotlin.test.assertFailsWith
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.minutes
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class MystemDslTest {
     @TempDir
@@ -120,7 +123,7 @@ class MystemDslTest {
                 minIdle(0)
             }
         }.use { client ->
-            assertFailsWith<RuntimeException> {
+            assertFailsWith<MystemInvalidOptionsException> {
                 "a\nb".analyzeWith(client)
             }
         }
@@ -138,19 +141,39 @@ class MystemDslTest {
         }
     }
 
-    private fun fakeMystem(): Path {
+    @ParameterizedTest
+    @ValueSource(strings = ["one-shot", "session", "pool"])
+    fun preservesPayloadLimitsRecoveryAndUseLifecycle(mode: String) {
+        val client = mystemClient {
+            executable(fakeMystem(interactive = mode != "one-shot"))
+            maxRequestChars(4)
+            maxRequestBytes(8)
+            when (mode) {
+                "session" -> session()
+                "pool" -> pooled { maxSize(1) }
+            }
+        }
+        client.use {
+            assertEquals("[{\"text\":\"мама\"}]\n", "мама".analyzeWith(it).output())
+            assertFailsWith<MystemInvalidOptionsException> { "мамамама".analyzeWith(it) }
+            assertEquals("[{\"text\":\"ok\"}]\n", "ok".analyzeWith(it).output())
+        }
+        assertFailsWith<MystemClosedException> { "ok".analyzeWith(client) }
+    }
+
+    private fun fakeMystem(interactive: Boolean = false): Path {
         val executable = temporaryDirectory.resolve("fake-mystem${executableSuffix()}")
-        Files.writeString(executable, launcher(), StandardCharsets.UTF_8)
+        Files.writeString(executable, launcher(interactive), StandardCharsets.UTF_8)
         if (!isWindows()) {
             executable.toFile().setExecutable(true, false)
         }
         return executable
     }
 
-    private fun launcher(): String {
+    private fun launcher(interactive: Boolean): String {
         val javaExecutable = Path.of(System.getProperty("java.home"), "bin", javaExecutableName())
         val classpath = System.getProperty("java.class.path")
-        val mainClass = FakeMystemProcess::class.java.name
+        val mainClass = FakeMystemProcess::class.java.name + if (interactive) " --fake-interactive" else ""
         return if (isWindows()) {
             "@echo off\r\n\"$javaExecutable\" -cp \"$classpath\" $mainClass %*\r\nexit /b %ERRORLEVEL%\r\n"
         } else {

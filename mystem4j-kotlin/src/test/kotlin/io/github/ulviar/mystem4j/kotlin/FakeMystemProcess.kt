@@ -8,6 +8,13 @@ import kotlin.io.path.isRegularFile
 internal object FakeMystemProcess {
     @JvmStatic
     fun main(args: Array<String>) {
+        if (args.firstOrNull() == "--fake-interactive") {
+            System.`in`.bufferedReader(StandardCharsets.UTF_8).forEachLine {
+                println("""[{"text":"${escapeJson(it)}"}]""")
+                System.out.flush()
+            }
+            return
+        }
         if (copyInputFileToStdout(args.toList())) {
             return
         }

@@ -32,7 +32,11 @@ public final class FakeMystemProcess {
             case "largeOutput" -> System.out.print("0123456789abcdefghijklmnopqrstuvwxyz");
             case "notMystem" -> System.out.println("ready");
             case "sleep" -> sleep(Long.MAX_VALUE);
-            case "interactiveEcho" -> interactiveEcho();
+            case "interactiveEcho" -> {
+                if (!copyInputFileToStdout(List.of(modeArgs))) {
+                    interactiveEcho();
+                }
+            }
             case "exitOnFirstRequest" -> exitOnFirstRequest();
             case "slowInteractive" -> slowInteractive();
             case "noisyInteractive" -> noisyInteractive();
@@ -40,7 +44,27 @@ public final class FakeMystemProcess {
             case "crashOnDie" -> crashOnDie();
             case "recordPidInteractive" -> recordPidAndRun(modeArgs[0], FakeMystemProcess::interactiveEcho);
             case "recordPidSleep" -> recordPidAndRun(modeArgs[0], () -> sleep(Long.MAX_VALUE));
+            case "controlledOneShot" -> recordPidAndRun(modeArgs[0], () -> controlledRequest(modeArgs, false));
+            case "controlledInteractive" -> recordPidAndRun(modeArgs[0], () -> controlledRequest(modeArgs, true));
+            case "gatedInteractive" -> gatedInteractive(modeArgs);
             default -> throw new IllegalArgumentException("unknown fake MyStem mode: " + mode);
+        }
+    }
+
+    private static void gatedInteractive(String[] args) throws Exception {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+            String input;
+            while ((input = reader.readLine()) != null) {
+                Files.writeString(Path.of(args[2]), input + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                if (input.equals("hold")) {
+                    Files.writeString(Path.of(args[0]), "ready");
+                    while (!Files.exists(Path.of(args[1]))) {
+                        Thread.sleep(5);
+                    }
+                }
+                System.out.print(jsonLine(input));
+                System.out.flush();
+            }
         }
     }
 
@@ -187,6 +211,21 @@ public final class FakeMystemProcess {
 
     private static void sleep(long millis) throws InterruptedException {
         Thread.sleep(millis);
+    }
+
+    private static void controlledRequest(String[] args, boolean interactive) throws Exception {
+        String input = interactive
+                ? new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine()
+                : new String(System.in.readAllBytes(), StandardCharsets.UTF_8);
+        Files.writeString(Path.of(args[1]), "ready", StandardCharsets.UTF_8);
+        while (!Files.exists(Path.of(args[2]))) {
+            Thread.sleep(10);
+        }
+        System.out.print(jsonLine(input));
+        System.out.flush();
+        if (interactive) {
+            sleep(Long.MAX_VALUE);
+        }
     }
 
     private static String jsonLine(String text) {

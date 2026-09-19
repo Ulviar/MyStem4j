@@ -20,7 +20,7 @@ public final class MystemProbe {
     }
 
     /**
-     * Probes an explicit MyStem executable with the default timeout.
+     * Probes an explicit MyStem executable with the default five-second timeout.
      *
      * @param executable executable path
      * @return probe result
@@ -33,8 +33,10 @@ public final class MystemProbe {
      * Probes an explicit MyStem executable by running one JSON smoke request.
      *
      * @param executable executable path
-     * @param timeout request timeout
-     * @return probe result
+     * @param timeout positive request execution timeout
+     * @return validated smoke-response metadata
+     * @throws MystemException when execution or smoke-response validation fails
+     * @throws IllegalArgumentException when timeout is zero or negative
      */
     public static MystemProbeResult probe(Path executable, Duration timeout) {
         Path resolvedExecutable = MystemExecutableResolver.resolve(Optional.of(executable), false);

@@ -57,6 +57,7 @@ final class MystemExecutableResolver {
         return Arrays.stream(pathValue.split(File.pathSeparator))
                 .filter(entry -> !entry.isBlank())
                 .map(entry -> Path.of(entry).resolve(executableName(osName)))
+                .filter(Files::isRegularFile)
                 .filter(Files::isExecutable)
                 .findFirst();
     }

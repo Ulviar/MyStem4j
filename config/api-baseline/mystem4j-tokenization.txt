@@ -9,6 +9,12 @@ public final class io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPo
   public static io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy valueOf(java.lang.String);
 }
 
+## io.github.ulviar.mystem4j.tokenization.MystemSearchTermNormalizer
+Compiled from "MystemSearchTermNormalizer.java"
+public final class io.github.ulviar.mystem4j.tokenization.MystemSearchTermNormalizer {
+  public static java.lang.String normalize(java.lang.String);
+}
+
 ## io.github.ulviar.mystem4j.tokenization.MystemSearchToken
 Compiled from "MystemSearchToken.java"
 public final class io.github.ulviar.mystem4j.tokenization.MystemSearchToken extends java.lang.Record {

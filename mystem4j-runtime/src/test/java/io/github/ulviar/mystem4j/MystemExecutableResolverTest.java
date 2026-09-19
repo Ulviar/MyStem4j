@@ -82,6 +82,25 @@ class MystemExecutableResolverTest {
     }
 
     @Test
+    void skipsDirectoryBeforeValidPathCandidate() throws IOException {
+        Path first = temporaryDirectory.resolve("first");
+        Files.createDirectories(first.resolve("mystem"));
+        Path valid = executable("second/mystem");
+
+        assertEquals(valid, MystemExecutableResolver.resolve(Optional.empty(), true, null, null,
+                first + File.pathSeparator + valid.getParent(), "Linux"));
+    }
+
+    @Test
+    void rejectsPathContainingOnlyDirectoryCandidates() throws IOException {
+        Path first = temporaryDirectory.resolve("first");
+        Files.createDirectories(first.resolve("mystem"));
+
+        assertThrows(MystemExecutableNotFoundException.class,
+                () -> MystemExecutableResolver.resolve(Optional.empty(), true, null, null, first.toString(), "Linux"));
+    }
+
+    @Test
     void rejectsMissingExecutableWhenPathSearchDisabled() {
         assertThrows(
                 MystemExecutableNotFoundException.class,

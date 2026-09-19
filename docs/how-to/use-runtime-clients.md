@@ -101,6 +101,11 @@ One-shot and pooled clients can be shared until `close()` is called. Reusable
 session clients serialize requests through one MyStem process; use them from one
 caller at a time.
 
+Close a shared client after callers have stopped submitting work. Closing waits for
+active requests to finish or reach `requestTimeout`, then releases processes.
+See [limits, closing and interruption](../reference/runtime-api.md#limits-and-timeouts)
+for the exact lifecycle and payload contract.
+
 ## File requests
 
 File requests avoid loading large outputs into JVM memory when MyStem can write

@@ -55,6 +55,7 @@ public final class MystemSearchTokenizer {
         ArrayList<MystemPreparedSearchToken> result = new ArrayList<>(document.tokens().size());
         String originalText = document.originalText();
         int cursor = 0;
+        int previousModelEnd = 0;
         for (MystemToken token : document.tokens()) {
             if (!token.hasKnownOffsets()) {
                 if (options.unmatchedTokenPolicy() == MystemUnmatchedTokenPolicy.FAIL) {
@@ -62,16 +63,22 @@ public final class MystemSearchTokenizer {
                 }
                 continue;
             }
-            validateTokenRange(originalText, token);
+            validateTokenRange(originalText, token.text(), token.startOffset(), token.endOffset());
             if (token.text().isEmpty()) {
                 continue;
             }
+            if (token.startOffset() < previousModelEnd) {
+                throw new MystemTokenizationException("MyStem token source ranges overlap or are out of order: "
+                        + token.startOffset() + " < " + previousModelEnd);
+            }
+            previousModelEnd = token.endOffset();
             MystemPreparedSearchToken prepared = MystemPreparedSearchToken.from(token, options);
             if (prepared.startOffset < cursor) {
-                prepared = relocateOverlappingToken(originalText, prepared, cursor);
+                prepared = trimConsumedPrefix(originalText, prepared, cursor, options);
                 if (prepared == null) {
                     continue;
                 }
+                validateTokenRange(originalText, prepared.text, prepared.startOffset, prepared.endOffset);
             }
             if (prepared.startOffset > cursor) {
                 appendGapTokens(originalText, cursor, prepared.startOffset, result, options);
@@ -87,10 +94,22 @@ public final class MystemSearchTokenizer {
         return result;
     }
 
-    private static void validateTokenRange(String originalText, MystemToken token) {
-        if (token.endOffset() > originalText.length()) {
-            throw new MystemTokenizationException("MyStem token offsets exceed original text length: " + token);
+    private static void validateTokenRange(String originalText, String text, int start, int end) {
+        if (end > originalText.length()) {
+            throw new MystemTokenizationException("MyStem token offsets exceed original text length: " + start + ".." + end);
         }
+        if (!text.isEmpty() && start == end) {
+            throw new MystemTokenizationException("Nonempty MyStem token has an empty source range: " + start);
+        }
+        if (splitsSurrogatePair(originalText, start) || splitsSurrogatePair(originalText, end)) {
+            throw new MystemTokenizationException("MyStem token offsets split a UTF-16 surrogate pair: " + start + ".." + end);
+        }
+    }
+
+    private static boolean splitsSurrogatePair(String text, int offset) {
+        return offset > 0 && offset < text.length()
+                && Character.isHighSurrogate(text.charAt(offset - 1))
+                && Character.isLowSurrogate(text.charAt(offset));
     }
 
     private static void appendGapTokens(
@@ -147,13 +166,18 @@ public final class MystemSearchTokenizer {
         return index == startOffset ? startOffset + Character.charCount(text.codePointAt(startOffset)) : index;
     }
 
-    private static MystemPreparedSearchToken relocateOverlappingToken(
-            String originalText, MystemPreparedSearchToken token, int cursor) {
-        int relocated = originalText.indexOf(token.text, cursor);
-        if (relocated < 0) {
-            return token.endOffset <= cursor ? null : token.withOffsets(cursor, token.endOffset);
+    private static MystemPreparedSearchToken trimConsumedPrefix(
+            String originalText, MystemPreparedSearchToken token, int cursor, MystemSearchTokenizerOptions options) {
+        // Suffix recovery can consume the beginning of a following copied token.
+        // Keep its remaining source range; looking for the text again would jump
+        // over intervening words and detach their analyses from the original input.
+        if (token.endOffset <= cursor) {
+            return null;
         }
-        return token.withOffsets(relocated, relocated + token.text.length());
+        return token.lemmas.isEmpty()
+                ? MystemPreparedSearchToken.gap(
+                        originalText.substring(cursor, token.endOffset), cursor, token.endOffset, options)
+                : token.withOffsets(cursor, token.endOffset);
     }
 
     private static void extendTokenForDroppedSuffixes(String originalText, MystemPreparedSearchToken token) {

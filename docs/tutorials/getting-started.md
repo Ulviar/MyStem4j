@@ -3,6 +3,12 @@
 This tutorial builds the smallest useful Gradle setup: download MyStem, probe it,
 and send one request through `mystem4j-runtime`.
 
+Use Gradle 9.7.1 running on JDK 25. Set `JAVA_HOME` or your IDE's Gradle JVM to that
+installation; the compilation toolchain below does not select the Gradle JVM.
+On Apple Silicon, install
+[Rosetta](../how-to/troubleshooting.md#mystem-reports-bad-cpu-type-on-apple-silicon)
+before running the Intel macOS MyStem binary prepared by the plugin.
+
 ## 1. Configure plugin and dependency repositories
 
 Create `settings.gradle.kts`:
@@ -39,14 +45,14 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 
 dependencies {
     testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 }
 
 mystem4j {

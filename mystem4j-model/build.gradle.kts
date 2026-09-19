@@ -13,14 +13,14 @@ mystem4jPublishing {
     moduleDescription.set("MyStem JSON model parsing, grammar parsing, Unicode preparation, and offset alignment.")
 }
 
-val realMystemTest by sourceSets.creating {
+val realMystemTest = sourceSets.create("realMystemTest") {
     java.srcDir("src/realMystemTest/java")
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += output + compileClasspath
 }
 
 dependencies {
-    api(libs.jackson.core)
+    implementation(libs.jackson.core)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.jazzer.junit)

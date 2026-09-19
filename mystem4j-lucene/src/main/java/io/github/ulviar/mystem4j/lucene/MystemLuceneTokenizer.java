@@ -184,7 +184,9 @@ public final class MystemLuceneTokenizer extends Tokenizer {
     }
 
     private boolean loadNextChunk() throws IOException {
-        while (!inputExhausted && pendingInput.length() < analysisOptions.maxChunkChars()) {
+        // One UTF-16 code unit of lookahead makes boundaries independent of Reader fragmentation,
+        // and keeps a high surrogate pending until its possible low surrogate has been read.
+        while (!inputExhausted && pendingInput.length() <= analysisOptions.maxChunkChars()) {
             readMore();
         }
         if (pendingInput.isEmpty()) {
@@ -192,7 +194,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
             return false;
         }
 
-        int chunkEnd = inputExhausted
+        int chunkEnd = inputExhausted && pendingInput.length() <= analysisOptions.maxChunkChars()
                 ? pendingInput.length()
                 : chooseChunkEnd(pendingInput, analysisOptions.maxChunkChars());
         String chunk = pendingInput.substring(0, chunkEnd);
@@ -212,13 +214,19 @@ public final class MystemLuceneTokenizer extends Tokenizer {
             inputExhausted = true;
             return;
         }
-        if (totalCharsRead + read > analysisOptions.maxInputChars()) {
+        if (read > analysisOptions.maxInputChars() - totalCharsRead) {
             if (analysisOptions.oversizedInputPolicy() == MystemLuceneOversizedInputPolicy.FAIL) {
                 throw new IOException(
                         "Lucene field exceeds MyStem tokenizer maxInputChars: " + analysisOptions.maxInputChars());
             }
-            int allowed = truncationBoundary(buffer, analysisOptions.maxInputChars() - totalCharsRead, read);
+            int allowed = analysisOptions.maxInputChars() - totalCharsRead;
             pendingInput.append(buffer, 0, allowed);
+            // The retained high surrogate may belong to an earlier Reader.read call.
+            if (!pendingInput.isEmpty()
+                    && Character.isHighSurrogate(pendingInput.charAt(pendingInput.length() - 1))
+                    && Character.isLowSurrogate(buffer[allowed])) {
+                pendingInput.setLength(pendingInput.length() - 1);
+            }
             totalCharsRead += read;
             drainRemainingInput(buffer);
             inputExhausted = true;
@@ -266,19 +274,6 @@ public final class MystemLuceneTokenizer extends Tokenizer {
             return limit == 1 ? limit + 1 : limit - 1;
         }
         return limit;
-    }
-
-    private static int truncationBoundary(char[] input, int limit, int available) {
-        int boundedLimit = Math.max(0, Math.min(limit, available));
-        if (boundedLimit == 0) {
-            return 0;
-        }
-        if (boundedLimit < available
-                && Character.isHighSurrogate(input[boundedLimit - 1])
-                && Character.isLowSurrogate(input[boundedLimit])) {
-            return boundedLimit - 1;
-        }
-        return boundedLimit;
     }
 
     private static boolean isPreferredSplitAfter(int codePoint) {

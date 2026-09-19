@@ -20,6 +20,7 @@ dependencies {
 
     implementation(project(":mystem4j-model"))
 
+    testImplementation(libs.lucene.analysis.common)
     testImplementation(libs.lucene.test.framework)
     testRuntimeOnly(libs.junit.vintage.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
@@ -30,6 +31,12 @@ tasks.withType<Test>().configureEach {
 
     inputs.property("mystem4j.executable", realMystemExecutable)
     systemProperty("mystem4j.executable", realMystemExecutable.get())
+
+    val exampleDoc = rootProject.layout.projectDirectory.file("docs/how-to/use-lucene-analyzer.md")
+    val exampleSource = layout.projectDirectory.file("src/test/java/example/LuceneSearchExample.java")
+    inputs.files(exampleDoc, exampleSource).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("mystem4j.luceneExampleDoc", exampleDoc.asFile.absolutePath)
+    systemProperty("mystem4j.luceneExampleSource", exampleSource.asFile.absolutePath)
 }
 
 tasks.register<Test>("memorySmokeTest") {

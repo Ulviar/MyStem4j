@@ -14,30 +14,33 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Supplier;
 
 final class OneShotMystemClient implements MystemClient {
     private final Path executable;
     private final MystemOptions options;
     private final Duration requestTimeout;
-    private final int maxRequestChars;
-    private final int maxRequestBytes;
+    private final MystemRequestLimits requestLimits;
+    private final int maxResponseChars;
     private final int maxResponseBytes;
     private final boolean includeInputInDiagnostics;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final ReentrantReadWriteLock closeLock = new ReentrantReadWriteLock();
 
     OneShotMystemClient(
             Path executable,
             MystemOptions options,
             Duration requestTimeout,
-            int maxRequestChars,
-            int maxRequestBytes,
+            MystemRequestLimits requestLimits,
+            int maxResponseChars,
             int maxResponseBytes,
             boolean includeInputInDiagnostics) {
         this.executable = Objects.requireNonNull(executable, "executable");
         this.options = Objects.requireNonNull(options, "options");
         this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
-        this.maxRequestChars = maxRequestChars;
-        this.maxRequestBytes = maxRequestBytes;
+        this.requestLimits = requestLimits;
+        this.maxResponseChars = maxResponseChars;
         this.maxResponseBytes = maxResponseBytes;
         this.includeInputInDiagnostics = includeInputInDiagnostics;
     }
@@ -54,10 +57,12 @@ final class OneShotMystemClient implements MystemClient {
 
     @Override
     public MystemRawResult analyze(String text) {
-        ensureOpen();
+        return whileOpen(() -> analyzeText(text));
+    }
+
+    private MystemRawResult analyzeText(String text) {
         Objects.requireNonNull(text, "text");
-        int inputBytes = text.getBytes(options.encoding().charset()).length;
-        validateRequestSize(text.length(), inputBytes);
+        int inputBytes = requestLimits.validate(text);
 
         CommandResult result;
         try {
@@ -81,7 +86,10 @@ final class OneShotMystemClient implements MystemClient {
 
     @Override
     public MystemFileContentResult analyzeFile(Path input) {
-        ensureOpen();
+        return whileOpen(() -> analyzeFileContent(input));
+    }
+
+    private MystemFileContentResult analyzeFileContent(Path input) {
         Path validatedInput = validateInputFile(input);
         CommandResult result = runFileCommand(List.of(validatedInput.toString()));
         ensureSuccessful(result, "MyStem file request failed", validatedInput.toString());
@@ -97,7 +105,10 @@ final class OneShotMystemClient implements MystemClient {
 
     @Override
     public MystemFileResult analyzeFile(Path input, Path output) {
-        ensureOpen();
+        return whileOpen(() -> analyzeFileOutput(input, output));
+    }
+
+    private MystemFileResult analyzeFileOutput(Path input, Path output) {
         Path validatedInput = validateInputFile(input);
         Path validatedOutput = validateOutputFile(output);
         validateDifferentFiles(validatedInput, validatedOutput);
@@ -111,7 +122,22 @@ final class OneShotMystemClient implements MystemClient {
 
     @Override
     public void close() {
-        closed.set(true);
+        closeLock.writeLock().lock();
+        try {
+            closed.set(true);
+        } finally {
+            closeLock.writeLock().unlock();
+        }
+    }
+
+    private <T> T whileOpen(Supplier<T> action) {
+        closeLock.readLock().lock();
+        try {
+            ensureOpen();
+            return action.get();
+        } finally {
+            closeLock.readLock().unlock();
+        }
     }
 
     private CommandResult runFileCommand(List<String> fileArguments) {
@@ -127,17 +153,6 @@ final class OneShotMystemClient implements MystemClient {
                     .execute();
         } catch (CommandExecutionException error) {
             throw MystemProtocolFailureMapper.map(error, "Failed to execute MyStem file process");
-        }
-    }
-
-    private void validateRequestSize(int chars, int bytes) {
-        if (chars > maxRequestChars) {
-            throw new MystemInvalidOptionsException(
-                    "MyStem request exceeds maxRequestChars: " + chars + " > " + maxRequestChars);
-        }
-        if (bytes > maxRequestBytes) {
-            throw new MystemInvalidOptionsException(
-                    "MyStem request exceeds maxRequestBytes: " + bytes + " > " + maxRequestBytes);
         }
     }
 
@@ -186,6 +201,9 @@ final class OneShotMystemClient implements MystemClient {
         }
         if (result.stdoutTruncated() || result.stderrTruncated()) {
             throw new MystemOutputLimitException(message + ": output exceeded " + maxResponseBytes + " bytes");
+        }
+        if (result.stdout().length() > maxResponseChars) {
+            throw new MystemOutputLimitException(message + ": output exceeded " + maxResponseChars + " characters");
         }
         if (!result.succeeded()) {
             OptionalInt exitCode = result.exitCode();

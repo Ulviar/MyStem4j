@@ -20,6 +20,24 @@ One-shot/file MyStem output for multiline input may contain multiple top-level J
 arrays. The parser accepts that stream shape and concatenates the parsed tokens in
 order.
 
+Each array item must be a token object. Known fields are optional, but if present
+must have the following JSON types:
+
+| Object | Field | Type when present | Value when absent |
+| --- | --- | --- | --- |
+| Token | `text` | String | Empty string |
+| Token | `analysis` | Array of analysis objects | Empty list |
+| Analysis | `lex` | String | Empty string |
+| Analysis | `gr` | String | Grammar parsed from an empty string |
+| Analysis | `wt` | Number, including an integer | Empty `OptionalDouble` |
+
+Explicit `null` is rejected for every known field. A wrong type raises
+`MystemJsonParseException` with the field name and JSON line/column; it does not
+silently discard morphology. Empty strings and empty analysis arrays are valid.
+Unknown fields and their nested contents are ignored, allowing MyStem to supply
+additional metadata. Grammar tags are preserved without checking a fixed
+vocabulary, and numeric weights are not restricted to a probability range.
+
 ## Domain Terms
 
 - Lemma: normalized dictionary form, such as `мыть` for `мыла`.
@@ -37,8 +55,25 @@ More definitions are in the [glossary](glossary.md).
 - `MystemGrammar` - raw grammar string, optional part of speech, common grammemes, and variants.
 - `MystemGrammarVariant` - grammemes for one inflection alternative.
 
-Unknown token offsets are represented as `-1`. A token must have either both offsets
-known or both offsets unknown.
+Token ranges are half-open: `startOffset` is inclusive, `endOffset` is exclusive.
+Both count Java UTF-16 code units in `MystemDocument.originalText()`, including when
+the parser receives a `MystemPreparedText`. Unknown token offsets are represented
+as `-1`; a token must have either both offsets known or both offsets unknown.
+
+`MystemToken.text()` is the surface returned by MyStem. It can differ from the
+original source slice because MyStem may omit soft hyphens and preprocessing may
+replace unsafe characters. To recover the source, use the known range:
+
+```java
+if (token.hasKnownOffsets()) {
+    String source = document.originalText().substring(token.startOffset(), token.endOffset());
+}
+```
+
+Collections are immutable copies. Token and analysis list order is preserved;
+grammeme sets have no specified iteration order. The public `MystemDocument`
+constructor copies its inputs but does not validate token ranges against its
+text or perform alignment.
 
 ## Grammar Parsing
 
@@ -71,7 +106,12 @@ for reusable JSON-line clients.
 - non-fatal issues.
 
 Use `originalOffsetFor(int)` to map a prepared-text offset back to the original
-text.
+text. It accepts every UTF-16 position from `0` through `text().length()`, including
+the end position. The mapping is monotonic and maps that end to
+`originalText().length()`. Positions outside this range throw
+`IllegalArgumentException`. Map both endpoints when translating a range; a
+supplementary noncharacter can become one space, so prepared and original lengths
+need not match.
 
 ## Issue Types
 
@@ -82,7 +122,14 @@ text.
 | `CONTROL_CHARACTER` | input contained an unsafe control character | preprocessor replaces it with a space |
 | `NONCHARACTER` | input contained a Unicode noncharacter | preprocessor replaces it with a space |
 
+For replacement issues, `offset` and `length` describe the original UTF-16 source
+range. For `UNMATCHED_TOKEN`, `offset` is the alignment cursor and `length` is the
+returned MyStem surface length. They are diagnostic context, not a matched source
+range; do not use them directly for `substring`. The token's two offsets are `-1`.
+
 ## Exceptions
 
-`MystemJsonParseException` is thrown when JSON cannot be parsed as one or more
-MyStem JSON arrays.
+`MystemJsonParseException` is thrown for invalid JSON, unsupported array/object
+structure, or a wrong type for a known field. Syntax and shape diagnostics include
+the JSON line and column when available. An alignment failure is non-fatal and is
+reported through document issues instead.

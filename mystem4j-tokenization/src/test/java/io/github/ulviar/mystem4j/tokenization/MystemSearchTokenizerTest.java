@@ -228,7 +228,6 @@ class MystemSearchTokenizerTest {
                 tokenAt(text, "example", text.indexOf('@')),
                 tokenAt(text, ".", text.indexOf('@')),
                 tokenAt(text, "com", text.indexOf('@')),
-                tokenAt(text, ".", text.indexOf('@') + 1),
                 tokenAt(text, ".", text.lastIndexOf('.')));
 
         List<MystemSearchToken> tokens = tokenizer.tokenize(document);
@@ -399,6 +398,37 @@ class MystemSearchTokenizerTest {
         MystemDocument document = document("x", new MystemToken("x", 0, 2, List.of()));
 
         assertThrows(MystemTokenizationException.class, () -> tokenizer.tokenize(document));
+    }
+
+    @Test
+    void rejectsOffsetsInsideAValidSurrogatePair() {
+        for (MystemToken invalid : List.of(
+                token("\uDE00", 2, 3),
+                token("\uD83D", 1, 2),
+                token("A\uD83D", 0, 2))) {
+            assertThrows(MystemTokenizationException.class,
+                    () -> tokenizer.tokenize(document("A😀B", invalid)));
+        }
+    }
+
+    @Test
+    void rejectsNonemptyModelTokenWithAnEmptySourceRange() {
+        assertThrows(MystemTokenizationException.class,
+                () -> tokenizer.tokenize(document("x", token("x", 0, 0))));
+    }
+
+    @Test
+    void rejectsOverlappingRangesRatherThanRelocatingTextInsideASurrogatePair() {
+        assertThrows(MystemTokenizationException.class,
+                () -> tokenizer.tokenize(document("x 😀", token("x", 0, 1), token("\uDE00", 0, 1))));
+    }
+
+    @Test
+    void preservesAlreadyUnpairedSurrogatesInSourceSlices() {
+        String original = "A\uD800 B\uDC00";
+        List<MystemSearchToken> tokens = tokenizer.tokenize(document(original));
+        assertEquals(original, tokens.stream().map(MystemSearchToken::text).collect(java.util.stream.Collectors.joining()));
+        assertEquals(original.length(), tokens.getLast().endOffset());
     }
 
     @Test

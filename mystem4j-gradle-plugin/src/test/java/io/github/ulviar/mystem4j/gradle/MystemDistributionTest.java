@@ -41,6 +41,11 @@ class MystemDistributionTest {
     }
 
     @Test
+    void resolvesDarwinAsMacos() {
+        assertEquals("macos-x64", MystemDistribution.forOs("Darwin", "3.1").platformId());
+    }
+
+    @Test
     void rejectsUnsupportedVersion() {
         assertThrows(GradleException.class, () -> MystemDistribution.forOs("linux", "3.0"));
     }

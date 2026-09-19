@@ -12,7 +12,9 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         if (providers.gradleProperty("mystem4j.useMavenLocal").map(String::toBoolean).orElse(false).get()) {
-            mavenLocal()
+            mavenLocal {
+                content { includeModule("com.github.ulviar", "icli") }
+            }
         }
         val githubPackagesUser = providers.gradleProperty("gpr.user")
             .orElse(providers.environmentVariable("GITHUB_ACTOR"))
@@ -22,6 +24,7 @@ dependencyResolutionManagement {
             maven {
                 name = "GitHubPackagesIcli"
                 url = uri("https://maven.pkg.github.com/Ulviar/iCLI")
+                content { includeModule("com.github.ulviar", "icli") }
                 credentials {
                     username = githubPackagesUser.get()
                     password = githubPackagesToken.get()

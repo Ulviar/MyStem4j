@@ -5,7 +5,7 @@ plugins {
     id("io.github.ulviar.mystem4j.publishing-conventions")
 }
 
-val realMystemPoolSoakTest by sourceSets.creating {
+val realMystemPoolSoakTest = sourceSets.create("realMystemPoolSoakTest") {
     java.srcDir("src/realMystemPoolSoakTest/java")
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += output + compileClasspath
@@ -20,7 +20,7 @@ mystem4jPublishing {
 }
 
 dependencies {
-    api("com.github.ulviar:icli:0.1.0")
+    implementation("com.github.ulviar:icli:0.1.0")
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -2,12 +2,15 @@ package io.github.ulviar.mystem4j.lucene;
 
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTermNormalizer;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.LowerCaseFilter;
+import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 
 /**
  * Lucene analyzer backed by a MyStem JSON client.
@@ -18,6 +21,10 @@ import org.apache.lucene.analysis.TokenStream;
  *
  * <p>Thread safety follows Lucene {@link Analyzer}: one analyzer instance can be reused by Lucene, but the supplied
  * {@link MystemClient} must be suitable for the caller's indexing or query-analysis concurrency.
+ *
+ * <p>Single-term normalization uses {@link MystemSearchTermNormalizer} without calling MyStem.
+ * It matches normalized aliases emitted during indexing, including for literal URL/email forms.
+ * It does not lemmatize query patterns or add synonyms.
  */
 public final class MystemLuceneAnalyzer extends Analyzer {
     private final MystemClient client;
@@ -128,7 +135,19 @@ public final class MystemLuceneAnalyzer extends Analyzer {
 
     @Override
     protected TokenStream normalize(String fieldName, TokenStream in) {
-        return new LowerCaseFilter(in);
+        return new TokenFilter(in) {
+            private final CharTermAttribute term = addAttribute(CharTermAttribute.class);
+
+            @Override
+            public boolean incrementToken() throws IOException {
+                if (!input.incrementToken()) {
+                    return false;
+                }
+                String normalized = MystemSearchTermNormalizer.normalize(term.toString());
+                term.setEmpty().append(normalized);
+                return true;
+            }
+        };
     }
 
     @Override

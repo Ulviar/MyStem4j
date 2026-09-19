@@ -14,6 +14,7 @@ final class ReusableMystemClient implements MystemClient {
     private final OneShotMystemClient fileClient;
     private final MystemOptions options;
     private final Duration requestTimeout;
+    private final MystemRequestLimits requestLimits;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicReference<MystemException> terminalFailure = new AtomicReference<>();
 
@@ -21,11 +22,13 @@ final class ReusableMystemClient implements MystemClient {
             ProtocolSession<String, String> session,
             OneShotMystemClient fileClient,
             MystemOptions options,
-            Duration requestTimeout) {
+            Duration requestTimeout,
+            MystemRequestLimits requestLimits) {
         this.session = Objects.requireNonNull(session, "session");
         this.fileClient = Objects.requireNonNull(fileClient, "fileClient");
         this.options = Objects.requireNonNull(options, "options");
         this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
+        this.requestLimits = requestLimits;
     }
 
     @Override
@@ -43,11 +46,11 @@ final class ReusableMystemClient implements MystemClient {
         ensureOpen();
         Objects.requireNonNull(text, "text");
         MystemJsonLineProtocol.validateRequest(text);
+        int inputBytes = requestLimits.validate(text);
         long started = System.nanoTime();
         try {
             String output = session.request(text, requestTimeout);
             Duration elapsed = Duration.ofNanos(System.nanoTime() - started);
-            int inputBytes = text.getBytes(options.encoding().charset()).length;
             MystemRequestStats stats = new MystemRequestStats(
                     elapsed,
                     MystemExecutionMode.SESSION,

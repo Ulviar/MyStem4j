@@ -13,7 +13,7 @@ mystem4jPublishing {
     moduleDescription.set("Search-oriented token preparation above parsed MyStem output.")
 }
 
-val realMystemTest by sourceSets.creating {
+val realMystemTest = sourceSets.create("realMystemTest") {
     java.srcDir("src/realMystemTest/java")
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += output + compileClasspath

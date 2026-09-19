@@ -18,6 +18,31 @@ objects. The model layer has no process-management code. The tokenization layer 
 no Lucene dependency. This keeps the lower modules usable in applications that do
 not use Lucene.
 
+## Public and implementation dependencies
+
+Only dependencies whose types appear in a module's public API are exposed to
+consumer compilation. Implementation dependencies are still supplied transitively
+at runtime.
+
+| Module | Public dependencies | Implementation dependencies |
+| --- | --- | --- |
+| runtime | none | iCLI |
+| model | none | Jackson Core |
+| tokenization | model | none |
+| Lucene | runtime, tokenization, Lucene Core | model |
+| Kotlin | runtime, Kotlin standard library | none |
+| Gradle plugin | Gradle API supplied by the host | no MyStem4j library dependencies |
+
+For example, a program using `MystemJsonParser` compiles against the model JAR and
+runs with Jackson Core. A program using tokenization also receives the public
+model types, but neither module introduces runtime process management or Lucene.
+Declare iCLI or Jackson directly if application code uses their APIs.
+
+Lucene owns orchestration of preparation, runtime calls, parsing, and search-token
+conversion. It may use the model directly because it composes these independent
+layers. The tokenization module does not acquire process-management responsibilities
+to hide that composition.
+
 ## MyStem Binary Boundary
 
 MyStem is a native executable with its own license. MyStem4j artifacts do not
@@ -49,6 +74,12 @@ behavior. Semantic enrichment such as number token types, URL/email merging, and
 currency expansion is controlled by `MystemSearchTokenizerOptions`, so applications
 can choose a conservative morphology pipeline or a richer entity-aware pipeline.
 
+The tokenization module also owns `MystemSearchTermNormalizer`, a pure character
+operation shared with Lucene single-term queries. Indexed forms retain literal
+values before adding normalized aliases. This lets prefix/wildcard normalization
+match the index without invoking morphology or discarding literal URL/email forms.
+All forms of one token keep the same source range and Lucene position.
+
 ## Process Modes
 
 One-shot mode starts a new MyStem process per request. It supports JSON, XML, and
@@ -58,6 +89,13 @@ Reusable and pooled modes keep MyStem processes open and use JSON-line framing:
 one input line maps to one JSON output line. These modes are JSON-only and reject
 raw multiline input. Pooled mode is the expected base for high-throughput indexing
 because it avoids process startup for every field while allowing concurrent callers.
+
+The runtime checks payload limits before handing requests to iCLI and admits pooled
+text requests through a fair semaphore sized to the worker capacity. This prevents
+repeated callers from starving queued callers in iCLI's worker-acquisition path.
+iCLI still owns worker startup, rotation, protocol I/O and process termination;
+MyStem4j owns the public waiting, validation and exception contract. See
+[runtime limits and lifecycle](../reference/runtime-api.md#limits-and-timeouts).
 
 ## Error Model
 
@@ -73,5 +111,5 @@ calls a JSON MyStem client, parses model objects, prepares search tokens, and em
 Lucene attributes. `MystemLuceneAnalyzer` wires that tokenizer into Lucene's
 `Analyzer` API.
 
-The Lucene module depends on Lucene `10.4.0` and follows the project Java 21
+The Lucene module depends on Lucene `10.5.1` and follows the project Java 25
 baseline.

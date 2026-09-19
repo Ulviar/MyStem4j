@@ -5,7 +5,8 @@ This page is for maintainers. User-facing artifact and API information lives in
 
 ## Java Baseline
 
-Published artifacts target Java 21.
+Published artifacts, including the Gradle plugin, target Java 25. The JVM running
+Gradle must also be Java 25 or newer when the plugin is applied.
 
 ## Maven Metadata
 

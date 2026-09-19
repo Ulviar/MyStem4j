@@ -1,6 +1,7 @@
 package io.github.ulviar.mystem4j.tokenization;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.ulviar.mystem4j.model.MystemAnalysis;
 import io.github.ulviar.mystem4j.model.MystemDocument;
@@ -60,20 +61,14 @@ class MystemSearchTokenizerGoldenTest {
     }
 
     @Test
-    void relocatesRepeatedOverlappingMystemTokensToNextMatchingSlice() {
+    void rejectsOverlappingModelTokensRatherThanGuessingAnotherOccurrence() {
         MystemDocument document = document(
                 "мама мама",
                 token("мама", 0, 4, "мама"),
                 token("мама", 0, 4, "мама"));
 
-        List<MystemSearchToken> tokens =
-                new MystemSearchTokenizer(MystemSearchTokenizerOptions.search()).tokenize(document);
-
-        assertEquals(List.of(
-                expected("мама", 0, 4, MystemSearchTokenType.WORD, form("мама", true)),
-                expected(" ", 4, 5, MystemSearchTokenType.SEPARATOR, form(" ", true)),
-                expected("мама", 5, 9, MystemSearchTokenType.WORD, form("мама", true))),
-                tokens);
+        assertThrows(MystemTokenizationException.class,
+                () -> new MystemSearchTokenizer(MystemSearchTokenizerOptions.search()).tokenize(document));
     }
 
     @Test

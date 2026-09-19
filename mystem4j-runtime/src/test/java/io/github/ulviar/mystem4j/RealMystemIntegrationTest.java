@@ -7,11 +7,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
@@ -98,6 +101,33 @@ class RealMystemIntegrationTest {
                 String output = futures.get(index).get().output();
                 assertTrue(output.startsWith("["));
                 assertTrue(output.contains("\"text\":\"Мама\""));
+            }
+        }
+    }
+
+    @Test
+    void longRequestsMakeProgressForEveryCallerInASingleWorkerPool() throws Exception {
+        Path executable = Path.of(System.getProperty("mystem4j.executable"));
+        String text = "Мамы любят книги. Разработчики пишут программы и обсуждают поиск. ".repeat(256);
+        CountDownLatch start = new CountDownLatch(1);
+        try (MystemClient client = Mystem.builder().executable(executable)
+                .options(MystemOptions.builder().grammarInfo(true).disambiguate(true).build())
+                .requestTimeout(Duration.ofSeconds(10))
+                .pooled(pool -> pool.maxSize(1).warmupSize(1).acquireTimeout(Duration.ofSeconds(10)))
+                .build(); var executor = Executors.newFixedThreadPool(4)) {
+            List<Future<Integer>> calls = new ArrayList<>();
+            for (int caller = 0; caller < 4; caller++) {
+                calls.add(executor.submit(() -> {
+                    start.await();
+                    for (int request = 0; request < 20; request++) {
+                        assertTrue(client.analyze(text).output().contains("\"text\":\"Мамы\""));
+                    }
+                    return 20;
+                }));
+            }
+            start.countDown();
+            for (Future<Integer> call : calls) {
+                assertEquals(20, call.get(60, TimeUnit.SECONDS));
             }
         }
     }

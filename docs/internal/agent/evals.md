@@ -79,8 +79,8 @@ exploration, or archives the completed plan as current documentation.
 
 ## Historical Conflict
 
-Scenario: a historical spec says Java below 21 is supported while current build and
-user docs require Java 21.
+Scenario: a historical spec says Java 21 is supported while current build and
+user docs require Java 25.
 
 Expected behavior: treats current build and user contract as authoritative and uses
 history only to explain the old statement.

@@ -5,7 +5,21 @@ directly.
 
 ## Add the module
 
+Use Kotlin 2.4.20 and a Java 25 toolchain:
+
 ```kotlin
+plugins {
+    kotlin("jvm") version "2.4.20"
+}
+
+repositories {
+    mavenCentral()
+}
+
+kotlin {
+    jvmToolchain(25)
+}
+
 dependencies {
     implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0")
 }

@@ -6,6 +6,8 @@ Artifact: `io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0`
 
 `mystem4j-kotlin` brings `mystem4j-runtime` transitively.
 
+Built with Kotlin 2.4.20 for Java 25. Applications require Java 25 or newer.
+
 ## Client DSL
 
 ```kotlin
@@ -36,7 +38,17 @@ fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient
 | `maxResponseBytes(Int)` | `maxResponseBytes(int)` |
 | `includeInputInDiagnostics(Boolean)` | `includeInputInDiagnostics(boolean)` |
 
-Defaults are the Java runtime defaults. See the [Runtime API reference](runtime-api.md).
+Defaults, validation, lifecycle, and exceptions are the Java runtime contracts.
+Clients default to one-shot execution, JSON, UTF-8, a three-second execution timeout,
+and disabled process I/O inactivity timeout. Close clients with `use { ... }`.
+Session and pool modes require JSON, reject `newLineEachWord(true)`, and accept
+text without CR/LF only. File requests always use separate one-shot processes.
+
+`maxRequestChars` and `maxResponseChars` count UTF-16 code units. Input byte limits
+use the configured encoding and exclude the added protocol newline; output limits
+include line endings. Java and Kotlin duration overloads apply the same validation.
+See [runtime limits](runtime-api.md#limits-and-timeouts) and
+[request statistics](runtime-api.md#request-statistics) for exact boundaries.
 
 ## Options DSL
 
@@ -45,7 +57,9 @@ fun mystemOptions(configure: MystemOptionsDsl.() -> Unit): MystemOptions
 ```
 
 `MystemOptionsDsl` maps to `MystemOptions.Builder` and exposes the same MyStem CLI
-options as the Java API.
+options as the Java API. All flags are disabled initially; calling a boolean DSL
+method without an argument enables that flag. `mergeWordForms()` requires
+`grammarInfo()` and `sentenceMarkers()` requires `copyInput()`.
 
 Example:
 

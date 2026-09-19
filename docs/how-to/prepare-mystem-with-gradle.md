@@ -7,6 +7,9 @@ where they belong.
 
 ## Apply the plugin
 
+Run Gradle on JDK 25 or newer. The plugin itself requires Java 25, independently
+of the toolchain used to compile your application.
+
 ```kotlin
 plugins {
     java
@@ -37,9 +40,11 @@ Set `acceptYandexMystemLicense` to `true` only after reviewing and accepting
 MyStem unless both `download` and `acceptYandexMystemLicense` are enabled.
 
 The plugin supports MyStem `3.1` official archives for `linux`, `macos`, and
-`windows`. The Windows and Linux archives are 64-bit archives. The macOS archive is
-the single macOS archive published by Yandex for MyStem 3.1; there is no separate
-ARM archive in the plugin metadata.
+`windows`. The Windows and Linux archives are 64-bit archives. The macOS archive
+contains an Intel executable; there is no separate ARM archive in the plugin metadata.
+On Apple Silicon, [install Rosetta](troubleshooting.md#mystem-reports-bad-cpu-type-on-apple-silicon)
+before running `mystemProbe` or code that starts MyStem. The plugin does not install
+Rosetta.
 
 ## Wire MyStem into tests
 

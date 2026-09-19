@@ -58,6 +58,13 @@ class OneShotMystemClientTest {
     }
 
     @Test
+    void builderRejectsDirectoryFixlistBeforeExecutableResolution() {
+        var options = MystemOptions.builder().fixlist(temporaryDirectory).build();
+        assertThrows(MystemInvalidOptionsException.class, () -> Mystem.builder()
+                .executable(temporaryDirectory.resolve("missing-mystem")).options(options).build());
+    }
+
+    @Test
     void analyzesFileToStdout() throws IOException {
         Path executable = fakeMystem();
         Path input = temporaryDirectory.resolve("input.txt");

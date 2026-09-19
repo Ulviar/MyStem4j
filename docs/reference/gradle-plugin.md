@@ -4,6 +4,9 @@ Plugin id: `io.github.ulviar.mystem4j`
 
 Maven artifact: `io.github.ulviar.mystem4j:mystem4j-gradle-plugin:0.1.0`
 
+Requires Java 25 or newer in the JVM running Gradle. Setting an application's
+Java toolchain does not change the Gradle JVM. Tested with Gradle 9.7.1.
+
 ```kotlin
 plugins {
     id("io.github.ulviar.mystem4j") version "0.1.0"

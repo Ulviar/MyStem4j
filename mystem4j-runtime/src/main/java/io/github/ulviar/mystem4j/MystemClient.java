@@ -42,7 +42,14 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Analyzes one text request and returns raw MyStem output.
      *
-     * @param text input text
+     * <p>Built-in session and pool clients accept single-line text without CR or LF only. One-shot clients
+     * accept multiline text. Payload limits count UTF-16 code units and bytes in the configured encoding,
+     * excluding any protocol newline. Invalid input rejected before execution leaves the client usable.
+     *
+     * <p>Execution failures can make a reusable session unusable; close and replace it. Pools replace failed
+     * workers. Interrupted requests preserve the caller's interrupt flag and fail with {@link MystemException}.
+     *
+     * @param text non-null input text, including an empty string if desired
      * @return raw result
      * @throws MystemException when the request cannot be executed or MyStem fails
      * @throws NullPointerException when {@code text} is {@code null}
@@ -52,7 +59,11 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Analyzes an input file and captures stdout as a string.
      *
-     * @param input readable input file
+     * <p>Built-in clients always use a separate one-shot process. Input files are not subject to text payload
+     * size limits or single-line restrictions; captured stdout is subject to response limits. Neither the
+     * client nor the result owns or deletes the input file.
+     *
+     * @param input readable regular input file in the configured encoding
      * @return raw file content result
      * @throws MystemException when the request cannot be executed, file arguments are invalid, or MyStem fails
      * @throws NullPointerException when {@code input} is {@code null}
@@ -62,8 +73,13 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Analyzes an input file and writes MyStem output directly to another file.
      *
-     * @param input readable input file
-     * @param output output file to create or overwrite
+     * <p>Built-in clients always use a separate one-shot process. File contents are not subject to in-memory
+     * text payload or captured-response limits. Input and output must identify different files, including
+     * through symlinks/hard links. The output parent directory must already exist. The caller retains file
+     * ownership; an execution failure may leave partial output.
+     *
+     * @param input readable regular input file in the configured encoding
+     * @param output writable output file to create or overwrite
      * @return file result metadata
      * @throws MystemException when the request cannot be executed, file arguments are invalid, or MyStem fails
      * @throws NullPointerException when {@code input} or {@code output} is {@code null}
@@ -71,9 +87,11 @@ public interface MystemClient extends AutoCloseable {
     MystemFileResult analyzeFile(Path input, Path output);
 
     /**
-     * Analyzes a collection of text requests sequentially.
+     * Analyzes a collection of text requests sequentially, stopping at the first failure.
      *
-     * @param texts input texts
+     * <p>This method does not parallelize requests on a pool or return partial results after a failure.
+     *
+     * @param texts input texts in iteration order
      * @return raw results in input order
      * @throws MystemException when any delegated request fails
      * @throws NullPointerException when {@code texts} or one of its elements is {@code null}
@@ -84,6 +102,9 @@ public interface MystemClient extends AutoCloseable {
 
     /**
      * Closes all process resources owned by this client.
+     *
+     * <p>Built-in clients wait for active requests to finish or reach their timeout before releasing resources.
+     * Closing is idempotent. Later requests fail with {@link MystemClosedException}.
      */
     @Override
     void close();

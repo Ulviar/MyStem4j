@@ -17,16 +17,26 @@ mystem4jPublishing {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
     explicitApi()
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
+        jvmTarget.set(JvmTarget.JVM_25)
         allWarningsAsErrors.set(true)
     }
 }
 
 dependencies {
     api(project(":mystem4j-runtime"))
+
+    constraints {
+        // BCV 0.18.2 still requests ASM 9.6, which cannot read Java 25 class files.
+        add("bcv-rt-jvm-cp", libs.asm.core) {
+            because("API validation must read Java 25 bytecode")
+        }
+        add("bcv-rt-jvm-cp", libs.asm.tree) {
+            because("API validation must read Java 25 bytecode")
+        }
+    }
 
     testImplementation(kotlin("test"))
     testImplementation(libs.junit.jupiter)

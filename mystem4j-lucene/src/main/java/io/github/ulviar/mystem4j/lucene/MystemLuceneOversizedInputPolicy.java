@@ -10,7 +10,7 @@ public enum MystemLuceneOversizedInputPolicy {
     FAIL,
 
     /**
-     * Analyze only the prefix that fits the configured limit, without ending on an unpaired UTF-16 surrogate.
+     * Analyze only the prefix that fits the configured limit, without splitting a valid UTF-16 surrogate pair.
      */
     TRUNCATE_AT_CODE_POINT_BOUNDARY
 }

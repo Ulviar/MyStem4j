@@ -16,8 +16,15 @@ import java.util.function.Consumer;
 /**
  * Builder for MyStem runtime clients.
  *
- * <p>The default mode is one-shot. Call {@link #session()} for one long-lived JSON-line process or
- * {@link #pooled(Consumer)} for a thread-safe pool of JSON-line processes.
+ * <p>The default mode is one-shot with JSON output and UTF-8 encoding. Call {@link #session()} for one
+ * long-lived JSON-line process or {@link #pooled(Consumer)} for a thread-safe pool of JSON-line processes.
+ * Session and pool modes require JSON, reject {@code newLineEachWord(true)}, and accept text requests
+ * without CR or LF only. File requests always run in separate one-shot processes.
+ *
+ * <p>Defaults: request timeout three seconds, idle timeout disabled, request limits 1,000,000 UTF-16
+ * code units and 4,000,000 encoded bytes, response limits 8,000,000 UTF-16 code units and 32,000,000 bytes.
+ * PATH lookup is enabled and full input in diagnostics is disabled. This mutable builder is not intended
+ * for concurrent configuration. Close every built client when it is no longer needed.
  */
 public final class MystemClientBuilder {
     private enum Mode {
@@ -42,7 +49,9 @@ public final class MystemClientBuilder {
     MystemClientBuilder() {}
 
     /**
-     * Sets the executable path.
+     * Sets the executable path, taking precedence over the system property, environment and PATH.
+     *
+     * <p>The path must identify a regular executable file when {@link #build()} is called.
      *
      * @param executable executable path
      * @return this builder
@@ -53,7 +62,7 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets MyStem CLI options.
+     * Sets MyStem CLI options; defaults are JSON, UTF-8 and all boolean flags disabled.
      *
      * @param options options
      * @return this builder
@@ -64,7 +73,10 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Enables or disables PATH lookup when no explicit executable is configured.
+     * Enables or disables PATH lookup; enabled by default.
+     *
+     * <p>Without an explicit path, resolution first checks the {@code mystem4j.executable} system property,
+     * then {@code MYSTEM_PATH}, then PATH if enabled. Disabling PATH lookup does not disable the other sources.
      *
      * @param searchPath whether PATH lookup is enabled
      * @return this builder
@@ -75,9 +87,13 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets the per-request timeout.
+     * Sets the execution timeout; defaults to three seconds.
      *
-     * @param requestTimeout timeout
+     * <p>For pooled requests this timeout starts when the acquired worker executes the request and excludes
+     * admission/acquisition waits. Session calls waiting behind another caller also wait outside this timeout.
+     * For total request timing, see {@link MystemRequestStats}.
+     *
+     * @param requestTimeout positive duration
      * @return this builder
      */
     public MystemClientBuilder requestTimeout(Duration requestTimeout) {
@@ -90,9 +106,14 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets the idle timeout for reusable or pooled workers.
+     * Sets the process I/O inactivity timeout for reusable and pooled workers; disabled by default.
      *
-     * @param idleTimeout idle timeout, or {@link Duration#ZERO} to disable
+     * <p>The timeout tracks stdin/stdout/stderr activity, including during a request. A long-running silent
+     * request can therefore lose its worker before {@link #requestTimeout(Duration)} expires. A reusable
+     * client whose process has stopped must be closed and replaced; pools replace failed workers. One-shot
+     * requests, including file requests, do not use this timeout.
+     *
+     * @param idleTimeout non-negative duration, or {@link Duration#ZERO} (the default) to disable
      * @return this builder
      */
     public MystemClientBuilder idleTimeout(Duration idleTimeout) {
@@ -105,7 +126,9 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Selects reusable JSON-line session mode.
+     * Selects reusable JSON-line session mode; concurrent requests are serialized.
+     *
+     * <p>Requires JSON output and {@code newLineEachWord(false)}. Text requests must not contain CR or LF.
      *
      * @return this builder
      */
@@ -115,7 +138,9 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Selects pooled JSON-line session mode and configures pool options.
+     * Selects pooled JSON-line session mode and configures a fresh pool options builder.
+     *
+     * <p>Requires JSON output and {@code newLineEachWord(false)}. Text requests must not contain CR or LF.
      *
      * @param configure pool options callback
      * @return this builder
@@ -131,6 +156,8 @@ public final class MystemClientBuilder {
     /**
      * Selects pooled JSON-line session mode with explicit pool options.
      *
+     * <p>Requires JSON output and {@code newLineEachWord(false)}. Text requests must not contain CR or LF.
+     *
      * @param poolOptions pool options
      * @return this builder
      */
@@ -141,7 +168,10 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Selects pooled JSON-line session mode with default pool options.
+     * Selects pooled JSON-line session mode, preserving any pool options previously configured on this builder.
+     *
+     * <p>On a fresh builder, uses {@link MystemPoolOptions#builder()} defaults. Requires JSON output and
+     * {@code newLineEachWord(false)}. Text requests must not contain CR or LF.
      *
      * @return this builder
      */
@@ -151,9 +181,12 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets maximum input characters for text requests.
+     * Sets the maximum input UTF-16 code units for a text request; defaults to 1,000,000.
      *
-     * @param maxRequestChars maximum characters
+     * <p>Applies to {@link String#length()}, not code points, and excludes the session/pool protocol newline.
+     * Exactly the limit is accepted. Does not limit input files.
+     *
+     * @param maxRequestChars positive payload limit in UTF-16 code units
      * @return this builder
      */
     public MystemClientBuilder maxRequestChars(int maxRequestChars) {
@@ -165,9 +198,12 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets maximum input bytes for text requests.
+     * Sets the maximum encoded input bytes for a text request; defaults to 4,000,000.
      *
-     * @param maxRequestBytes maximum bytes
+     * <p>Uses {@link MystemOptions#encoding()} and excludes the session/pool protocol newline. Exactly the
+     * limit is accepted. Does not limit input files.
+     *
+     * @param maxRequestBytes positive encoded payload limit in bytes
      * @return this builder
      */
     public MystemClientBuilder maxRequestBytes(int maxRequestBytes) {
@@ -179,9 +215,12 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets maximum decoded response characters for protocol-session reads.
+     * Sets the maximum decoded stdout UTF-16 code units; defaults to 8,000,000.
      *
-     * @param maxResponseChars maximum characters
+     * <p>Applies to captured responses in every mode, including line endings. Exactly the limit is accepted.
+     * Does not limit output written directly to a file.
+     *
+     * @param maxResponseChars positive decoded stdout limit in UTF-16 code units
      * @return this builder
      */
     public MystemClientBuilder maxResponseChars(int maxResponseChars) {
@@ -193,9 +232,13 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Sets maximum captured response bytes.
+     * Sets the captured output and protocol buffer bound in bytes; defaults to 32,000,000.
      *
-     * @param maxResponseBytes maximum bytes
+     * <p>One-shot requests bound stdout and stderr capture. Session/pool workers also use this bound for
+     * encoded responses and output backlog. Line endings count toward the limit. This is not a limit on
+     * output written directly to a file or a total process-memory budget.
+     *
+     * @param maxResponseBytes positive output byte bound
      * @return this builder
      */
     public MystemClientBuilder maxResponseBytes(int maxResponseBytes) {
@@ -207,7 +250,10 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Controls whether diagnostic messages may include full input.
+     * Controls whether one-shot process-failure messages may include full input; disabled by default.
+     *
+     * <p>This also affects file-path diagnostics for one-shot file requests in any mode. It does not redact
+     * text independently printed by MyStem to stderr.
      *
      * @param includeInputInDiagnostics whether input may be included
      * @return this builder
@@ -218,27 +264,26 @@ public final class MystemClientBuilder {
     }
 
     /**
-     * Builds a configured client.
+     * Builds a configured client and resolves its executable.
+     *
+     * <p>One-shot mode starts a process on each request. Session mode starts its process now; pool mode
+     * performs configured warmup now and otherwise creates workers as needed. No download or license
+     * acceptance is performed. The caller owns the returned client and must close it.
      *
      * @return client
      * @throws MystemExecutableNotFoundException when no executable can be resolved
-     * @throws MystemInvalidOptionsException when the selected mode is incompatible with configured options
+     * @throws MystemInvalidOptionsException when the mode is incompatible with configured options or a fixlist
+     *     is not a readable regular file
      * @throws MystemStartupException when a reusable session or pool cannot be started
      * @throws MystemException when session or pool startup fails with a protocol-level runtime error
      */
     public MystemClient build() {
         validateRuntimeOptions();
         Path resolvedExecutable = MystemExecutableResolver.resolve(executable, searchPath);
-        OneShotMystemClient oneShotClient = newOneShotClient(resolvedExecutable);
+        MystemRequestLimits requestLimits = new MystemRequestLimits(maxRequestChars, maxRequestBytes, options.encoding().charset());
+        OneShotMystemClient oneShotClient = newOneShotClient(resolvedExecutable, requestLimits);
         if (mode == Mode.ONE_SHOT) {
             return oneShotClient;
-        }
-        if (options.format() != MystemOutputFormat.JSON) {
-            throw new MystemInvalidOptionsException("Reusable and pooled MyStem clients require JSON format.");
-        }
-        if (options.newLineEachWord()) {
-            throw new MystemInvalidOptionsException(
-                    "Reusable and pooled MyStem clients cannot use newLineEachWord because it breaks JSON-line request framing.");
         }
         if (mode == Mode.SESSION) {
             ProtocolSession<String, String> session;
@@ -248,8 +293,8 @@ public final class MystemClientBuilder {
                         .withArgs(options.toArguments())
                         .withRequestTimeout(requestTimeout)
                         .withIdleTimeout(idleTimeout)
-                        .withMaxRequestChars(maxRequestChars)
-                        .withMaxRequestBytes(maxRequestBytes)
+                        .withMaxRequestChars(requestLimits.framedChars())
+                        .withMaxRequestBytes(requestLimits.framedBytes())
                         .withMaxResponseChars(maxResponseChars)
                         .withMaxResponseBytes(maxResponseBytes)
                         .withOutputBacklogLimit(maxResponseBytes)
@@ -260,7 +305,7 @@ public final class MystemClientBuilder {
             } catch (RuntimeException error) {
                 throw new MystemStartupException("Failed to start reusable MyStem session.", error);
             }
-            return new ReusableMystemClient(session, oneShotClient, options, requestTimeout);
+            return new ReusableMystemClient(session, oneShotClient, options, requestTimeout, requestLimits);
         }
 
         PooledProtocolSession<String, String> pool;
@@ -270,8 +315,8 @@ public final class MystemClientBuilder {
                     .withArgs(options.toArguments())
                     .withRequestTimeout(requestTimeout)
                     .withIdleTimeout(idleTimeout)
-                    .withMaxRequestChars(maxRequestChars)
-                    .withMaxRequestBytes(maxRequestBytes)
+                    .withMaxRequestChars(requestLimits.framedChars())
+                    .withMaxRequestBytes(requestLimits.framedBytes())
                     .withMaxResponseChars(maxResponseChars)
                     .withMaxResponseBytes(maxResponseBytes)
                     .withOutputBacklogLimit(maxResponseBytes)
@@ -293,24 +338,33 @@ public final class MystemClientBuilder {
         } catch (RuntimeException error) {
             throw new MystemStartupException("Failed to start pooled MyStem session.", error);
         }
-        return new PooledMystemClient(pool, oneShotClient, options, requestTimeout);
+        return new PooledMystemClient(pool, oneShotClient, options, requestTimeout, requestLimits, poolOptions);
     }
 
     private void validateRuntimeOptions() {
+        if (mode != Mode.ONE_SHOT) {
+            if (options.format() != MystemOutputFormat.JSON) {
+                throw new MystemInvalidOptionsException("Reusable and pooled MyStem clients require JSON format.");
+            }
+            if (options.newLineEachWord()) {
+                throw new MystemInvalidOptionsException(
+                        "Reusable and pooled MyStem clients cannot use newLineEachWord because it breaks JSON-line request framing.");
+            }
+        }
         options.fixlist().ifPresent(path -> {
-            if (!Files.isReadable(path)) {
-                throw new MystemInvalidOptionsException("fixlist must be readable: " + path);
+            if (!Files.isRegularFile(path) || !Files.isReadable(path)) {
+                throw new MystemInvalidOptionsException("fixlist must be a readable regular file: " + path);
             }
         });
     }
 
-    private OneShotMystemClient newOneShotClient(Path resolvedExecutable) {
+    private OneShotMystemClient newOneShotClient(Path resolvedExecutable, MystemRequestLimits requestLimits) {
         return new OneShotMystemClient(
                 resolvedExecutable,
                 options,
                 requestTimeout,
-                maxRequestChars,
-                maxRequestBytes,
+                requestLimits,
+                maxResponseChars,
                 maxResponseBytes,
                 includeInputInDiagnostics);
     }

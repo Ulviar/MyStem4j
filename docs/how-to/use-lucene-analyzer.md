@@ -3,76 +3,56 @@
 Use `mystem4j-lucene` to feed MyStem-based tokens into Lucene indexing or query
 analysis.
 
-## Add the module
+## Index and query text
+
+Use Java 25 or newer and an executable MyStem 3.1 binary. To prepare the binary,
+follow [Prepare MyStem with Gradle](prepare-mystem-with-gradle.md). On Apple Silicon,
+the plugin's Intel macOS binary requires Rosetta; see
+[the setup instructions](troubleshooting.md#mystem-reports-bad-cpu-type-on-apple-silicon).
+
+Create `build.gradle.kts`:
 
 ```kotlin
+plugins {
+    application
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
 dependencies {
     implementation("io.github.ulviar.mystem4j:mystem4j-lucene:0.1.0")
 }
+
+application {
+    mainClass.set("example.LuceneSearchExample")
+}
 ```
 
-`mystem4j-lucene` uses Lucene `10.4.0`, requires Java 21, and exposes the runtime
-and tokenization types used by its public API.
+`mystem4j-lucene` uses Lucene `10.5.1` and brings the runtime and tokenization APIs
+used below. This example needs only Lucene core classes.
 
-## Create an analyzer
+Create `src/main/java/example/LuceneSearchExample.java`:
 
-The MyStem client passed to the analyzer must return JSON. If a built-in runtime
-client is configured for `TEXT` or `XML`, analyzer creation fails immediately. For
-indexing jobs, prefer a pooled client. Always close both the analyzer and the
-client, or let the analyzer own the client with `closeClientOnClose=true`.
-
+<!-- lucene-search-example:start -->
 ```java
+package example;
+
 import io.github.ulviar.mystem4j.Mystem;
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.MystemOptions;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
-import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions;
 import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalyzer;
-import io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy;
-import io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy;
-import io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy;
-import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
+import java.io.IOException;
 import java.nio.file.Path;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-
-try (MystemClient client = Mystem.builder()
-        .executable(Path.of("/path/to/mystem"))
-        .options(MystemOptions.builder()
-                .format(MystemOutputFormat.JSON)
-                .grammarInfo(true)
-                .disambiguate(true)
-                .build())
-        .pooled()
-        .build();
-     Analyzer analyzer = new MystemLuceneAnalyzer(client)) {
-    try (TokenStream stream = analyzer.tokenStream("body", "Мама мыла раму.")) {
-        CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
-        OffsetAttribute offsets = stream.addAttribute(OffsetAttribute.class);
-
-        stream.reset();
-        while (stream.incrementToken()) {
-            System.out.printf("%s [%d,%d]%n",
-                    term.toString(), offsets.startOffset(), offsets.endOffset());
-        }
-        stream.end();
-    }
-}
-```
-
-By default, the analyzer uses conservative tokenization: safe offsets, gap
-recovery, lemmas, suffix forms, and fallback forms; URL/email grouping and
-currency/number token types are disabled. Printed terms should include lemmas such
-as `мама`, `мыть`, and `рама`.
-
-## Index and query text
-
-Pass the same analyzer to Lucene indexing and query-text analysis. This example
-uses Lucene core classes only:
-
-```java
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
@@ -81,25 +61,64 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.util.QueryBuilder;
 
-try (ByteBuffersDirectory directory = new ByteBuffersDirectory()) {
-    try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
-        Document document = new Document();
-        document.add(new TextField("body", "Мама мыла раму.", Field.Store.NO));
-        writer.addDocument(document);
+public final class LuceneSearchExample {
+    public static void main(String[] args) throws IOException {
+        if (args.length != 1) {
+            throw new IllegalArgumentException("Pass the path to the MyStem executable.");
+        }
+        try (MystemClient client = Mystem.builder()
+                .executable(Path.of(args[0]))
+                .options(MystemOptions.builder()
+                        .format(MystemOutputFormat.JSON)
+                        .grammarInfo(true)
+                        .disambiguate(true)
+                        .build())
+                .pooled()
+                .build()) {
+            int matches = indexAndSearch(client);
+            if (matches != 1) {
+                throw new IllegalStateException("Expected one matching document, got " + matches);
+            }
+            System.out.println("Matches: " + matches);
+        }
     }
 
-    Query query = new QueryBuilder(analyzer).createBooleanQuery("body", "мыла");
-    try (DirectoryReader reader = DirectoryReader.open(directory)) {
-        IndexSearcher searcher = new IndexSearcher(reader);
-        TopDocs hits = searcher.search(query, 10);
-        System.out.println(hits.totalHits.value());
+    public static int indexAndSearch(MystemClient client) throws IOException {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(client);
+                ByteBuffersDirectory directory = new ByteBuffersDirectory()) {
+            try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
+                Document document = new Document();
+                document.add(new TextField("body", "Мама мыла раму.", Field.Store.NO));
+                writer.addDocument(document);
+            }
+
+            Query query = new QueryBuilder(analyzer).createBooleanQuery("body", "мыть");
+            try (DirectoryReader reader = DirectoryReader.open(directory)) {
+                return new IndexSearcher(reader).count(query);
+            }
+        }
     }
 }
 ```
+<!-- lucene-search-example:end -->
+
+Run it with the path to your MyStem executable:
+
+```bash
+./gradlew run --args="/absolute/path/to/mystem"
+```
+
+The result is `Matches: 1`: the indexed word `мыла` and the query `мыть` share a
+lemma. The same analyzer handles indexing and query text. The nested blocks close
+the Lucene resources; `main` owns and closes the pooled client.
+
+The client must return JSON. A built-in client configured for `TEXT` or `XML` is
+rejected when creating the analyzer. By default, the analyzer uses conservative
+tokenization: offsets, gap recovery, lemmas, suffix forms, and fallback forms;
+URL/email grouping and currency/number token types are disabled.
 
 If the application uses another query builder, pass the same analyzer there too.
 
@@ -111,9 +130,12 @@ If the application uses another query builder, pass the same analyzer there too.
 | `search()` | you need number and currency token types, but not URL/email grouping |
 | `entityAware()` | you need URL/email grouping and expanded currency forms |
 
-Inside the same lifecycle block, pass the policy to the analyzer:
+In `indexAndSearch`, replace the analyzer constructor to select a policy:
 
 ```java
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
+
+// Use this constructor in the existing try-with-resources declaration.
 Analyzer analyzer = new MystemLuceneAnalyzer(
         client,
         MystemSearchTokenizerOptions.search());
@@ -133,7 +155,16 @@ closes before the client.
 
 ## Set field limits and position policy
 
+Add the imports below to the file, then configure these options inside
+`indexAndSearch`, before opening the analyzer:
+
 ```java
+import io.github.ulviar.mystem4j.lucene.MystemLuceneAnalysisOptions;
+import io.github.ulviar.mystem4j.lucene.MystemLuceneClientPolicy;
+import io.github.ulviar.mystem4j.lucene.MystemLuceneOversizedInputPolicy;
+import io.github.ulviar.mystem4j.lucene.MystemLucenePositionPolicy;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
+
 int maxInputChars = 100_000;
 int maxChunkChars = 16_384;
 
@@ -150,6 +181,8 @@ Analyzer analyzer = new MystemLuceneAnalyzer(
         MystemSearchTokenizerOptions.conservative(),
         analysisOptions);
 ```
+
+Use this analyzer constructor in the existing try-with-resources declaration.
 
 Defaults are:
 
@@ -171,6 +204,9 @@ is preferable to rejecting an oversized field.
 Chunking prefers whitespace and never splits a UTF-16 surrogate pair. If a field
 contains one very long run without whitespace, that run can be split at a code
 point boundary; offsets still point to the original field.
+With `maxChunkChars=1`, a complete surrogate pair needs a two-unit request. The
+same chunk limit applies when indexing a truncated prefix. After truncation, the
+stream's final offset still marks the end of the full original field.
 
 ## Runtime choice
 

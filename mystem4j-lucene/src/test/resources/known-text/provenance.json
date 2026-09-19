@@ -1,0 +1,26 @@
+{
+  "myStemVersion": "3.1",
+  "sha256": "2403e7aa088d835f9fcb9500c97de685c873398c64604c355a68b2b419115ba1",
+  "platform": "macos-x64 through Rosetta on Apple Silicon",
+  "captured": "2026-09-19",
+  "command": [
+    "mystem",
+    "--format=json",
+    "-d",
+    "[-c]"
+  ],
+  "stdin": "UTF-8 source, no trailing newline",
+  "inputs": {
+    "soft-hyphen-lemmas": "😀 Коты­ Собаки­ Мыши",
+    "soft-hyphen-fallback": "😀 Fo­ur Fo­ur+ Fo­ur++ Fo­ur# 11­22+ 11­22++ 11­22#",
+    "accent-suffix": "😀 Foó++ 111́++",
+    "idn-url": "😀 https://пример.рф",
+    "idn-www-url": "😀 https://www.пример.рф/path",
+    "www-dot-url": "😀 https://www.example.com./path",
+    "email-local-punctuation": "😀 o'reilly@example.com,a!b@example.com",
+    "ordinary-lemmas": "😀 Привет, мир!",
+    "final-synonyms": "😀 C++",
+    "currency": "😀 $",
+    "currency-query": "USD"
+  }
+}

@@ -80,7 +80,8 @@ public final class MystemLuceneAnalysisOptions {
     }
 
     /**
-     * Returns conservative defaults compatible with previous Lucene behavior.
+     * Returns limits of 1,000,000 UTF-16 units per field and 32,768 per chunk, compact positions,
+     * warnings for known slow clients, and failure when the field limit is exceeded.
      *
      * @return default Lucene analysis options
      */

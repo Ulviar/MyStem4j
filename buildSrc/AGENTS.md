@@ -19,7 +19,7 @@ affect every module even when production APIs are untouched.
 - Paths are normalized and diagnostics are deterministic and actionable for an
   agent.
 - Verification tasks fail closed and explain the smallest safe remediation.
-- Build helpers remain Java 21 and cross-platform.
+- Build helpers remain Java 25 and cross-platform.
 - A new invariant must be attached to `check` or the narrow owning gate and listed
   in the testing strategy.
 

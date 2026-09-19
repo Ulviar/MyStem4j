@@ -6,6 +6,7 @@ User-facing documentation lives in `docs/tutorials`, `docs/how-to`,
 
 Current sources:
 
+- [Validate a local change](local-development.md)
 - [LLM development infrastructure](agent/README.md)
 - [Decision records](decisions/README.md)
 - [Active cross-session work](agent-work/active/README.md)

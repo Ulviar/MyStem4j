@@ -14,10 +14,22 @@ import java.util.function.IntUnaryOperator;
 
 /**
  * Parses MyStem JSON output into model objects.
+ *
+ * <p>Input is one or more top-level arrays of token objects, as produced for multiline MyStem output.
+ * Token fields {@code text} and {@code analysis}, and analysis fields {@code lex}, {@code gr}, and
+ * {@code wt}, may be absent. Absent strings default to empty strings, absent analyses to an empty list,
+ * and absent weights to an empty optional. Present known fields must have their expected JSON types;
+ * explicit {@code null} is rejected. Unknown fields, including nested values, are ignored.
+ *
+ * <p>Parsing and left-to-right alignment are separate: unmatched surfaces are retained with unknown
+ * offsets and {@link MystemTextIssueType#UNMATCHED_TOKEN} issues rather than causing a parse failure.
  */
 public final class MystemJsonParser {
     private final JsonFactory jsonFactory;
 
+    /**
+     * Creates a parser for the standard MyStem JSON format.
+     */
     public MystemJsonParser() {
         this(new JsonFactory());
     }
@@ -108,9 +120,9 @@ public final class MystemJsonParser {
                 throw parseError(parser, "MyStem JSON item field name expected");
             }
             String fieldName = parser.currentName();
-            JsonToken valueToken = parser.nextToken();
+            parser.nextToken();
             switch (fieldName) {
-                case "text" -> text = readStringOrEmpty(parser, valueToken);
+                case "text" -> text = readString(parser, fieldName);
                 case "analysis" -> analyses = readAnalyses(parser);
                 default -> parser.skipChildren();
             }
@@ -120,13 +132,12 @@ public final class MystemJsonParser {
 
     private static List<MystemAnalysis> readAnalyses(JsonParser parser) throws IOException {
         if (parser.currentToken() != JsonToken.START_ARRAY) {
-            parser.skipChildren();
-            return List.of();
+            throw fieldTypeError(parser, "analysis", "an array");
         }
         ArrayList<MystemAnalysis> analyses = new ArrayList<>();
         while (parser.nextToken() != JsonToken.END_ARRAY) {
             if (parser.currentToken() != JsonToken.START_OBJECT) {
-                throw parseError(parser, "MyStem JSON analysis item must be an object");
+                throw parseError(parser, "MyStem JSON 'analysis' item must be an object");
             }
             analyses.add(readAnalysis(parser));
         }
@@ -144,14 +155,13 @@ public final class MystemJsonParser {
             String fieldName = parser.currentName();
             JsonToken valueToken = parser.nextToken();
             switch (fieldName) {
-                case "lex" -> lemma = readStringOrEmpty(parser, valueToken);
-                case "gr" -> grammar = readStringOrEmpty(parser, valueToken);
+                case "lex" -> lemma = readString(parser, fieldName);
+                case "gr" -> grammar = readString(parser, fieldName);
                 case "wt" -> {
-                    if (valueToken.isNumeric()) {
-                        weight = OptionalDouble.of(parser.getDoubleValue());
-                    } else {
-                        parser.skipChildren();
+                    if (valueToken != JsonToken.VALUE_NUMBER_INT && valueToken != JsonToken.VALUE_NUMBER_FLOAT) {
+                        throw fieldTypeError(parser, fieldName, "a number");
                     }
+                    weight = OptionalDouble.of(parser.getDoubleValue());
                 }
                 default -> parser.skipChildren();
             }
@@ -159,12 +169,16 @@ public final class MystemJsonParser {
         return new MystemAnalysis(lemma, MystemGrammarParser.parse(grammar), weight);
     }
 
-    private static String readStringOrEmpty(JsonParser parser, JsonToken valueToken) throws IOException {
-        if (valueToken == JsonToken.VALUE_STRING) {
-            return parser.getValueAsString("");
+    private static String readString(JsonParser parser, String fieldName) throws IOException {
+        if (parser.currentToken() != JsonToken.VALUE_STRING) {
+            throw fieldTypeError(parser, fieldName, "a string");
         }
-        parser.skipChildren();
-        return "";
+        return parser.getText();
+    }
+
+    private static MystemJsonParseException fieldTypeError(JsonParser parser, String fieldName, String expected) {
+        return parseError(parser, "MyStem JSON field '" + fieldName + "' must be " + expected
+                + " (found " + parser.currentToken() + ")");
     }
 
     private static MystemJsonParseException parseError(JsonParser parser, String message) {

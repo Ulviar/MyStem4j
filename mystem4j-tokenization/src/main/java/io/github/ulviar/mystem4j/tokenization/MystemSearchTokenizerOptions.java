@@ -87,7 +87,7 @@ public final class MystemSearchTokenizerOptions {
     }
 
     /**
-     * Rich entity-aware defaults matching the legacy tokenizer behavior.
+     * Enables number and currency types, URL/email grouping and currency-form expansion.
      *
      * @return entity-aware options
      */

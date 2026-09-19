@@ -27,13 +27,13 @@ public final class Mystem4jJavaConventionsPlugin implements Plugin<Project> {
 
     private static void configureJavaProject(Project project, Mystem4jJavaConventionsExtension extension) {
         project.getExtensions().configure(JavaPluginExtension.class, java -> {
-            java.getToolchain().getLanguageVersion().set(JavaLanguageVersion.of(21));
+            java.getToolchain().getLanguageVersion().set(JavaLanguageVersion.of(25));
             java.withJavadocJar();
             java.withSourcesJar();
         });
 
         project.getTasks().withType(JavaCompile.class).configureEach(task -> {
-            task.getOptions().getRelease().set(21);
+            task.getOptions().getRelease().set(25);
             task.getOptions().setEncoding("UTF-8");
             task.getOptions().getCompilerArgs().addAll(java.util.List.of("-Xlint:all,-serial,-processing", "-Werror"));
         });
@@ -41,7 +41,7 @@ public final class Mystem4jJavaConventionsPlugin implements Plugin<Project> {
         project.getTasks().withType(Jar.class).configureEach(task -> {
             task.setPreserveFileTimestamps(false);
             task.setReproducibleFileOrder(true);
-            task.getInputs().property("mystem4j.automaticModuleName", extension.getAutomaticModuleName());
+            task.getInputs().property("mystem4j.automaticModuleName", extension.getAutomaticModuleName()).optional(true);
             task.doFirst(ignored -> {
                 if (extension.getAutomaticModuleName().isPresent()) {
                     task.getManifest()
@@ -52,7 +52,11 @@ public final class Mystem4jJavaConventionsPlugin implements Plugin<Project> {
 
         project.getTasks().withType(Javadoc.class).configureEach(task -> {
             task.getOptions().setEncoding("UTF-8");
-            ((StandardJavadocDocletOptions) task.getOptions()).addStringOption("Xdoclint:all,-missing", "-quiet");
+            StandardJavadocDocletOptions options = (StandardJavadocDocletOptions) task.getOptions();
+            boolean documentedApi = java.util.Set.of("mystem4j-runtime", "mystem4j-model")
+                    .contains(project.getName());
+            options.addBooleanOption(documentedApi ? "Xdoclint:all" : "Xdoclint:all,-missing", true);
+            options.addBooleanOption("Werror", true);
         });
 
         project.getTasks().withType(Test.class).configureEach(Test::useJUnitPlatform);

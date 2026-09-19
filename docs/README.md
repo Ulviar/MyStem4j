@@ -8,7 +8,7 @@ Start here if you are new to the library:
 
 ## Requirements
 
-- Java 21 or newer.
+- Java 25 or newer for the libraries and the JVM running the Gradle plugin.
 - To parse existing JSON, declare `mystem4j-model`; no native MyStem executable is needed.
 - To run or download MyStem, use MyStem 3.1. The native executable is not bundled in MyStem4j artifacts.
 - Explicit acceptance of the Yandex MyStem license before using the Gradle plugin to download MyStem.
@@ -21,6 +21,7 @@ Start here if you are new to the library:
 - [Prepare search tokens](how-to/prepare-search-tokens.md)
 - [Use Lucene analyzer](how-to/use-lucene-analyzer.md)
 - [Use Kotlin DSL](how-to/use-kotlin-dsl.md)
+- [Measure performance](how-to/measure-performance.md)
 - [Troubleshooting](how-to/troubleshooting.md)
 
 ## Reference

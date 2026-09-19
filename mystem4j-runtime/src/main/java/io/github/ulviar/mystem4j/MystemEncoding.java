@@ -3,10 +3,17 @@ package io.github.ulviar.mystem4j;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Character encodings accepted by MyStem ({@code -e}) for process input and output.
+ */
 public enum MystemEncoding {
+    /** DOS Cyrillic (IBM866). */
     CP866("cp866", Charset.forName("IBM866")),
+    /** Windows Cyrillic (Windows-1251). */
     CP1251("cp1251", Charset.forName("windows-1251")),
+    /** KOI8-R Cyrillic. */
     KOI8_R("koi8-r", Charset.forName("KOI8-R")),
+    /** UTF-8; the default encoding. */
     UTF_8("utf-8", StandardCharsets.UTF_8);
 
     private final String cliName;

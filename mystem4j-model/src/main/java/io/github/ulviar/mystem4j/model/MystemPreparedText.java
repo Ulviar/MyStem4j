@@ -5,6 +5,9 @@ import java.util.Objects;
 
 /**
  * Text prepared for MyStem with offset mapping back to the original Java string.
+ *
+ * <p>Instances are immutable and produced by {@link MystemTextPreprocessor}. Preparation can change
+ * the text length; use {@link #originalOffsetFor(int)} for both endpoints of a prepared-text range.
  */
 public final class MystemPreparedText {
     private final String originalText;
@@ -21,18 +24,44 @@ public final class MystemPreparedText {
         validateMappings(this.originalText, this.text, this.mappings);
     }
 
+    /**
+     * Returns the caller's text before preparation.
+     *
+     * @return original Java string, unchanged
+     */
     public String originalText() {
         return originalText;
     }
 
+    /**
+     * Returns the prepared text to send to MyStem.
+     *
+     * @return text after unsafe-character replacement
+     */
     public String text() {
         return text;
     }
 
+    /**
+     * Returns the character replacements performed during preparation.
+     *
+     * @return immutable issues in source order, with offsets in the original text
+     */
     public List<MystemTextIssue> issues() {
         return issues;
     }
 
+    /**
+     * Maps a prepared-text UTF-16 position to the corresponding original-text position.
+     *
+     * <p>The mapping is defined for every code-unit position from zero through {@code text().length()},
+     * including the end position. It is monotonic, and the prepared end maps to
+     * {@code originalText().length()}. Positions are not restricted to Unicode code-point boundaries.
+     *
+     * @param preparedOffset position in the prepared Java string, from zero through its length inclusive
+     * @return corresponding UTF-16 position in the original Java string
+     * @throws IllegalArgumentException if the position is negative or exceeds the prepared text length
+     */
     public int originalOffsetFor(int preparedOffset) {
         if (preparedOffset < 0 || preparedOffset > text.length()) {
             throw new IllegalArgumentException("preparedOffset is out of range: " + preparedOffset);

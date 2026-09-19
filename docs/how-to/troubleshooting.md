@@ -48,6 +48,23 @@ The runtime resolves MyStem in this order:
 When using the Gradle plugin for tests, set `configureTests.set(true)` and read
 `System.getProperty("mystem4j.executable")` in test code.
 
+## MyStem reports bad CPU type on Apple Silicon
+
+The plugin's macOS MyStem 3.1 executable is built for Intel. On an Apple Silicon
+Mac, starting it without Rosetta fails with `Bad CPU type in executable` (or
+`error=86` from Java).
+
+Install Rosetta using macOS, then retry the same executable. From Terminal, run:
+
+```bash
+softwareupdate --install-rosetta
+```
+
+Review and accept Apple's license when prompted. This is a system installation;
+the Gradle plugin does not perform it. After installation, verify the binary with
+`/path/to/mystem --version`, or rerun `./gradlew mystemProbe` when using the plugin.
+An ARM Java runtime can keep running natively while MyStem runs through Rosetta.
+
 ## Checksum Mismatch
 
 For official archives, the plugin uses built-in SHA-256 checksums. A mismatch means

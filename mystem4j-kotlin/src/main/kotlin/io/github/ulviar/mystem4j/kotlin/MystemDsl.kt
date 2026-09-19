@@ -26,7 +26,13 @@ public annotation class MystemDslMarker
  * Builds a MyStem runtime client with Kotlin receiver-style configuration.
  *
  * The DSL delegates to the Java runtime builder and keeps the same validation
- * rules. Close the returned client when the application no longer needs it.
+ * rules, exceptions, and defaults: one-shot JSON/UTF-8, a three-second request timeout,
+ * disabled idle timeout, enabled PATH lookup, and no full-input diagnostics. Close the
+ * returned client with `use { ... }` when possible. Session and pool clients require
+ * JSON, reject `newLineEachWord(true)`, and reject CR/LF in text requests.
+ *
+ * @param configure configuration applied once before client creation
+ * @return a client owned by the caller
  */
 public fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient {
     val builder = Mystem.builder()
@@ -35,7 +41,13 @@ public fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient {
 }
 
 /**
- * Builds MyStem CLI options with Kotlin receiver-style configuration.
+ * Builds immutable MyStem CLI options with Kotlin receiver-style configuration.
+ *
+ * Defaults are JSON, UTF-8, and all flags disabled. Calling a boolean option without
+ * an argument enables it; omitting the call preserves the Java default.
+ *
+ * @param configure configuration applied once before option validation
+ * @return validated options
  */
 public fun mystemOptions(configure: MystemOptionsDsl.() -> Unit): MystemOptions {
     val builder = MystemOptions.builder()
@@ -75,74 +87,104 @@ public class MystemClientDsl internal constructor(
         options(mystemOptions(configure))
     }
 
-    /** Enables or disables PATH lookup when no executable path is set. */
+    /** Enables PATH lookup by default; property and environment resolution remain active when disabled. */
     public fun searchPath(enabled: Boolean): Unit {
         builder.searchPath(enabled)
     }
 
-    /** Sets the per-request timeout as a Java [Duration]. */
+    /**
+     * Sets the positive execution timeout; defaults to three seconds.
+     * Pool admission/acquisition and waiting behind another session caller are excluded.
+     */
     public fun requestTimeout(timeout: Duration): Unit {
         builder.requestTimeout(timeout)
     }
 
-    /** Sets the per-request timeout as a Kotlin duration. */
+    /** Sets the positive execution timeout as a Kotlin duration; defaults to three seconds. */
     @JvmName("requestTimeoutKotlinDuration")
     public fun requestTimeout(timeout: KotlinDuration): Unit {
         requestTimeout(timeout.toJavaDuration())
     }
 
-    /** Sets the idle timeout for session or pooled workers. */
+    /**
+     * Sets the non-negative process I/O inactivity timeout for session/pool workers; zero disables it.
+     * This also applies during silent active requests and is disabled by default.
+     */
     public fun idleTimeout(timeout: Duration): Unit {
         builder.idleTimeout(timeout)
     }
 
-    /** Sets the idle timeout for session or pooled workers as a Kotlin duration. */
+    /** Sets the process I/O inactivity timeout as a Kotlin duration; zero (the default) disables it. */
     @JvmName("idleTimeoutKotlinDuration")
     public fun idleTimeout(timeout: KotlinDuration): Unit {
         idleTimeout(timeout.toJavaDuration())
     }
 
-    /** Uses one reusable JSON-line MyStem process. */
+    /**
+     * Uses one process and serializes requests. Requires JSON, `newLineEachWord(false)`,
+     * and text requests without CR/LF. File requests still run in separate one-shot processes.
+     */
     public fun session(): Unit {
         builder.session()
     }
 
-    /** Uses a pool of reusable JSON-line MyStem processes and configures it inline. */
+    /**
+     * Configures a pool of JSON-line processes. Requires JSON, `newLineEachWord(false)`,
+     * and text requests without CR/LF. File requests still run in separate one-shot processes.
+     */
     public fun pooled(configure: MystemPoolOptionsDsl.() -> Unit): Unit {
         builder.pooled { pool -> MystemPoolOptionsDsl(pool).configure() }
     }
 
-    /** Uses a pool of reusable JSON-line MyStem processes with default pool options. */
+    /**
+     * Selects pool mode, preserving earlier pool configuration or using defaults on a fresh builder.
+     * Requires JSON, `newLineEachWord(false)`, and text requests without CR/LF.
+     */
     public fun pooled(): Unit {
         builder.pooled()
     }
 
-    /** Uses a pool of reusable JSON-line MyStem processes with explicit pool options. */
+    /**
+     * Selects pool mode with explicit options. Requires JSON, `newLineEachWord(false)`,
+     * and text requests without CR/LF.
+     */
     public fun pooled(options: MystemPoolOptions): Unit {
         builder.pooled(options)
     }
 
-    /** Sets the maximum number of UTF-16 code units accepted in one text request. */
+    /**
+     * Sets a positive text payload limit in UTF-16 code units; defaults to 1,000,000.
+     * The added protocol newline is excluded; exact-limit input is accepted. Does not limit input files.
+     */
     public fun maxRequestChars(value: Int): Unit {
         builder.maxRequestChars(value)
     }
 
-    /** Sets the maximum number of encoded bytes accepted in one text request. */
+    /**
+     * Sets a positive text payload limit in the configured encoding; defaults to 4,000,000 bytes.
+     * The added protocol newline is excluded; exact-limit input is accepted. Does not limit input files.
+     */
     public fun maxRequestBytes(value: Int): Unit {
         builder.maxRequestBytes(value)
     }
 
-    /** Sets the maximum number of encoded bytes retained from MyStem output. */
+    /**
+     * Sets the positive capture/protocol buffer bound; defaults to 32,000,000 bytes.
+     * Includes line endings and bounds stderr/backlog too; does not limit direct file output.
+     */
     public fun maxResponseBytes(value: Int): Unit {
         builder.maxResponseBytes(value)
     }
 
-    /** Sets the maximum number of decoded characters accepted from MyStem output. */
+    /**
+     * Sets the positive captured stdout limit in UTF-16 code units; defaults to 8,000,000.
+     * Includes line endings in every mode; does not limit direct file output.
+     */
     public fun maxResponseChars(value: Int): Unit {
         builder.maxResponseChars(value)
     }
 
-    /** Allows full input text in diagnostics when enabled. */
+    /** Allows input in one-shot process-failure diagnostics; disabled by default. Does not redact MyStem stderr. */
     public fun includeInputInDiagnostics(enabled: Boolean): Unit {
         builder.includeInputInDiagnostics(enabled)
     }
@@ -158,60 +200,66 @@ public class MystemClientDsl internal constructor(
 public class MystemPoolOptionsDsl internal constructor(
     private val builder: MystemPoolOptions.Builder,
 ) {
-    /** Sets the maximum number of live MyStem workers. */
+    /** Sets positive live-worker/admitted-request capacity; defaults to available processors. */
     public fun maxSize(value: Int): Unit {
         builder.maxSize(value)
     }
 
-    /** Sets the number of workers started when the pool opens. */
+    /** Sets initial workers in `0..maxSize`; defaults to zero (lazy startup). */
     public fun warmupSize(value: Int): Unit {
         builder.warmupSize(value)
     }
 
-    /** Sets the minimum number of idle workers maintained by the pool. */
+    /** Sets the idle-worker target in `0..maxSize`; defaults to zero. */
     public fun minIdle(value: Int): Unit {
         builder.minIdle(value)
     }
 
-    /** Sets the maximum wait for an available worker. */
+    /**
+     * Sets a positive timeout applied separately to FIFO admission and worker acquisition;
+     * defaults to two seconds for each stage, before the request execution timeout starts.
+     */
     public fun acquireTimeout(timeout: Duration): Unit {
         builder.acquireTimeout(timeout)
     }
 
-    /** Sets the maximum wait for an available worker as a Kotlin duration. */
+    /** Sets a positive timeout for each acquisition stage as a Kotlin duration; defaults to two seconds. */
     @JvmName("acquireTimeoutKotlinDuration")
     public fun acquireTimeout(timeout: KotlinDuration): Unit {
         acquireTimeout(timeout.toJavaDuration())
     }
 
-    /** Sets the timeout for worker lifecycle hooks. */
+    /** Sets the positive worker health/reset hook timeout; defaults to two seconds. */
     public fun hookTimeout(timeout: Duration): Unit {
         builder.hookTimeout(timeout)
     }
 
-    /** Sets the timeout for worker lifecycle hooks as a Kotlin duration. */
+    /** Sets the positive health/reset hook timeout as a Kotlin duration; defaults to two seconds. */
     @JvmName("hookTimeoutKotlinDuration")
     public fun hookTimeout(timeout: KotlinDuration): Unit {
         hookTimeout(timeout.toJavaDuration())
     }
 
-    /** Sets the number of requests served before a worker is replaced. */
+    /** Sets a positive request count before worker replacement; defaults to [Int.MAX_VALUE]. */
     public fun maxRequestsPerWorker(value: Int): Unit {
         builder.maxRequestsPerWorker(value)
     }
 
-    /** Sets the maximum worker age, or zero to disable age-based replacement. */
+    /**
+     * Sets a non-negative worker rotation age; zero (the default) disables age-based replacement.
+     * Does not interrupt an active request when the age is reached.
+     */
     public fun maxWorkerAge(age: Duration): Unit {
         builder.maxWorkerAge(age)
     }
 
-    /** Sets the maximum worker age as a Kotlin duration. */
+    /** Sets a non-negative worker rotation age as a Kotlin duration; zero (the default) disables it. */
     @JvmName("maxWorkerAgeKotlinDuration")
     public fun maxWorkerAge(age: KotlinDuration): Unit {
         maxWorkerAge(age.toJavaDuration())
     }
 
-    /** Enables or disables background idle-worker replenishment. */
+    /** Enables background idle-worker replenishment by default. */
     public fun backgroundReplenishment(enabled: Boolean): Unit {
         builder.backgroundReplenishment(enabled)
     }
@@ -249,17 +297,17 @@ public class MystemOptionsDsl internal constructor(
         builder.grammarInfo(enabled)
     }
 
-    /** Enables MyStem word-form merging. */
+    /** Enables word-form merging; requires [grammarInfo] to be enabled. */
     public fun mergeWordForms(enabled: Boolean = true): Unit {
         builder.mergeWordForms(enabled)
     }
 
-    /** Emits sentence markers. */
+    /** Enables sentence markers; requires [copyInput] to be enabled. */
     public fun sentenceMarkers(enabled: Boolean = true): Unit {
         builder.sentenceMarkers(enabled)
     }
 
-    /** Sets the MyStem process encoding. */
+    /** Sets MyStem input/output encoding; defaults to UTF-8. */
     public fun encoding(encoding: MystemEncoding): Unit {
         builder.encoding(encoding)
     }
@@ -274,12 +322,12 @@ public class MystemOptionsDsl internal constructor(
         builder.englishGrammemes(enabled)
     }
 
-    /** Sets MyStem grammar filtering expression. */
+    /** Sets a non-blank grammar filter; absent by default and validated when options are built. */
     public fun filterGrammar(value: String): Unit {
         builder.filterGrammar(value)
     }
 
-    /** Sets a MyStem fixlist path. */
+    /** Sets a custom dictionary path; client construction requires a readable regular file. */
     public fun fixlist(path: Path): Unit {
         builder.fixlist(path)
     }
@@ -294,7 +342,7 @@ public class MystemOptionsDsl internal constructor(
         fixlist(file.toPath())
     }
 
-    /** Sets MyStem output format. */
+    /** Sets MyStem output format; defaults to JSON, which is required by session and pool clients. */
     public fun format(format: MystemOutputFormat): Unit {
         builder.format(format)
     }
@@ -310,11 +358,17 @@ public class MystemOptionsDsl internal constructor(
     }
 }
 
-/** Runs MyStem analysis for this string using [client]. */
+/**
+ * Analyzes this text with [client], preserving its limits, framing restrictions, and exceptions.
+ * Does not close the client or parse its raw output.
+ */
 public fun String.analyzeWith(client: MystemClient): MystemRawResult = client.analyze(this)
 
-/** Runs MyStem file analysis for this path using [client]. */
+/**
+ * Analyzes this file and captures stdout through [client]. Built-in clients use a one-shot process.
+ * Does not close the client or take ownership of the file.
+ */
 public fun Path.analyzeWith(client: MystemClient): MystemFileContentResult = client.analyzeFile(this)
 
-/** Runs MyStem file analysis for this file using [client]. */
+/** Delegates file analysis to the [Path.analyzeWith] extension without closing [client]. */
 public fun File.analyzeWith(client: MystemClient): MystemFileContentResult = toPath().analyzeWith(client)

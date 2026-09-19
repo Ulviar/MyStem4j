@@ -15,6 +15,8 @@ import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -24,6 +26,7 @@ import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -34,7 +37,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Warmup(iterations = 3, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
-@Fork(1)
+@Fork(value = 2, jvmArgsAppend = {"-Xms512m", "-Xmx512m"})
 public class MystemCoreBenchmark {
     @Benchmark
     public Object parseJson(SampleData data) {
@@ -67,30 +70,31 @@ public class MystemCoreBenchmark {
 
     @State(Scope.Thread)
     public static class SampleData {
-        static final String JSON = """
-                [
-                  {"analysis":[{"lex":"мама","gr":"S,жен,од=им,мн"}],"text":"Мамы"},
-                  {"analysis":[{"lex":"любить","gr":"V"}],"text":"любят"},
-                  {"analysis":[],"text":"C"},
-                  {"analysis":[{"lex":"писать","gr":"V"}],"text":"пишут"},
-                  {"analysis":[],"text":"на"},
-                  {"analysis":[],"text":"email"},
-                  {"analysis":[],"text":"example"},
-                  {"analysis":[],"text":"com"}
-                ]
-                """;
+        @Param({"1024", "16384", "131072"})
+        public int inputChars = 1024;
+
+        @Param({"0", "1", "2", "3"})
+        public int documentIndex;
+        @Param({""})
+        public String corpusDirectory = "";
 
         final MystemJsonParser parser = new MystemJsonParser();
         final MystemSearchTokenizer tokenizer = new MystemSearchTokenizer();
         final MystemLuceneAnalyzer luceneAnalyzer = new MystemLuceneAnalyzer(new StaticMystemClient());
-        final String text = "Мамы любят C++ и пишут на email@example.com";
-        final String unicodeText = "Мамы\u0000 любят C++\u00AD и пишут на email@example.com\n";
-        final String json = JSON;
+        String text;
+        String unicodeText;
+        String json;
         MystemDocument document;
 
         @Setup
-        public void setUp() {
+        public void setUp() throws IOException {
+            var corpus = BenchmarkCorpus.documents(inputChars, corpusDirectory);
+            text = corpus.get(Math.floorMod(documentIndex, corpus.size()));
+            unicodeText = "\u0000\uDBFF\uDFFF" + text;
+            json = BenchmarkCorpus.json(text);
             document = parser.parse(text, json);
+            // Prime the fake response cache outside measurement, including every Lucene chunk.
+            new MystemCoreBenchmark().luceneTokenStream(this);
         }
 
         @TearDown
@@ -100,10 +104,13 @@ public class MystemCoreBenchmark {
     }
 
     private static final class StaticMystemClient implements MystemClient {
+        private final Map<String, MystemRawResult> responses = new HashMap<>();
         @Override
         public MystemRawResult analyze(String text) {
-            return new MystemRawResult(
-                    text, SampleData.JSON, MystemOutputFormat.JSON, stats(text, SampleData.JSON));
+            return responses.computeIfAbsent(text, input -> {
+                String output = BenchmarkCorpus.json(input);
+                return new MystemRawResult(input, output, MystemOutputFormat.JSON, stats(input, output));
+            });
         }
 
         @Override

@@ -2,13 +2,14 @@
 
 ## Scope
 
-This module measures Java-side parser, preprocessing, tokenization, and Lucene
-adapter costs. It does not currently benchmark native MyStem process throughput.
+This module separates Java-side parser, preprocessing, tokenization and Lucene
+adapter costs from opt-in native request, Lucene analysis and indexing measurements.
 
 ## Read
 
 - [Testing strategy](../docs/internal/testing-strategy.md#mystem4j-benchmarks)
 - `MystemCoreBenchmark` and its correctness test
+- [Performance measurement guide](../docs/how-to/measure-performance.md)
 - Relevant production path before changing benchmark fixtures
 
 ## Invariants
@@ -26,3 +27,6 @@ adapter costs. It does not currently benchmark native MyStem process throughput.
 ./gradlew :mystem4j-benchmarks:test :mystem4j-benchmarks:jmhCompileCheck -Pmystem4j.useMavenLocal=true
 ./gradlew :mystem4j-benchmarks:jmhSmoke -Pmystem4j.useMavenLocal=true
 ```
+
+Run `:mystem4j-benchmarks:nativeJmh` with an explicit executable for native
+performance claims. Default checks must remain independent of the native binary.

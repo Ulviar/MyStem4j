@@ -4,8 +4,13 @@ import io.github.ulviar.mystem4j.buildlogic.AgentInfrastructureCheckTask
 import io.github.ulviar.mystem4j.buildlogic.JpmsSmokeTestTask
 import io.github.ulviar.mystem4j.buildlogic.MarkdownLocalLinksCheckTask
 import io.github.ulviar.mystem4j.buildlogic.PublicationMetadataCheckTask
+import io.github.ulviar.mystem4j.buildlogic.ModuleBoundaryCheckTask
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
 import java.math.BigDecimal
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.buildconfiguration.tasks.UpdateDaemonJvm
 
 plugins {
     base
@@ -13,6 +18,17 @@ plugins {
     alias(libs.plugins.dokka.javadoc) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.spotless)
+}
+
+tasks.named<UpdateDaemonJvm>("updateDaemonJvm") {
+    languageVersion.set(JavaLanguageVersion.of(25))
+    toolchainDownloadUrls.empty()
+}
+
+tasks.wrapper {
+    networkTimeout.set(60_000)
+    retries.set(3)
+    retryBackOffMs.set(500)
 }
 
 val mystem4jVersion = providers.gradleProperty("mystem4j.version").orElse("0.1.0")
@@ -150,18 +166,60 @@ tasks.register("coverageVerification") {
     dependsOn(coverageThresholds.keys.map { ":$it:jacocoTestCoverageVerification" })
 }
 
-tasks.register<JpmsSmokeTestTask>("jpmsSmokeTest") {
-    group = "verification"
-    description = "Compiles and runs a small modular consumer against the published library modules."
-    dependsOn(libraryProjectNames.map { ":$it:jar" })
-    getWorkDirectory().set(layout.buildDirectory.dir("jpms-smoke"))
-    getJavaExecutable().set(javaExePath)
-    getJavacExecutable().set(javacExePath)
-    for (projectName in libraryProjectNames) {
-        val moduleProject = project(":$projectName")
-        getModulePath().from(moduleProject.tasks.named<Jar>("jar").flatMap { it.archiveFile })
-        moduleProject.configurations.findByName("runtimeClasspath")?.let { getModulePath().from(it) }
+val consumerClasspaths = libraryProjectNames.associateWith { projectName ->
+    listOf(Usage.JAVA_API, Usage.JAVA_RUNTIME).map { usageName ->
+        configurations.create(projectName + "-" + usageName + "-consumer") {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(usageName))
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+                attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+            }
+            dependencies.add(project.dependencies.project(mapOf("path" to ":$projectName")))
+        }
     }
+}
+
+val moduleBoundaryTasks = apiSurfaceProjectNames.map { projectName ->
+    tasks.register<ModuleBoundaryCheckTask>(projectName + "ModuleBoundaryCheck") {
+        group = "verification"
+        description = "Checks production dependencies and public boundaries of $projectName."
+        getComponent().set(projectName.removePrefix("mystem4j-"))
+        getLibraryJar().set(project(":$projectName").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+        consumerClasspaths[projectName]?.let { paths ->
+            getConsumerCompileClasspath().from(paths[0])
+            getConsumerRuntimeClasspath().from(paths[1])
+        }
+    }
+}
+
+tasks.register("architectureCheck") {
+    group = "verification"
+    description = "Checks module dependencies, API isolation, and independent library consumers."
+    dependsOn(moduleBoundaryTasks, "jpmsSmokeTest", "publicationMetadataCheck")
+}
+
+val consumerSmokeTasks = libraryProjectNames.map { projectName ->
+    tasks.register<JpmsSmokeTestTask>(projectName + "ConsumerSmokeTest") {
+        group = "verification"
+        description = "Compiles and runs an independent $projectName consumer on classpath and module path."
+        val component = projectName.removePrefix("mystem4j-")
+        val paths = consumerClasspaths.getValue(projectName)
+        getWorkDirectory().set(layout.buildDirectory.dir("module-consumers/$component"))
+        getSourceFile().set(layout.projectDirectory.file("config/module-consumers/$component/Smoke.java"))
+        getRequiredModule().set(automaticModuleNames.getValue(projectName))
+        getJavaExecutable().set(javaExePath)
+        getJavacExecutable().set(javacExePath)
+        getCompileClasspath().from(paths[0])
+        getModulePath().from(paths[1])
+    }
+}
+
+tasks.register("jpmsSmokeTest") {
+    group = "verification"
+    description = "Checks each library independently through classpath and JPMS consumers."
+    dependsOn(consumerSmokeTasks)
 }
 
 tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
@@ -196,11 +254,11 @@ tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
         .layout
         .buildDirectory
         .file("publications/pluginMaven/pom-default.xml"))
-    getDependencyScopesByProject().put("mystem4j-runtime", "icli:compile")
-    getDependencyScopesByProject().put("mystem4j-model", "jackson-core:compile")
+    getDependencyScopesByProject().put("mystem4j-runtime", "icli:runtime")
+    getDependencyScopesByProject().put("mystem4j-model", "jackson-core:runtime")
     getDependencyScopesByProject().put("mystem4j-tokenization", "mystem4j-model:compile")
     getDependencyScopesByProject()
-        .put("mystem4j-lucene", "mystem4j-runtime:compile,mystem4j-tokenization:compile,lucene-core:compile")
+        .put("mystem4j-lucene", "mystem4j-runtime:compile,mystem4j-tokenization:compile,lucene-core:compile,mystem4j-model:runtime")
     getDependencyScopesByProject().put("mystem4j-kotlin", "mystem4j-runtime:compile,kotlin-stdlib:compile")
 }
 
@@ -236,7 +294,7 @@ spotless {
         endWithNewline()
     }
     java {
-        target("buildSrc/src/**/*.java", "mystem4j-*/src/**/*.java")
+        target("buildSrc/src/**/*.java", "mystem4j-*/src/**/*.java", "config/module-consumers/**/*.java")
         trimTrailingWhitespace()
         endWithNewline()
     }
@@ -246,7 +304,7 @@ spotless {
         endWithNewline()
     }
     kotlinGradle {
-        target("*.gradle.kts", "mystem4j-*/build.gradle.kts", "samples/**/*.gradle.kts")
+        target("*.gradle.kts", "buildSrc/*.gradle.kts", "mystem4j-*/build.gradle.kts", "samples/**/*.gradle.kts")
         trimTrailingWhitespace()
         endWithNewline()
     }
@@ -305,6 +363,12 @@ tasks.register<AgentInfrastructureCheckTask>("agentInfrastructureCheck") {
     getProjectDirectory().set(layout.projectDirectory)
 }
 
+tasks.register("documentationCheck") {
+    group = "verification"
+    description = "Builds Java/Kotlin API documentation and documentation JARs for every module."
+    dependsOn(subprojects.map { "${it.path}:javadocJar" })
+}
+
 tasks.named("check") {
     dependsOn(
         "unitTest",
@@ -313,9 +377,11 @@ tasks.named("check") {
         "jpmsSmokeTest",
         "publicationMetadataCheck",
         "apiSurfaceCheck",
+        "architectureCheck",
         "agentInfrastructureCheck",
         ":mystem4j-kotlin:apiCheck",
         "spotlessCheck",
+        "documentationCheck",
         "markdownLocalLinksCheck")
 }
 
