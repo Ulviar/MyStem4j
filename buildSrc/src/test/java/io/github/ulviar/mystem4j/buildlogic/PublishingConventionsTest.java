@@ -1,11 +1,15 @@
 package io.github.ulviar.mystem4j.buildlogic;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import java.util.zip.ZipFile;
 import org.gradle.testkit.runner.GradleRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,6 +45,36 @@ class PublishingConventionsTest {
                         "-PmavenCentralAutomaticPublishing=true", "--stacktrace")
                 .build();
         assertFalse(Files.exists(project.resolve("build/publishing/mavenCentral")));
+    }
+
+    @Test
+    void kotlinSourceArchiveRemainsCompleteAcrossTaskOrderAndConfigurationCache() throws IOException {
+        Path project = fixture("kotlin-sources");
+        String[] arguments = {":kotlinLibrary:sourcesJar", ":kotlinLibrary:kotlinSourcesJar",
+                ":kotlinLibrary:generateMetadataFileForMavenJavaPublication",
+                "-Pmystem4j.centralPublishing=true", "--rerun-tasks", "--configuration-cache", "--stacktrace"};
+        GradleRunner.create().withProjectDir(project.toFile()).withPluginClasspath()
+                .withArguments(arguments).build();
+        Path archive = project.resolve("kotlinLibrary/build/libs/kotlinLibrary-1.0-sources.jar");
+        byte[] first = Files.readAllBytes(archive);
+        String metadata = Files.readString(project.resolve("kotlinLibrary/build/publications/mavenJava/module.json"));
+        assertEquals(1, metadata.lines()
+                .filter(line -> line.contains("\"url\": \"kotlinLibrary-1.0-sources.jar\"")).count());
+        try (ZipFile zip = new ZipFile(archive.toFile())) {
+            Set<String> entries = zip.stream().filter(entry -> !entry.isDirectory())
+                    .map(entry -> entry.getName()).collect(java.util.stream.Collectors.toSet());
+            assertEquals(Set.of("META-INF/MANIFEST.MF", "example/JavaExample.java", "example/KotlinExample.kt"),
+                    entries);
+        }
+        var cached = GradleRunner.create().withProjectDir(project.toFile()).withPluginClasspath()
+                .withArguments(arguments).build();
+        assertTrue(cached.getOutput().contains("Reusing configuration cache."));
+        assertArrayEquals(first, Files.readAllBytes(archive));
+        GradleRunner.create().withProjectDir(project.toFile()).withPluginClasspath()
+                .withArguments(":kotlinLibrary:kotlinSourcesJar", ":kotlinLibrary:sourcesJar",
+                        "-Pmystem4j.centralPublishing=true",
+                        "--rerun-tasks", "--configuration-cache", "--stacktrace").build();
+        assertArrayEquals(first, Files.readAllBytes(archive));
     }
 
     private Path fixture(String name) throws IOException {
@@ -107,7 +141,14 @@ class PublishingConventionsTest {
                     apply plugin: 'java-library'
                     apply plugin: 'maven-publish'
                     apply plugin: 'io.github.ulviar.mystem4j.publishing-conventions'
+                    repositories { mavenCentral() }
                     java { withSourcesJar(); withJavadocJar() }
+                    // Match the module: the Java source archive includes both source languages.
+                    tasks.named('kotlinSourcesJar') { enabled = false }
+                    tasks.withType(Jar).configureEach {
+                        preserveFileTimestamps = false
+                        reproducibleFileOrder = true
+                    }
                     publishing {
                         publications { mavenJava(MavenPublication) { from components.java } }
                     }
@@ -166,7 +207,13 @@ class PublishingConventionsTest {
                 }
                 """);
         Files.createDirectories(project.resolve("benchmark"));
-        Files.createDirectories(project.resolve("kotlinLibrary"));
+        writeSource(project, "kotlinLibrary", "JavaExample", """
+                package example;
+                public final class JavaExample {}
+                """);
+        Path kotlinSource = project.resolve("kotlinLibrary/src/main/kotlin/example/KotlinExample.kt");
+        Files.createDirectories(kotlinSource.getParent());
+        Files.writeString(kotlinSource, "package example\nclass KotlinExample\n");
         return project;
     }
 

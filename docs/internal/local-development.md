@@ -1,8 +1,7 @@
 # Validate a local change
 
-This is the working loop for the independent, unreleased project. A local change
-is complete when its contract, tests and documentation agree; publishing is not a
-prerequisite.
+A local change is complete when its contract, tests and documentation agree.
+Use this workflow to select the relevant checks and validate the checkout.
 
 ## Start with the affected contract
 

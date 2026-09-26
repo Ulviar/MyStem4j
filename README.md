@@ -78,10 +78,6 @@ plugins {
     id("io.github.ulviar.mystem4j") version "0.1.0"
 }
 
-repositories {
-    mavenCentral()
-}
-
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(25))
@@ -103,11 +99,14 @@ mystem4j {
 
 tasks.test {
     useJUnitPlatform()
+    testLogging.showStandardStreams = true
 }
 ```
 
 Set `acceptYandexMystemLicense` to `true` only after reviewing and accepting the
 Yandex MyStem license for your project.
+
+Create `src/test/java/MystemSmokeTest.java`:
 
 ```java
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -141,7 +140,13 @@ class MystemSmokeTest {
 }
 ```
 
-Run:
+If the project has no Gradle Wrapper yet, create it with your installed Gradle:
+
+```bash
+gradle wrapper --gradle-version 9.7.1
+```
+
+Run the test:
 
 ```bash
 ./gradlew test

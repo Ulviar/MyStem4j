@@ -38,7 +38,7 @@ reports a known non-JSON format, analyzer construction fails immediately. Custom
 clients with unknown format are accepted and must still return MyStem JSON.
 
 For concurrent indexing, use a pooled runtime client. One-shot clients are safe
-but expensive because they start a native process per analyzed field. A reusable
+but expensive because they start a native process for each MyStem request. A reusable
 single-process session serializes work through one MyStem process and is intended
 for one caller at a time.
 

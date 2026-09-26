@@ -64,6 +64,7 @@ mystem4j {
 
 tasks.test {
     useJUnitPlatform()
+    testLogging.showStandardStreams = true
 }
 ```
 
@@ -113,7 +114,10 @@ class MystemSmokeTest {
 
 ## 4. Run it
 
+Create the Gradle Wrapper with your installed Gradle, then run the test:
+
 ```bash
+gradle wrapper --gradle-version 9.7.1
 ./gradlew test
 ```
 
@@ -125,16 +129,13 @@ Expected output shape, formatted here for readability:
 ```text
 [
   {"analysis":[{"lex":"мама","gr":"S,жен,од=им,ед"}],"text":"Мама"},
-  {"text":" "},
   {"analysis":[{"lex":"мыть","gr":"V,..."}],"text":"мыла"},
-  {"text":" "},
-  {"analysis":[{"lex":"рама","gr":"S,..."}],"text":"раму"},
-  {"text":"."}
+  {"analysis":[{"lex":"рама","gr":"S,..."}],"text":"раму"}
 ]
 ```
 
-The exact grammar string comes from MyStem data; for this smoke test, check that a
-raw JSON line is returned.
+Grammar strings are abbreviated here and depend on MyStem data. Spaces and the
+final period are absent because this example leaves `copyInput` disabled.
 
 ## Next steps
 

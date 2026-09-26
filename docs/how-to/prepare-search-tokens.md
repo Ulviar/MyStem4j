@@ -19,6 +19,7 @@ import io.github.ulviar.mystem4j.model.MystemDocument;
 import io.github.ulviar.mystem4j.model.MystemJsonParser;
 import io.github.ulviar.mystem4j.tokenization.MystemLemmaSelectionPolicy;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchToken;
+import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenType;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizer;
 import io.github.ulviar.mystem4j.tokenization.MystemSearchTokenizerOptions;
 import io.github.ulviar.mystem4j.tokenization.MystemTokenForm;
@@ -39,6 +40,10 @@ MystemDocument document = new MystemJsonParser().parse(originalText, json);
 List<MystemSearchToken> tokens = new MystemSearchTokenizer().tokenize(document);
 
 for (MystemSearchToken token : tokens) {
+    if (token.type() == MystemSearchTokenType.SEPARATOR
+            || token.type() == MystemSearchTokenType.OTHER) {
+        continue;
+    }
     String forms = token.forms().stream()
             .map(MystemTokenForm::text)
             .collect(Collectors.joining(", "));
@@ -47,7 +52,10 @@ for (MystemSearchToken token : tokens) {
 }
 ```
 
-Example output shape:
+The token list also contains the spaces between words. This example excludes
+`SEPARATOR` and `OTHER` tokens from the custom search pipeline's output.
+
+Output:
 
 ```text
 Мама [0,4] мама

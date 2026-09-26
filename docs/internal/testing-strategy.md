@@ -114,9 +114,12 @@ manifest metadata must not become a required input for unrelated JAR tasks.
 a local repository without signing or Portal credentials. Its Central opt-in
 fixture includes a Kotlin module and loads Kotlin and Central plugins together at
 root. It checks that existing publications are preserved, signing uses GnuPG,
-automatic release is disabled, and the benchmark project is not published. The
-opt-in fixture only checks configuration; it does not use a personal key or upload
-artifacts. A maintainer verifies real detached signatures through the
+automatic release is disabled, and the benchmark project is not published. Its
+Kotlin source archive must contain both Java and Kotlin files at package paths,
+with identical bytes across task orders and configuration-cache reuse. Only the
+Java component's `sourcesJar` writes that archive, and Gradle metadata lists it once.
+These fixtures configure Central publishing without executing signing or upload
+tasks. A maintainer verifies real detached signatures through the
 [local signed-publication procedure](publication.md#check-a-signed-publication-locally).
 Remote upload and Portal validation are separate release actions, not test gates.
 
@@ -217,8 +220,10 @@ Run the focused gate with:
   Interrupting a queued caller must leave the active worker and later requests usable.
   Real-MyStem integration also exercises repeated long requests from four callers
   through a single worker to expose starvation hidden by short-request throughput.
-- Session and pool stderr backlog must be bounded and fail with
-  `MystemOutputLimitException`, not hang or grow without limit.
+- Session and pool stderr capture must remain bounded, discarding excess stderr
+  while continuing to consume stdout. One-shot stderr overflow must fail with
+  `MystemOutputLimitException`. Stdout limits and request timeouts remain enforced
+  in every mode.
 - Result metadata and default methods must preserve order and request stats.
 - Executable fake processes should be JVM-based launchers, not POSIX-only shell
   scripts, so runtime contracts remain testable on Windows.

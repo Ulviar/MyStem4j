@@ -64,6 +64,12 @@ tasks.named<Jar>("javadocJar") {
     from(tasks.dokkaGeneratePublicationHtml.flatMap { it.outputDirectory })
 }
 
+// Both plugins target the same archive path. The published Java component's
+// sourcesJar includes Java and Kotlin; the Kotlin task must not overwrite it.
+tasks.named("kotlinSourcesJar") {
+    enabled = false
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {

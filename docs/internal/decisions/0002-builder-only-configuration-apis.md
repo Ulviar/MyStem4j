@@ -11,8 +11,8 @@ component method for every field. Adding one option therefore changes multiple
 public signatures and encourages call sites whose booleans and limits are hard to
 read.
 
-The 0.1.0 artifacts have not been published, so the initial record API can still
-be replaced without user migration cost.
+The initial configuration records were replaced with builders before the first
+release, so no published API depended on their positional constructors.
 
 ## Decision
 
