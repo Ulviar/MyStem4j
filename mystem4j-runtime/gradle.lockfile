@@ -2,13 +2,13 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :mystem4j-runtime:dependencies --write-locks
-com.github.ulviar:icli:0.1.0=compileClasspath,realMystemPoolSoakTestCompileClasspath,realMystemPoolSoakTestRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.github.ulviar:procwright:0.1.0=compileClasspath,realMystemPoolSoakTestCompileClasspath,realMystemPoolSoakTestRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.apiguardian:apiguardian-api:1.1.2=realMystemPoolSoakTestCompileClasspath,testCompileClasspath
 org.jacoco:org.jacoco.agent:0.8.15=jacocoAgent,jacocoAnt
 org.jacoco:org.jacoco.ant:0.8.15=jacocoAnt
 org.jacoco:org.jacoco.core:0.8.15=jacocoAnt
 org.jacoco:org.jacoco.report:0.8.15=jacocoAnt
-org.jspecify:jspecify:1.0.0=realMystemPoolSoakTestCompileClasspath,testCompileClasspath
+org.jspecify:jspecify:1.0.1=compileClasspath,realMystemPoolSoakTestCompileClasspath,testCompileClasspath
 org.junit.jupiter:junit-jupiter-api:6.1.3=realMystemPoolSoakTestCompileClasspath,realMystemPoolSoakTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-engine:6.1.3=realMystemPoolSoakTestRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-params:6.1.3=realMystemPoolSoakTestCompileClasspath,realMystemPoolSoakTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

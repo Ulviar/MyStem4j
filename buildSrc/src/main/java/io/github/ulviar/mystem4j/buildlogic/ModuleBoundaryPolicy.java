@@ -13,7 +13,7 @@ final class ModuleBoundaryPolicy {
     private static final String ROOT = "io.github.ulviar.mystem4j";
     private static final Pattern EDGE = Pattern.compile("\\s+(\\S+)\\s+->\\s+(\\S+)\\s+.*");
     private static final Map<String, Rule> RULES = Map.of(
-            "runtime", new Rule(ROOT, ROOT, Set.of(), Set.of("icli")),
+            "runtime", new Rule(ROOT, ROOT, Set.of(), Set.of("procwright")),
             "model", new Rule(ROOT + ".model", ROOT + ".model", Set.of(), Set.of("jackson")),
             "tokenization", new Rule(ROOT + ".tokenization", ROOT + ".tokenization", Set.of("model"), Set.of()),
             "lucene", new Rule(ROOT + ".lucene", ROOT + ".lucene",
@@ -23,7 +23,7 @@ final class ModuleBoundaryPolicy {
             "gradle-plugin", new Rule(ROOT + ".gradle.plugin", ROOT + ".gradle",
                     Set.of("gradle-api"), Set.of()));
     private static final Map<String, String> EXTERNAL_MODULES = Map.of(
-            "icli", "com.github.ulviar.icli",
+            "procwright", "io.github.ulviar.procwright",
             "jackson", "com.fasterxml.jackson.core",
             "lucene-core", "org.apache.lucene.core",
             "kotlin-stdlib", "kotlin.stdlib");
@@ -150,7 +150,7 @@ final class ModuleBoundaryPolicy {
         if (!owner.isEmpty()) {
             return owner;
         }
-        if (className.startsWith("com.github.ulviar.icli.")) return "icli";
+        if (className.startsWith("io.github.ulviar.procwright.")) return "procwright";
         if (className.startsWith("com.fasterxml.jackson.core.")) return "jackson";
         if (className.startsWith("org.apache.lucene.")) return "lucene-core";
         if (className.startsWith("kotlin.") || className.startsWith("org.jetbrains.annotations.")) return "kotlin-stdlib";

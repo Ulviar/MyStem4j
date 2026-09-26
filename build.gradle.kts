@@ -1,6 +1,8 @@
 import java.nio.file.Path
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import io.github.ulviar.mystem4j.buildlogic.ApiSurfaceCheckTask
 import io.github.ulviar.mystem4j.buildlogic.AgentInfrastructureCheckTask
+import io.github.ulviar.mystem4j.buildlogic.DocumentationArchiveCheckTask
 import io.github.ulviar.mystem4j.buildlogic.JpmsSmokeTestTask
 import io.github.ulviar.mystem4j.buildlogic.MarkdownLocalLinksCheckTask
 import io.github.ulviar.mystem4j.buildlogic.PublicationMetadataCheckTask
@@ -11,12 +13,14 @@ import org.gradle.api.attributes.Usage
 import java.math.BigDecimal
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.buildconfiguration.tasks.UpdateDaemonJvm
+import org.gradle.plugins.signing.SigningExtension
 
 plugins {
     base
     alias(libs.plugins.binary.compatibility.validator)
-    alias(libs.plugins.dokka.javadoc) apply false
+    alias(libs.plugins.dokka) apply false
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.maven.publish.base) apply false
     alias(libs.plugins.spotless)
 }
 
@@ -60,6 +64,20 @@ val javapExePath = javaHome.resolve("bin/javap$javaBinSuffix").toAbsolutePath().
 allprojects {
     group = "io.github.ulviar.mystem4j"
     version = mystem4jVersion.get()
+}
+
+// Keep Central and Kotlin plugins in the same root plugin classloader.
+if (providers.gradleProperty("mystem4j.centralPublishing").map(String::toBoolean).orElse(false).get()) {
+    subprojects {
+        plugins.withId("io.github.ulviar.mystem4j.publishing-conventions") {
+            pluginManager.apply("com.vanniktech.maven.publish.base")
+            extensions.configure<MavenPublishBaseExtension> {
+                publishToMavenCentral(false)
+                signAllPublications()
+            }
+            extensions.configure<SigningExtension> { useGpgCmd() }
+        }
+    }
 }
 
 apiValidation {
@@ -254,7 +272,7 @@ tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
         .layout
         .buildDirectory
         .file("publications/pluginMaven/pom-default.xml"))
-    getDependencyScopesByProject().put("mystem4j-runtime", "icli:runtime")
+    getDependencyScopesByProject().put("mystem4j-runtime", "procwright:runtime")
     getDependencyScopesByProject().put("mystem4j-model", "jackson-core:runtime")
     getDependencyScopesByProject().put("mystem4j-tokenization", "mystem4j-model:compile")
     getDependencyScopesByProject()
@@ -312,11 +330,10 @@ spotless {
 
 tasks.register<MarkdownLocalLinksCheckTask>("markdownLocalLinksCheck") {
     group = "verification"
-    description = "Checks local Markdown links in README, CHANGELOG, and docs."
+    description = "Checks local Markdown links in README, agent guides, and docs."
     getMarkdownFiles().from(
         "README.md",
         "AGENTS.md",
-        "CHANGELOG.md",
         scopedAgentDirectories.map { "$it/AGENTS.md" },
         fileTree("docs") {
             include("**/*.md")
@@ -363,10 +380,12 @@ tasks.register<AgentInfrastructureCheckTask>("agentInfrastructureCheck") {
     getProjectDirectory().set(layout.projectDirectory)
 }
 
-tasks.register("documentationCheck") {
+tasks.register<DocumentationArchiveCheckTask>("documentationCheck") {
     group = "verification"
-    description = "Builds Java/Kotlin API documentation and documentation JARs for every module."
-    dependsOn(subprojects.map { "${it.path}:javadocJar" })
+    description = "Builds API documentation JARs and checks their local navigation links."
+    getDocumentationJars().from(subprojects.map { module ->
+        module.tasks.named<Jar>("javadocJar").flatMap { it.archiveFile }
+    })
 }
 
 tasks.named("check") {

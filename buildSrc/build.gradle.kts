@@ -25,6 +25,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("mystem4j.test.kotlinVersion", libs.versions.kotlin.get())
+    systemProperty("mystem4j.test.centralPluginVersion", libs.versions.vanniktech.get())
 }
 
 // The root build must not use untested verification logic.

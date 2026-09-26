@@ -12,6 +12,21 @@ import java.util.Optional;
  * <p>Defaults are JSON output, UTF-8 encoding, no grammar filter or fixlist, and all boolean flags disabled.
  * Reusable and pooled clients additionally require JSON and {@code newLineEachWord(false)}. Building options
  * validates flag dependencies; building a client checks mode restrictions and fixlist readability.
+ * Instances can be shared between clients and threads.
+ *
+ * <p>To request grammar information together with contextual disambiguation:
+ *
+ * <pre>{@code
+ * MystemOptions options = MystemOptions.builder()
+ *         .grammarInfo(true)
+ *         .disambiguate(true)
+ *         .build();
+ * }</pre>
+ *
+ * <p>Pass the result to {@link MystemClientBuilder#options(MystemOptions)}. These settings select MyStem
+ * CLI behavior; they do not parse output or guarantee that it can be aligned to the input. In particular,
+ * dictionary-only, lemma-only, and grammar-filtered output may omit information needed for reconstruction.
+ * See the <a href="https://yandex.ru/dev/mystem/">MyStem documentation</a> for linguistic option semantics.
  */
 public final class MystemOptions {
     private final boolean newLineEachWord;
@@ -152,6 +167,9 @@ public final class MystemOptions {
     /**
      * Returns the grammar filter passed to {@code --filter-gram}.
      *
+     * <p>The expression is passed unchanged. The runtime checks only that it is non-blank; MyStem
+     * interprets its syntax and grammar names.
+     *
      * @return non-blank filter, or empty when no filter is configured
      */
     public Optional<String> filterGrammar() {
@@ -161,7 +179,7 @@ public final class MystemOptions {
     /**
      * Returns the custom dictionary path passed to {@code --fixlist}.
      *
-     * @return configured path, or empty when no fixlist is configured
+     * @return caller-supplied path, not necessarily absolute, or empty when no fixlist is configured
      */
     public Optional<Path> fixlist() {
         return fixlist;
@@ -255,6 +273,9 @@ public final class MystemOptions {
 
     /**
      * Mutable options builder. Instances are not intended for concurrent configuration.
+     *
+     * <p>Each call to {@link #build()} produces an independent immutable snapshot. Changing this builder
+     * does not change previously built options.
      */
     public static final class Builder {
         private boolean newLineEachWord;
@@ -357,6 +378,7 @@ public final class MystemOptions {
          *
          * @param encoding non-null input/output encoding
          * @return this builder
+         * @throws NullPointerException when {@code encoding} is null
          */
         public Builder encoding(MystemEncoding encoding) {
             this.encoding = Objects.requireNonNull(encoding, "encoding");
@@ -390,6 +412,7 @@ public final class MystemOptions {
          *
          * @param filterGrammar non-null, non-blank expression; validated by {@link #build()}
          * @return this builder
+         * @throws NullPointerException when {@code filterGrammar} is null
          */
         public Builder filterGrammar(String filterGrammar) {
             this.filterGrammar = Optional.of(Objects.requireNonNull(filterGrammar, "filterGrammar"));
@@ -399,10 +422,12 @@ public final class MystemOptions {
         /**
          * Sets the custom dictionary path ({@code --fixlist}); absent by default.
          *
-         * <p>The path must name a readable regular file when a client is built.
+         * <p>The path must name a readable regular file when a client is built. Neither this setter nor
+         * {@link #build()} accesses the file system. The runtime does not modify or delete the dictionary.
          *
          * @param fixlist non-null custom dictionary path
          * @return this builder
+         * @throws NullPointerException when {@code fixlist} is null
          */
         public Builder fixlist(Path fixlist) {
             this.fixlist = Optional.of(Objects.requireNonNull(fixlist, "fixlist"));
@@ -416,6 +441,7 @@ public final class MystemOptions {
          *
          * @param format non-null MyStem output format
          * @return this builder
+         * @throws NullPointerException when {@code format} is null
          */
         public Builder format(MystemOutputFormat format) {
             this.format = Objects.requireNonNull(format, "format");

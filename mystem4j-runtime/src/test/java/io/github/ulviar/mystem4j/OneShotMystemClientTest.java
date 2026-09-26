@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.github.ulviar.icli.command.CommandExecutionException;
+import io.github.ulviar.procwright.command.CommandExecutionException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -70,7 +70,9 @@ class OneShotMystemClientTest {
         Path input = temporaryDirectory.resolve("input.txt");
         Files.writeString(input, "file input", StandardCharsets.UTF_8);
 
-        try (MystemClient client = Mystem.builder().executable(executable).build()) {
+        // These assertions cover file behavior; the shell/JVM fixture can start slowly on macOS.
+        try (MystemClient client = Mystem.builder().executable(executable)
+                .requestTimeout(Duration.ofSeconds(30)).build()) {
             MystemFileContentResult result = client.analyzeFile(input);
 
             assertEquals("file input", result.output());
@@ -85,7 +87,8 @@ class OneShotMystemClientTest {
         Path output = temporaryDirectory.resolve("output.txt");
         Files.writeString(input, "file input", StandardCharsets.UTF_8);
 
-        try (MystemClient client = Mystem.builder().executable(executable).build()) {
+        try (MystemClient client = Mystem.builder().executable(executable)
+                .requestTimeout(Duration.ofSeconds(30)).build()) {
             MystemFileResult result = client.analyzeFile(input, output);
 
             assertEquals(output, result.output());
@@ -102,7 +105,8 @@ class OneShotMystemClientTest {
         Files.writeString(input, "new content", StandardCharsets.UTF_8);
         Files.writeString(output, "old content", StandardCharsets.UTF_8);
 
-        try (MystemClient client = Mystem.builder().executable(executable).build()) {
+        try (MystemClient client = Mystem.builder().executable(executable)
+                .requestTimeout(Duration.ofSeconds(30)).build()) {
             client.analyzeFile(input, output);
 
             assertEquals("new content", Files.readString(output, StandardCharsets.UTF_8));

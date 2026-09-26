@@ -90,8 +90,9 @@ statistics. `elapsed` has these boundaries:
 Character counts are Java UTF-16 code units. Text input bytes use the configured
 encoding and exclude the protocol newline added by session/pool modes. Captured
 output counts include line endings. One-shot output bytes count raw captured bytes;
-session/pool output bytes count the decoded response re-encoded with the configured
-encoding. These can differ from original process bytes if decoding replaced malformed
+session/pool output has a normalized final `\n`, and its byte count measures that
+decoded response re-encoded with the configured encoding. These can differ from
+original process bytes if line termination changed or decoding replaced malformed
 input. Counts use `-1` when unknown, never to mean zero.
 
 For file input, `inputChars` is `-1` and `inputBytes` is the file size inspected after
@@ -138,9 +139,11 @@ See the MyStem documentation for the linguistic meaning of CLI options:
 - `maxResponseBytes(int)`, default `32_000_000`;
 - `includeInputInDiagnostics(boolean)`, default `false`.
 
-`requestTimeout` bounds execution. It excludes a session caller's wait behind
-another caller and the pool's admission/acquisition waits. It is therefore not an
-end-to-end deadline for the entire `analyze` call.
+`requestTimeout` excludes a session caller's wait behind another caller and the
+pool's admission/acquisition waits. For one-shot text and file requests, including
+probes, it bounds waiting for the started process to exit; startup, output
+collection, and cleanup can add time. It is not an end-to-end deadline for the
+entire `analyze` call. The broader `elapsed` statistic is described above.
 
 `idleTimeout` measures process I/O inactivity (stdin/stdout/stderr), including during
 an active request. A silent request can lose its worker before `requestTimeout`
@@ -155,8 +158,11 @@ oversized input leaves the client usable for the next valid request.
 
 Response limits apply to captured process output in every mode, including line
 endings. `maxResponseChars` bounds decoded stdout; `maxResponseBytes` bounds
-captured output and protocol buffers. File inputs and output written directly to a
-file are not bounded by these in-memory payload limits.
+captured output and each stream's pending protocol buffer. Exceeding stdout limits
+fails the request. One-shot requests also fail when captured stderr exceeds its
+byte limit; session and pool text requests discard excess stderr and can still
+return a valid stdout response. File inputs and output written directly to a file
+are not bounded by these in-memory payload limits.
 
 ## Closing And Interruption
 
@@ -177,14 +183,14 @@ JSON-line sessions:
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `maxSize` | available processors | maximum number of live MyStem workers |
+| `maxSize` | available processors, capped at 256 | maximum number of live MyStem workers; range `1..256` |
 | `warmupSize` | `0` | workers started when the pool is opened |
 | `minIdle` | `0` | idle workers the pool tries to keep available |
 | `acquireTimeout` | `2` seconds | maximum wait for admission; also bounds worker acquisition after admission |
 | `hookTimeout` | `2` seconds | maximum time for one worker health-check or reset hook |
 | `maxRequestsPerWorker` | `Integer.MAX_VALUE` | requests served by one worker before replacement |
 | `maxWorkerAge` | `Duration.ZERO` | worker lifetime limit; zero disables age-based replacement |
-| `backgroundReplenishment` | `true` | whether idle workers may be replenished in the background |
+| `backgroundReplenishment` | `true` | whether to maintain `minIdle` in the background; explicit warmup and on-demand startup still apply when disabled |
 
 Use `maxSize` to match expected concurrent analysis work. Use `maxRequestsPerWorker`
 or `maxWorkerAge` when the MyStem process should be periodically replaced during
@@ -208,9 +214,10 @@ MyStem to stderr. `MystemProcessException.stderr()` exposes bounded, possibly
 truncated stderr-like diagnostics when available.
 
 Reusable session and pooled clients drain process stdout and stderr through
-bounded protocol buffers. A process that writes excessive stderr without a valid
-response fails the request with `MystemOutputLimitException` instead of allowing
-unbounded memory growth.
+bounded protocol buffers. Excess stderr is discarded without failing the request;
+a bounded diagnostic tail is retained separately. This keeps diagnostic noise from
+causing unbounded memory growth or rejecting a valid stdout response. If no stdout
+response arrives, the configured request timeout still applies.
 
 ## Exceptions
 
@@ -221,7 +228,7 @@ All runtime-specific exceptions extend `MystemException`.
 - `MystemRequestTimeoutException` - request timed out.
 - `MystemProcessException` - MyStem exited unsuccessfully; exposes `exitCode()` and `stderr()`.
 - `MystemProtocolException` - protocol, decoding, or runtime communication failure.
-- `MystemOutputLimitException` - stdout/stderr/response exceeded configured limits.
+- `MystemOutputLimitException` - stdout exceeded a response limit, or one-shot stderr capture exceeded its byte limit.
 - `MystemPoolExhaustedException` - no pooled worker was available before acquire timeout.
 - `MystemClosedException` - request submitted after client close.
 - `MystemInvalidOptionsException` - invalid runtime options or file paths.

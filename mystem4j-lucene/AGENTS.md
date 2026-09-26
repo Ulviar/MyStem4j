@@ -28,6 +28,6 @@ and `Tokenizer` contracts.
 ## Validation
 
 ```text
-./gradlew :mystem4j-lucene:test -Pmystem4j.useMavenLocal=true
-./gradlew :mystem4j-lucene:memorySmokeTest -Pmystem4j.useMavenLocal=true
+./gradlew :mystem4j-lucene:test
+./gradlew :mystem4j-lucene:memorySmokeTest
 ```

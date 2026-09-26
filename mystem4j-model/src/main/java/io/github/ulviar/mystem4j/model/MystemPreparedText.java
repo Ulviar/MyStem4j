@@ -4,10 +4,24 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Text prepared for MyStem with offset mapping back to the original Java string.
+ * Immutable pair of original and prepared text with a mapping between their UTF-16 positions.
  *
  * <p>Instances are immutable and produced by {@link MystemTextPreprocessor}. Preparation can change
  * the text length; use {@link #originalOffsetFor(int)} for both endpoints of a prepared-text range.
+ * Instances can be shared between threads.
+ *
+ * <pre>{@code
+ * String original = "a" + Character.toString(0x1FFFE) + "b";
+ * MystemPreparedText prepared = MystemTextPreprocessor.prepare(original);
+ * // The noncharacter takes two UTF-16 units in the source and one space in prepared text.
+ * String sentToMyStem = prepared.text(); // "a b"
+ * int originalStart = prepared.originalOffsetFor(2); // 3: the start of "b"
+ * int originalEnd = prepared.originalOffsetFor(3);   // 4: the end of the source
+ * String source = prepared.originalText().substring(originalStart, originalEnd); // "b"
+ * }</pre>
+ *
+ * <p>When parsing MyStem output, {@link MystemJsonParser#parse(MystemPreparedText, String)} performs
+ * this mapping for every token and carries the preparation issues into the document.
  */
 public final class MystemPreparedText {
     private final String originalText;
@@ -57,6 +71,8 @@ public final class MystemPreparedText {
      * <p>The mapping is defined for every code-unit position from zero through {@code text().length()},
      * including the end position. It is monotonic, and the prepared end maps to
      * {@code originalText().length()}. Positions are not restricted to Unicode code-point boundaries.
+     * Map both endpoints of a range; adding a prepared length to a mapped start is not sufficient
+     * when a replacement changes the text length.
      *
      * @param preparedOffset position in the prepared Java string, from zero through its length inclusive
      * @return corresponding UTF-16 position in the original Java string

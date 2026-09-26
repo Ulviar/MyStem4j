@@ -21,7 +21,7 @@ These packages are public:
 The Maven artifacts, Gradle plugin id, JPMS module names, and documented public
 types are part of the release surface.
 
-iCLI and Jackson Core are implementation dependencies. They are supplied at
+Procwright and Jackson Core are implementation dependencies. They are supplied at
 runtime, but are not exposed on a Gradle consumer's compile classpath or through
 JPMS transitive readability. Applications that previously compiled against these
 libraries indirectly must declare them directly. MyStem4j public signatures are
@@ -30,8 +30,8 @@ unchanged by this dependency-scope correction.
 ## Compatibility Policy Before 1.0
 
 Patch releases should avoid breaking documented APIs unless a correctness issue
-requires it. Minor `0.x` releases may make incompatible API changes, but those
-changes should be called out in the changelog.
+requires it. Minor `0.x` releases may make incompatible API changes; document
+their effect on callers in the relevant API contract.
 
 Behavior related to MyStem output, Unicode offset alignment, and Lucene offsets is
 treated as compatibility-sensitive. A change that alters emitted offsets, token

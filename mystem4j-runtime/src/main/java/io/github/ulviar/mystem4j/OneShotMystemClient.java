@@ -1,9 +1,9 @@
 package io.github.ulviar.mystem4j;
 
-import com.github.ulviar.icli.Icli;
-import com.github.ulviar.icli.command.CapturePolicy;
-import com.github.ulviar.icli.command.CommandExecutionException;
-import com.github.ulviar.icli.command.CommandResult;
+import io.github.ulviar.procwright.Procwright;
+import io.github.ulviar.procwright.command.CapturePolicy;
+import io.github.ulviar.procwright.command.CommandExecutionException;
+import io.github.ulviar.procwright.command.CommandResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,7 +66,7 @@ final class OneShotMystemClient implements MystemClient {
 
         CommandResult result;
         try {
-            result = Icli.command(executable.toString())
+            result = Procwright.command(executable.toString())
                     .run()
                     .withArgs(options.toArguments())
                     .withInput(text, options.encoding().charset())
@@ -144,7 +144,7 @@ final class OneShotMystemClient implements MystemClient {
         ArrayList<String> arguments = new ArrayList<>(options.toArguments());
         arguments.addAll(fileArguments);
         try {
-            return Icli.command(executable.toString())
+            return Procwright.command(executable.toString())
                     .run()
                     .withArgs(arguments)
                     .withCharset(options.encoding().charset())

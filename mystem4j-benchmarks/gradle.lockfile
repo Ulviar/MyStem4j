@@ -4,7 +4,7 @@
 # To regenerate this file, run: ./gradlew :mystem4j-benchmarks:dependencies --write-locks
 com.fasterxml.jackson.core:jackson-core:2.22.2=runtimeClasspath,testRuntimeClasspath
 com.fasterxml.jackson:jackson-bom:2.22.2=runtimeClasspath,testRuntimeClasspath
-com.github.ulviar:icli:0.1.0=runtimeClasspath,testRuntimeClasspath
+io.github.ulviar:procwright:0.1.0=runtimeClasspath,testRuntimeClasspath
 net.sf.jopt-simple:jopt-simple:5.0.4=annotationProcessor,compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.apache.commons:commons-math3:3.6.1=annotationProcessor,compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.apache.lucene:lucene-core:10.5.1=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath

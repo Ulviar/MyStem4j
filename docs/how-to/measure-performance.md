@@ -1,14 +1,12 @@
 # Measure performance
 
-Run these commands from the repository root with Java 25 available. The local
-development dependency is iCLI `0.1.0`; `-Pmystem4j.useMavenLocal=true` enables its
-local Maven installation. Other dependencies still come from Maven Central.
+Run these commands from the repository root with Java 25 available. Dependencies,
+including Procwright `0.1.0`, resolve from Maven Central.
 
 ## Measure Java processing
 
 ```bash
 ./gradlew :mystem4j-benchmarks:test :mystem4j-benchmarks:jmh \
-  -Pmystem4j.useMavenLocal=true \
   -PjmhArgs='.*MystemCoreBenchmark.* -f 2 -prof gc -rf json -rff build/core-jmh.json -foe true'
 ```
 
@@ -31,7 +29,6 @@ Prepare a working MyStem 3.1 executable, then run:
 
 ```bash
 ./gradlew :mystem4j-benchmarks:nativeJmh \
-  -Pmystem4j.useMavenLocal=true \
   -Dmystem4j.executable=/absolute/path/to/mystem
 ```
 
@@ -81,7 +78,6 @@ at the largest size and four workers, run:
 
 ```bash
 ./gradlew :mystem4j-benchmarks:nativeJmh \
-  -Pmystem4j.useMavenLocal=true \
   -Dmystem4j.executable=/absolute/path/to/mystem \
   -PnativeJmhArgs='.*MystemNativeBenchmark.indexBatch -p inputChars=131072 -p poolSize=4 -wi 3 -w 2s -i 5 -r 90s -f 2'
 python3 mystem4j-benchmarks/tools/performance_evidence.py tail \
@@ -131,7 +127,7 @@ for measuring the application's own documents.
 Use the independent resource gate when changing process management:
 
 ```bash
-./gradlew realMystemPoolSoak -Pmystem4j.useMavenLocal=true \
+./gradlew realMystemPoolSoak \
   -Dmystem4j.executable=/absolute/path/to/mystem
 ```
 

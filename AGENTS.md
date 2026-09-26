@@ -89,7 +89,7 @@ repository-ready change, run:
 
 ```text
 ./gradlew agentInfrastructureCheck
-./gradlew check -Pmystem4j.useMavenLocal=true
+./gradlew check
 ```
 
 Use `memorySmokeTest`, `unicodeContextStressTest`, `realMystemTest`,

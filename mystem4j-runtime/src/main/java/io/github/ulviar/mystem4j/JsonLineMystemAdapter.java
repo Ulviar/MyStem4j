@@ -1,8 +1,8 @@
 package io.github.ulviar.mystem4j;
 
-import com.github.ulviar.icli.session.ProtocolAdapter;
-import com.github.ulviar.icli.session.ProtocolReaders;
-import com.github.ulviar.icli.session.ProtocolWriter;
+import io.github.ulviar.procwright.session.ProtocolAdapter;
+import io.github.ulviar.procwright.session.ProtocolReaders;
+import io.github.ulviar.procwright.session.ProtocolWriter;
 
 final class JsonLineMystemAdapter implements ProtocolAdapter<String, String> {
     private final int maxResponseChars;

@@ -24,25 +24,25 @@ class PublicationMetadataCheckTaskTest {
     void scopeMustBelongToTheRequestedDependency() {
         String pom = """
                 <project><dependencies>
-                  <dependency><artifactId>icli</artifactId><scope>compile</scope></dependency>
+                  <dependency><artifactId>procwright</artifactId><scope>compile</scope></dependency>
                   <dependency><artifactId>another-library</artifactId><scope>runtime</scope></dependency>
                 </dependencies></project>
                 """;
         assertThrows(GradleException.class,
-                () -> PublicationMetadataCheckTask.requireDependencyScope("runtime", pom, "icli", "runtime"));
+                () -> PublicationMetadataCheckTask.requireDependencyScope("runtime", pom, "procwright", "runtime"));
         assertDoesNotThrow(
-                () -> PublicationMetadataCheckTask.requireDependencyScope("runtime", pom, "icli", "compile"));
+                () -> PublicationMetadataCheckTask.requireDependencyScope("runtime", pom, "procwright", "compile"));
     }
 
     @Test
     void dependencyManagementDoesNotSupplyAnActualDependency() {
         String pom = """
                 <project><dependencyManagement><dependencies>
-                  <dependency><artifactId>icli</artifactId><scope>runtime</scope></dependency>
+                  <dependency><artifactId>procwright</artifactId><scope>runtime</scope></dependency>
                 </dependencies></dependencyManagement></project>
                 """;
         assertThrows(GradleException.class,
-                () -> PublicationMetadataCheckTask.requireDependencyScope("runtime", pom, "icli", "runtime"));
+                () -> PublicationMetadataCheckTask.requireDependencyScope("runtime", pom, "procwright", "runtime"));
     }
 
     @Test

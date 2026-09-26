@@ -4,7 +4,11 @@ import java.util.Objects;
 import java.util.OptionalDouble;
 
 /**
- * One MyStem analysis variant for a token.
+ * Immutable morphological reading of a token: its lemma, grammar, and optional weight.
+ *
+ * <p>A token may have several readings, retained in MyStem output order by
+ * {@link MystemToken#analyses()}. The model does not select a preferred reading, normalize the lemma,
+ * or interpret a weight as a probability. An absent weight differs from a present zero.
  *
  * @param lemma dictionary form from {@code lex}, or an empty string when the field is absent
  * @param grammar parsed {@code gr} value, including the unmodified grammar string

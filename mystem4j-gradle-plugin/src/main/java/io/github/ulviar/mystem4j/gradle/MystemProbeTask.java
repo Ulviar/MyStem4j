@@ -24,24 +24,79 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
+/**
+ * Runs a bounded smoke request against the prepared native executable.
+ *
+ * <p>The plugin registers {@code mystemProbe} after extraction. The task starts MyStem
+ * with {@code --format json}, writes the smoke word in UTF-8 followed by a line separator,
+ * and closes stdin. Success requires exit code zero and nonempty output that looks
+ * like a JSON array containing the expected text field. This is a smoke check, not a
+ * full JSON or morphology validation.
+ *
+ * <p>The selected executable must run on the build host. For staging a binary for
+ * another OS, consume {@link Mystem4jExtension#getPreparedExecutable()} directly.
+ */
 @DisableCachingByDefault(because = "Executes the prepared native MyStem binary as a smoke check.")
 public abstract class MystemProbeTask extends DefaultTask {
+    /**
+     * Creates a Gradle-managed task whose properties are configured by the plugin or build script.
+     */
+    public MystemProbeTask() {}
+
+    /**
+     * Returns the native executable to launch.
+     *
+     * @return prepared executable input file
+     */
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getExecutableFile();
 
+    /**
+     * Returns the process exit wait in seconds, defaulting to {@code 10} when registered by the plugin.
+     * Configure a positive value. The wait starts after writing smoke input; output collection
+     * can add a short wait after process termination, so this is not an end-to-end deadline.
+     *
+     * @return process wait timeout property
+     */
     @Input
     public abstract Property<Integer> getTimeoutSeconds();
 
+    /**
+     * Returns the smoke word, defaulting to {@code мама} when registered by the plugin.
+     * Use a simple word without JSON escapes or line breaks: the smoke check searches for
+     * a literal compact JSON text field matching this value.
+     *
+     * @return UTF-8 smoke input property
+     */
     @Input
     public abstract Property<String> getSmokeInput();
 
+    /**
+     * Returns the positive capture limit in bytes, applied separately to stdout and stderr.
+     * The plugin supplies {@link Mystem4jExtension#getMaxProbeOutputBytes()}, defaulting to 64 KiB.
+     *
+     * @return per-stream byte limit property
+     */
     @Input
     public abstract Property<Integer> getMaxOutputBytes();
 
+    /**
+     * Returns the success marker containing the absolute executable path and a bounded output preview.
+     * The marker is diagnostic task output, not a runtime configuration file.
+     *
+     * @return probe marker output file
+     */
     @OutputFile
     public abstract RegularFileProperty getMarkerFile();
 
+    /**
+     * Executes the smoke request and writes a marker after successful validation.
+     *
+     * @throws GradleException if the output limit is invalid, process startup or I/O fails,
+     *         the wait times out or is interrupted, the process exits unsuccessfully,
+     *         the output exceeds its limit, or the smoke response does not match
+     */
     @TaskAction
     public void probe() {
         Path executable = getExecutableFile().get().getAsFile().toPath();

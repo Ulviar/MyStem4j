@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.time.Duration;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.io.TempDir;
@@ -62,6 +64,35 @@ class MystemLimitContractTest {
         }
         try (MystemClient client = builder(mode).maxResponseChars(response.length() - 1).build()) {
             assertThrows(MystemOutputLimitException.class, () -> client.analyze("ok"));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Mode.class)
+    void responseByteBoundaryCountsEncodedTextAndFinalNewline(Mode mode) throws IOException {
+        String response = "[{\"text\":\"я\"}]\n";
+        int bytes = response.getBytes(StandardCharsets.UTF_8).length;
+        try (MystemClient client = builder(mode).maxResponseBytes(bytes).build()) {
+            assertEquals(response, client.analyze("я").output());
+        }
+        try (MystemClient client = builder(mode).maxResponseBytes(bytes - 1).build()) {
+            assertThrows(MystemOutputLimitException.class, () -> client.analyze("я"));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Mode.class, names = {"SESSION", "POOL"})
+    void stderrOverflowDoesNotDisableResponseTimeoutOrWorkerRecovery(Mode mode) throws IOException {
+        Path executable = FakeMystemExecutable.create(directory, "noisy-timeout-" + mode, "noisyInteractive");
+        try (MystemClient client = builder(mode).executable(executable)
+                .maxResponseBytes(256).requestTimeout(Duration.ofSeconds(3)).build()) {
+            assertEquals("[{\"text\":\"ready\"}]\n", client.analyze("ready").output());
+            assertThrows(MystemRequestTimeoutException.class, () -> client.analyze("hang"));
+            if (mode == Mode.SESSION) {
+                assertThrows(MystemProtocolException.class, () -> client.analyze("next"));
+            } else {
+                assertEquals("[{\"text\":\"next\"}]\n", client.analyze("next").output());
+            }
         }
     }
 

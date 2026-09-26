@@ -25,17 +25,35 @@ import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 
 /**
- * Lucene tokenizer that analyzes the input reader with MyStem.
+ * Streams MyStem search forms from a Lucene field in bounded requests.
  *
- * <p>The supplied client must produce JSON output. The tokenizer prepares unsafe Unicode input before sending it to
- * MyStem and emits offsets in coordinates of the original Lucene input. Input is processed in bounded chunks to avoid
- * materializing large Lucene fields in memory.
+ * <p>The supplied client must produce MyStem JSON; a declared non-JSON format is rejected at
+ * construction, while an unknown declaration is accepted. Before each request, unsafe Unicode is
+ * prepared and CR/LF are replaced with spaces. Emitted offsets map back through that preparation,
+ * chunk boundaries, and any Lucene character filters to the original field's half-open UTF-16 ranges.
+ * Term length must not be used to derive source offsets.
  *
- * <p>This tokenizer follows Lucene {@link Tokenizer} lifecycle rules and is not intended to be shared directly between
- * threads.
+ * <p>{@link CharTermAttribute} contains one search form; {@link KeywordAttribute} carries its keyword
+ * flag, and {@link TypeAttribute} contains the lowercase token-type name. All forms of a source token
+ * share offsets. The first form advances the position according to
+ * {@link MystemLucenePositionPolicy}; additional forms have position increment zero. Separator and
+ * other non-search tokens are skipped. Their effect on positions is controlled by the same policy.
+ *
+ * <p>Chunk limits count UTF-16 units after character filtering and before Unicode preparation.
+ * Boundaries prefer whitespace and never split valid surrogate pairs, even across reader calls. A
+ * long run without whitespace can span multiple requests and receive different morphology. A chunk
+ * limit of one permits a two-unit surrogate pair when the field limit allows it.
+ *
+ * <p>Use {@link MystemLuceneAnalyzer} unless custom analyzer wiring is needed. For direct use, follow
+ * the Lucene lifecycle: set a reader, {@link #reset()}, consume {@link #incrementToken()} until false,
+ * call {@link #end()}, then {@link #close()}. The tokenizer is not thread-safe and never owns or closes
+ * its {@link MystemClient}. Closing releases the reader and buffered field data. After complete
+ * consumption, final offsets cover the full original field even when only a prefix was indexed.
  */
 public final class MystemLuceneTokenizer extends Tokenizer {
+    /** Default analyzed field limit, in UTF-16 units after character filtering. */
     public static final int DEFAULT_MAX_INPUT_CHARS = MystemLuceneAnalysisOptions.DEFAULT_MAX_INPUT_CHARS;
+    /** Default request chunk limit, in UTF-16 units before MyStem Unicode preparation. */
     public static final int DEFAULT_MAX_CHUNK_CHARS = MystemLuceneAnalysisOptions.DEFAULT_MAX_CHUNK_CHARS;
     private static final int READ_BUFFER_CHARS = 4096;
 
@@ -59,33 +77,36 @@ public final class MystemLuceneTokenizer extends Tokenizer {
     private int pendingPositionIncrement = 1;
 
     /**
-     * Creates a tokenizer with conservative tokenization options.
+     * Creates a tokenizer with conservative tokenization and default analysis options.
      *
      * @param client MyStem client configured for JSON output
      * @throws IllegalArgumentException when the client exposes a known non-JSON output format
+     * @throws NullPointerException if {@code client} or its format/profile declaration is {@code null}
      */
     public MystemLuceneTokenizer(MystemClient client) {
         this(client, MystemSearchTokenizerOptions.conservative());
     }
 
     /**
-     * Creates a tokenizer with explicit tokenization options.
+     * Creates a tokenizer with explicit tokenization and default analysis options.
      *
      * @param client MyStem client configured for JSON output
      * @param options search tokenization policy
      * @throws IllegalArgumentException when the client exposes a known non-JSON output format
+     * @throws NullPointerException if an argument or the client's format/profile declaration is {@code null}
      */
     public MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options) {
         this(client, options, DEFAULT_MAX_INPUT_CHARS);
     }
 
     /**
-     * Creates a tokenizer with explicit tokenization options and input size limit.
+     * Creates a tokenizer with a custom field limit and bounded default chunk size.
      *
      * @param client MyStem client configured for JSON output
      * @param options search tokenization policy
-     * @param maxInputChars maximum number of UTF-16 code units read from one Lucene field
+     * @param maxInputChars positive maximum analyzed field length after character filtering, in UTF-16 code units
      * @throws IllegalArgumentException when the client exposes a known non-JSON output format or the limit is invalid
+     * @throws NullPointerException if a reference argument or the client's format/profile declaration is {@code null}
      */
     public MystemLuceneTokenizer(MystemClient client, MystemSearchTokenizerOptions options, int maxInputChars) {
         this(client, options, MystemLuceneAnalysisOptions.withMaxInputChars(maxInputChars));
@@ -97,7 +118,8 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      * @param client MyStem client configured for JSON output
      * @param options search tokenization policy
      * @param analysisOptions Lucene-side limits and position policy
-     * @throws IllegalArgumentException when the client exposes a known non-JSON output format
+     * @throws IllegalArgumentException if the client's output format or execution profile violates the selected policies
+     * @throws NullPointerException if an argument or the client's format/profile declaration is {@code null}
      */
     public MystemLuceneTokenizer(
             MystemClient client, MystemSearchTokenizerOptions options, MystemLuceneAnalysisOptions analysisOptions) {
@@ -117,12 +139,25 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         MystemLuceneClientPolicies.apply(this.client, this.analysisOptions.clientPolicy());
     }
 
+    /**
+     * Starts analysis of the reader previously supplied through {@link #setReader(java.io.Reader)}.
+     *
+     * <p>Clears per-field offsets, positions, and buffered tokens. MyStem requests are deferred until
+     * {@link #incrementToken()}.
+     *
+     * @throws IOException if Lucene cannot reset the input
+     */
     @Override
     public void reset() throws IOException {
         super.reset();
         clearState(false);
     }
 
+    /**
+     * Closes the current reader and releases buffered field data, leaving the client open.
+     *
+     * @throws IOException if the reader cannot be closed
+     */
     @Override
     public void close() throws IOException {
         try {
@@ -166,6 +201,19 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         return flatten(searchTokenizer.tokenize(document), offsetShift);
     }
 
+    /**
+     * Reads and analyzes further chunks as needed, then emits the next term and its Lucene attributes.
+     *
+     * <p>Read attributes before advancing again: Lucene reuses their mutable instances. After false is
+     * returned, call {@link #end()} to obtain final offsets and any trailing skipped-token positions.
+     *
+     * @return {@code true} when attributes contain a term, or {@code false} at end of input
+     * @throws IOException if reading fails or the field limit is exceeded under
+     *         {@link MystemLuceneOversizedInputPolicy#FAIL}
+     * @throws io.github.ulviar.mystem4j.MystemException if the client cannot complete a request
+     * @throws io.github.ulviar.mystem4j.model.MystemJsonParseException if the client returns invalid MyStem JSON
+     * @throws io.github.ulviar.mystem4j.tokenization.MystemTokenizationException if parsed tokens cannot be aligned safely
+     */
     @Override
     public boolean incrementToken() throws IOException {
         while (emissionIndex >= emissions.size()) {
@@ -243,6 +291,15 @@ public final class MystemLuceneTokenizer extends Tokenizer {
         }
     }
 
+    /**
+     * Sets both final offsets to the corrected end of the complete field after stream exhaustion.
+     *
+     * <p>With truncation enabled, the unindexed remainder is still read so this offset includes it.
+     * The preserve-skipped policy also records trailing skipped tokens in the final position increment.
+     * This method does not consume unread input; call it after {@link #incrementToken()} returns false.
+     *
+     * @throws IOException if Lucene cannot finalize the stream
+     */
     @Override
     public void end() throws IOException {
         super.end();

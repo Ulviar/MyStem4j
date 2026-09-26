@@ -20,7 +20,7 @@ mystem4jPublishing {
 }
 
 dependencies {
-    implementation("com.github.ulviar:icli:0.1.0")
+    implementation(libs.procwright)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

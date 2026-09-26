@@ -1,7 +1,13 @@
 package io.github.ulviar.mystem4j;
 
 /**
- * A reusable MyStem session or worker pool could not be started.
+ * A MyStem process or pooled worker could not be started.
+ *
+ * <p>This can occur during client construction for a reusable session or pool warmup, or during a request
+ * for one-shot execution or lazy pool worker creation. Check the underlying cause for operating-system
+ * launch errors; resolving an executable path alone does not prove it can run on this machine.
+ *
+ * @see MystemProbe
  */
 public class MystemStartupException extends MystemException {
     /**

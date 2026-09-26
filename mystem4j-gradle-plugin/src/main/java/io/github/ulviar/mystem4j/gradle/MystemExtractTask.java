@@ -23,30 +23,74 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
+/**
+ * Extracts a MyStem executable from a ZIP or gzip-compressed TAR archive.
+ *
+ * <p>The plugin registers this task as {@code mystemExtract}, depending on
+ * {@code mystemDownload}. It locates the configured executable name in the unpacked
+ * archive, copies it to the declared output, and attempts to mark it executable.
+ * It does not start the binary; use {@link MystemProbeTask} to verify host compatibility.
+ * This separation permits packaging an executable for another OS.
+ *
+ * @see Mystem4jExtension#getPreparedExecutable()
+ */
 @DisableCachingByDefault(because = "Extracts and marks a platform executable in the local build directory.")
 public abstract class MystemExtractTask extends DefaultTask {
     private final ArchiveOperations archiveOperations;
     private final FileSystemOperations fileSystemOperations;
 
+    /**
+     * Creates the task with Gradle-managed archive and filesystem services.
+     *
+     * @param archiveOperations archive readers
+     * @param fileSystemOperations file copy service
+     */
     @Inject
     public MystemExtractTask(ArchiveOperations archiveOperations, FileSystemOperations fileSystemOperations) {
         this.archiveOperations = archiveOperations;
         this.fileSystemOperations = fileSystemOperations;
     }
 
+    /**
+     * Returns the input archive, normally the output of {@code mystemDownload}.
+     *
+     * @return archive input file
+     */
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getArchiveFile();
 
+    /**
+     * Returns the archive format: {@code zip} or {@code tar.gz}.
+     *
+     * @return archive format property
+     */
     @Input
     public abstract Property<String> getArchiveType();
 
+    /**
+     * Returns the executable basename to locate, including inside nested archive directories.
+     * Official archives use {@code mystem} or {@code mystem.exe} according to the target OS.
+     *
+     * @return expected executable filename
+     */
     @Input
     public abstract Property<String> getExecutableName();
 
+    /**
+     * Returns the destination for the selected executable; an existing file is replaced.
+     *
+     * @return executable output file
+     */
     @OutputFile
     public abstract RegularFileProperty getExecutableFile();
 
+    /**
+     * Unpacks the archive and copies the matching executable to the declared output.
+     *
+     * @throws GradleException if the format is unsupported, the executable is absent,
+     *         or extraction or file I/O fails
+     */
     @TaskAction
     public void extract() {
         File archive = getArchiveFile().get().getAsFile();

@@ -2,6 +2,12 @@ package io.github.ulviar.mystem4j;
 
 /**
  * Describes the process and concurrency profile of a MyStem client implementation.
+ *
+ * <p>The profile describes text-request processing. All built-in profiles use separate one-shot processes
+ * for file requests. To identify how a particular completed request ran, inspect
+ * {@link MystemRequestStats#mode()} instead.
+ *
+ * @see MystemClient#executionProfile()
  */
 public enum MystemClientExecutionProfile {
     /**

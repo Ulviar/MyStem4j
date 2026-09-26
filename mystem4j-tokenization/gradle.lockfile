@@ -4,7 +4,7 @@
 # To regenerate this file, run: ./gradlew :mystem4j-tokenization:dependencies --write-locks
 com.fasterxml.jackson.core:jackson-core:2.22.2=realMystemTestRuntimeClasspath,runtimeClasspath,testRuntimeClasspath
 com.fasterxml.jackson:jackson-bom:2.22.2=realMystemTestRuntimeClasspath,runtimeClasspath,testRuntimeClasspath
-com.github.ulviar:icli:0.1.0=realMystemTestRuntimeClasspath
+io.github.ulviar:procwright:0.1.0=realMystemTestRuntimeClasspath
 org.apiguardian:apiguardian-api:1.1.2=realMystemTestCompileClasspath,testCompileClasspath
 org.jacoco:org.jacoco.agent:0.8.15=jacocoAgent,jacocoAnt
 org.jacoco:org.jacoco.ant:0.8.15=jacocoAnt

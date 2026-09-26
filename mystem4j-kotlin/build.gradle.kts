@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     id("io.github.ulviar.mystem4j.java-conventions")
     kotlin("jvm")
-    alias(libs.plugins.dokka.javadoc)
+    alias(libs.plugins.dokka)
     `maven-publish`
     id("io.github.ulviar.mystem4j.publishing-conventions")
 }
@@ -22,6 +22,16 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_25)
         allWarningsAsErrors.set(true)
+    }
+}
+
+dokka {
+    dokkaPublications.configureEach {
+        failOnWarning.set(true)
+    }
+    dokkaSourceSets.configureEach {
+        reportUndocumented.set(true)
+        jdkVersion.set(25)
     }
 }
 
@@ -50,8 +60,8 @@ tasks.named<Javadoc>("javadoc") {
 }
 
 tasks.named<Jar>("javadocJar") {
-    dependsOn(tasks.named("dokkaGeneratePublicationJavadoc"))
-    from(layout.buildDirectory.dir("dokka/javadoc"))
+    // Standard Dokka HTML preserves Kotlin signatures and working navigation in the Javadoc artifact.
+    from(tasks.dokkaGeneratePublicationHtml.flatMap { it.outputDirectory })
 }
 
 publishing {

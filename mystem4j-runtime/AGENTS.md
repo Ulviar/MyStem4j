@@ -26,8 +26,8 @@ file requests, limits, diagnostics, and runtime exceptions.
 ## Validation
 
 ```text
-./gradlew :mystem4j-runtime:test -Pmystem4j.useMavenLocal=true
-./gradlew :mystem4j-runtime:memorySmokeTest -Pmystem4j.useMavenLocal=true
+./gradlew :mystem4j-runtime:test
+./gradlew :mystem4j-runtime:memorySmokeTest
 ```
 
 Run root `realMystemTest` for protocol assumptions involving the native binary.

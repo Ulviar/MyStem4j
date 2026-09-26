@@ -24,8 +24,8 @@ adapter costs from opt-in native request, Lucene analysis and indexing measureme
 ## Validation
 
 ```text
-./gradlew :mystem4j-benchmarks:test :mystem4j-benchmarks:jmhCompileCheck -Pmystem4j.useMavenLocal=true
-./gradlew :mystem4j-benchmarks:jmhSmoke -Pmystem4j.useMavenLocal=true
+./gradlew :mystem4j-benchmarks:test :mystem4j-benchmarks:jmhCompileCheck
+./gradlew :mystem4j-benchmarks:jmhSmoke
 ```
 
 Run `:mystem4j-benchmarks:nativeJmh` with an explicit executable for native

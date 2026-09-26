@@ -13,16 +13,49 @@ import java.util.OptionalDouble;
 import java.util.function.IntUnaryOperator;
 
 /**
- * Parses MyStem JSON output into model objects.
+ * Parses MyStem JSON output and aligns its tokens to the supplied source text.
  *
- * <p>Input is one or more top-level arrays of token objects, as produced for multiline MyStem output.
- * Token fields {@code text} and {@code analysis}, and analysis fields {@code lex}, {@code gr}, and
- * {@code wt}, may be absent. Absent strings default to empty strings, absent analyses to an empty list,
- * and absent weights to an empty optional. Present known fields must have their expected JSON types;
- * explicit {@code null} is rejected. Unknown fields, including nested values, are ignored.
+ * <p>Input is one or more consecutive top-level JSON arrays of token objects, as produced by MyStem
+ * for multiline text. Arrays are concatenated in encounter order, with alignment continuing across
+ * them. An empty array is valid; an empty or whitespace-only input is not. This parser consumes
+ * existing output and does not run MyStem.
  *
- * <p>Parsing and left-to-right alignment are separate: unmatched surfaces are retained with unknown
- * offsets and {@link MystemTextIssueType#UNMATCHED_TOKEN} issues rather than causing a parse failure.
+ * <table>
+ * <caption>Recognized JSON fields</caption>
+ * <thead><tr><th scope="col">Object</th><th scope="col">Field</th>
+ *     <th scope="col">Type when present</th><th scope="col">Default when absent</th></tr></thead>
+ * <tbody>
+ * <tr><td>Token</td><td>{@code text}</td><td>String</td><td>Empty string</td></tr>
+ * <tr><td>Token</td><td>{@code analysis}</td><td>Array of objects</td><td>Empty list</td></tr>
+ * <tr><td>Analysis</td><td>{@code lex}</td><td>String</td><td>Empty string</td></tr>
+ * <tr><td>Analysis</td><td>{@code gr}</td><td>String</td>
+ *     <td>{@link MystemGrammarParser#parse(String) Grammar parsed} from an empty string</td></tr>
+ * <tr><td>Analysis</td><td>{@code wt}</td><td>Number, including an integer</td><td>Empty optional</td></tr>
+ * </tbody>
+ * </table>
+ *
+ * <p>Explicit {@code null} and wrong types are rejected for every recognized field. Empty strings
+ * and empty analysis arrays are valid. Unknown fields and their nested values are ignored, but must
+ * still be valid JSON. Grammar tags are not checked against a fixed vocabulary; weights are not
+ * restricted to a probability range. Token and analysis order are preserved.
+ *
+ * <h2>Alignment and diagnostics</h2>
+ *
+ * <p>Alignment searches left to right and tolerates soft hyphens omitted from the MyStem surface.
+ * The earliest compatible occurrence wins, even when a later occurrence would match exactly.
+ * Missing punctuation or whitespace does not prevent alignment of later tokens; the parser does
+ * not synthesize items to cover gaps. An empty surface receives a zero-length range at the current
+ * alignment position.
+ *
+ * <p>An unmatched nonempty surface is retained with both offsets set to {@code -1} and a
+ * {@link MystemTextIssueType#UNMATCHED_TOKEN} issue. It does not advance the alignment position or
+ * cause a parse failure. Check {@link MystemToken#hasKnownOffsets()} before slicing source text.
+ * Invalid JSON or field types instead raise {@link MystemJsonParseException}; no partial document
+ * is returned.
+ *
+ * <p>Instances can be reused and shared between threads. Each call owns its parsing and alignment
+ * state and returns an immutable document. For an example, see the
+ * {@link io.github.ulviar.mystem4j.model package documentation}.
  */
 public final class MystemJsonParser {
     private final JsonFactory jsonFactory;
@@ -41,10 +74,15 @@ public final class MystemJsonParser {
     /**
      * Parses MyStem JSON and aligns token offsets against the supplied original text.
      *
-     * @param originalText text originally sent to MyStem
-     * @param json MyStem JSON output
-     * @return parsed document with original-text offsets
-     * @throws MystemJsonParseException when the JSON is malformed or has an unsupported shape
+     * <p>No preprocessing is performed. If MyStem received text from {@link MystemTextPreprocessor},
+     * use {@link #parse(MystemPreparedText, String)} to retain the original offsets and replacement
+     * issues. The returned document stores {@code originalText} unchanged.
+     *
+     * @param originalText text supplied to MyStem, also used as the alignment source
+     * @param json complete MyStem JSON output containing one or more top-level token arrays
+     * @return immutable document with original-text UTF-16 ranges and non-fatal alignment issues
+     * @throws MystemJsonParseException if JSON syntax is invalid, a root is not an array, a token
+     *     or analysis is not an object, or a known field has an invalid type
      * @throws NullPointerException when {@code originalText} or {@code json} is {@code null}
      */
     public MystemDocument parse(String originalText, String json) {
@@ -55,10 +93,17 @@ public final class MystemJsonParser {
     /**
      * Parses MyStem JSON for preprocessed text and maps token offsets back to the original text.
      *
-     * @param preparedText preprocessed text sent to MyStem
-     * @param json MyStem JSON output
-     * @return parsed document with original-text offsets and preprocessing issues
-     * @throws MystemJsonParseException when the JSON is malformed or has an unsupported shape
+     * <p>Alignment uses {@link MystemPreparedText#text()}, then maps both endpoints into
+     * {@link MystemPreparedText#originalText()}. The returned token surfaces remain exactly as
+     * supplied in JSON. Preparation issues precede alignment issues in the resulting document.
+     *
+     * @param preparedText the preparation result whose {@link MystemPreparedText#text() text}
+     *     was supplied to MyStem
+     * @param json complete MyStem JSON output containing one or more top-level token arrays
+     * @return immutable document retaining the original text, original-text UTF-16 ranges,
+     *     preparation issues, and non-fatal alignment issues
+     * @throws MystemJsonParseException if JSON syntax is invalid, a root is not an array, a token
+     *     or analysis is not an object, or a known field has an invalid type
      * @throws NullPointerException when {@code preparedText} or {@code json} is {@code null}
      */
     public MystemDocument parse(MystemPreparedText preparedText, String json) {

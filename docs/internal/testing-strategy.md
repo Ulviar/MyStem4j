@@ -27,6 +27,10 @@ as a substitute for focused unit tests.
 - Real-MyStem tests: opt-in tests that run with `-Dmystem4j.executable=...`.
   They validate assumptions about the external binary without making normal
   `test` depend on MyStem.
+  Lucene's native suites exclude only idle shared Procwright retirement and PTY
+  executor threads from leak detection. Active cleanup, callbacks and process
+  stream threads remain visible; runtime lifecycle tests and the pool soak check
+  that client-owned processes and file descriptors are released.
 - Benchmarks: JMH smoke and compile checks. Benchmarks are not correctness
   tests, but their sample data must have a small correctness test.
 
@@ -64,8 +68,14 @@ as a substitute for focused unit tests.
   historical-document labeling.
 - `spotlessCheck`, `markdownLocalLinksCheck`: repository hygiene gates.
 - `documentationCheck`: builds Java/Kotlin API documentation and every module's
-  Javadoc JAR, including non-published benchmark artifacts. Runtime/model Javadocs
-  reject missing comments/tags; all Java Javadocs treat warnings as errors.
+  Javadoc JAR, including non-published benchmark artifacts, and checks that local
+  HTML navigation links resolve inside each archive. Published Java modules
+  reject missing comments/tags; all Java Javadocs treat warnings as errors. Kotlin
+  Dokka reports undocumented declarations and fails on warnings. Its standard HTML
+  output is packaged under the `javadoc` classifier; the experimental Javadoc renderer
+  is avoided because it generates broken navigation links. API comments must
+  explain observable contracts (defaults, units, validation, ownership, and failure
+  behavior); passing the documentation gate alone does not establish their accuracy.
 - Java compilation treats actionable `-Xlint` warnings as errors; Kotlin
   compilation treats warnings as errors.
 - Gradle dependency lockfiles keep resolved dependency versions stable. Update
@@ -73,8 +83,8 @@ as a substitute for focused unit tests.
   Run each affected module's `dependencies --write-locks` task, including dependent
   modules: `check` does not resolve every configuration, such as each library's
   own `runtimeClasspath`. Inspect dependency reports for resolution failures.
-  Optional local/GitHub dependency repositories resolve only iCLI, so unrelated
-  local artifacts cannot shadow dependencies from Maven Central.
+  Library dependencies resolve only from Maven Central; local artifacts and private
+  repository credentials do not affect the default build.
 
 ## Boundary gate tests
 
@@ -100,10 +110,20 @@ an automatic module name, inspect their manifests, and verify configuration-cach
 reuse. They also check Java 25 class version 69 without preview bytecode. Optional
 manifest metadata must not become a required input for unrelated JAR tasks.
 
+`PublishingConventionsTest` publishes a library, a Gradle plugin, and its marker to
+a local repository without signing or Portal credentials. Its Central opt-in
+fixture includes a Kotlin module and loads Kotlin and Central plugins together at
+root. It checks that existing publications are preserved, signing uses GnuPG,
+automatic release is disabled, and the benchmark project is not published. The
+opt-in fixture only checks configuration; it does not use a personal key or upload
+artifacts. A maintainer verifies real detached signatures through the
+[local signed-publication procedure](publication.md#check-a-signed-publication-locally).
+Remote upload and Portal validation are separate release actions, not test gates.
+
 Run the focused gate with:
 
 ```bash
-./gradlew architectureCheck -Pmystem4j.useMavenLocal=true
+./gradlew architectureCheck
 ```
 
 ## Module contracts

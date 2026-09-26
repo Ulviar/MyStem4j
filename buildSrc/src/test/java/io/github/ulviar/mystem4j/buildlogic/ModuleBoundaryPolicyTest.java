@@ -115,11 +115,13 @@ class ModuleBoundaryPolicyTest {
     void leakedImplementationAndUnusedRuntimeDependenciesAreRejected() {
         assertDoesNotThrow(() -> ModuleBoundaryPolicy.checkClasspath(
                 "runtime", Set.of("io.github.ulviar.mystem4j"), true));
-        assertRejected("compile leak", "com.github.ulviar.icli", () -> ModuleBoundaryPolicy.checkClasspath(
-                "runtime", Set.of("io.github.ulviar.mystem4j", "com.github.ulviar.icli"), true));
+        assertDoesNotThrow(() -> ModuleBoundaryPolicy.checkClasspath(
+                "runtime", Set.of("io.github.ulviar.mystem4j", "io.github.ulviar.procwright"), false));
+        assertRejected("compile leak", "io.github.ulviar.procwright", () -> ModuleBoundaryPolicy.checkClasspath(
+                "runtime", Set.of("io.github.ulviar.mystem4j", "io.github.ulviar.procwright"), true));
         assertRejected("unused runtime edge", "io.github.ulviar.mystem4j.model",
                 () -> ModuleBoundaryPolicy.checkClasspath("runtime",
-                        Set.of("io.github.ulviar.mystem4j", "com.github.ulviar.icli", "io.github.ulviar.mystem4j.model"),
+                        Set.of("io.github.ulviar.mystem4j", "io.github.ulviar.procwright", "io.github.ulviar.mystem4j.model"),
                         false));
     }
 

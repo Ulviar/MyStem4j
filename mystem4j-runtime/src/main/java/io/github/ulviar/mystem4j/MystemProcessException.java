@@ -4,6 +4,10 @@ import java.util.OptionalInt;
 
 /**
  * A MyStem process exited unsuccessfully; exit status and bounded diagnostics may be available.
+ *
+ * <p>Use {@link #exitCode()} for the status and {@link #stderr()} for diagnostic text. Neither is a complete
+ * process transcript. Diagnostics printed by MyStem can contain input even when the client's
+ * {@link MystemClientBuilder#includeInputInDiagnostics(boolean) input-diagnostics option} is disabled.
  */
 public class MystemProcessException extends MystemException {
     /** Process exit status when available. */

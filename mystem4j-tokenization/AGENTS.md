@@ -26,8 +26,8 @@ source ranges without depending on runtime process management or Lucene.
 ## Validation
 
 ```text
-./gradlew :mystem4j-tokenization:test -Pmystem4j.useMavenLocal=true
-./gradlew unicodeContextStressTest -Pmystem4j.useMavenLocal=true
+./gradlew :mystem4j-tokenization:test
+./gradlew unicodeContextStressTest
 ```
 
 Run the module `realMystemTest` when changing observed MyStem quirks.

@@ -1,5 +1,6 @@
 package io.github.ulviar.mystem4j;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +19,28 @@ import org.junit.jupiter.api.io.TempDir;
 class MystemRuntimeResourceReleaseTest {
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void disabledReplenishmentKeepsExplicitWarmupWithoutMaintainingIdleFloor() throws Exception {
+        Path pidFile = temporaryDirectory.resolve("no-replenishment-pids.txt");
+        Path executable = pidRecordingInteractiveMystem(pidFile);
+        try (MystemClient client = Mystem.builder().executable(executable)
+                .requestTimeout(Duration.ofSeconds(30))
+                .pooled(pool -> pool.maxSize(2).warmupSize(1).minIdle(2).backgroundReplenishment(false))
+                .build()) {
+            assertTrue(client.analyze("one").output().contains("one"));
+            waitForPidCount(pidFile, 1);
+            long deadline = System.nanoTime() + Duration.ofSeconds(1).toNanos();
+            while (System.nanoTime() < deadline) {
+                assertEquals(1, readPids(pidFile).size(), "disabled idle replenishment started an extra worker");
+                Thread.sleep(25);
+            }
+            assertTrue(client.analyze("two").output().contains("two"));
+        }
+        for (long pid : readPids(pidFile)) {
+            waitUntilProcessExits(pid);
+        }
+    }
 
     @Test
     void reusableSessionCloseStopsWorkerProcess() throws Exception {
@@ -62,7 +85,9 @@ class MystemRuntimeResourceReleaseTest {
         Path executable = pidRecordingSleepingMystem(pidFile);
         try (MystemClient client = Mystem.builder()
                 .executable(executable)
-                .requestTimeout(Duration.ofSeconds(1))
+                // Allow the fake JVM to record its PID before testing timeout cleanup,
+                // even while documentation and consumer compilations run alongside it.
+                .requestTimeout(Duration.ofSeconds(5))
                 .build()) {
             assertThrows(MystemRequestTimeoutException.class, () -> client.analyze("text"));
         }

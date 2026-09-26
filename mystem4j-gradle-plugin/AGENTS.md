@@ -28,6 +28,6 @@ for tests and application distributions.
 ## Validation
 
 ```text
-./gradlew :mystem4j-gradle-plugin:test -Pmystem4j.useMavenLocal=true
-./gradlew sampleSmokeTest -Pmystem4j.useMavenLocal=true
+./gradlew :mystem4j-gradle-plugin:test
+./gradlew sampleSmokeTest
 ```

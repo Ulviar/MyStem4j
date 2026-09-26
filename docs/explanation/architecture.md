@@ -26,7 +26,7 @@ at runtime.
 
 | Module | Public dependencies | Implementation dependencies |
 | --- | --- | --- |
-| runtime | none | iCLI |
+| runtime | none | Procwright |
 | model | none | Jackson Core |
 | tokenization | model | none |
 | Lucene | runtime, tokenization, Lucene Core | model |
@@ -36,7 +36,7 @@ at runtime.
 For example, a program using `MystemJsonParser` compiles against the model JAR and
 runs with Jackson Core. A program using tokenization also receives the public
 model types, but neither module introduces runtime process management or Lucene.
-Declare iCLI or Jackson directly if application code uses their APIs.
+Declare Procwright or Jackson directly if application code uses their APIs.
 
 Lucene owns orchestration of preparation, runtime calls, parsing, and search-token
 conversion. It may use the model directly because it composes these independent
@@ -90,10 +90,10 @@ one input line maps to one JSON output line. These modes are JSON-only and rejec
 raw multiline input. Pooled mode is the expected base for high-throughput indexing
 because it avoids process startup for every field while allowing concurrent callers.
 
-The runtime checks payload limits before handing requests to iCLI and admits pooled
+The runtime checks payload limits before handing requests to Procwright and admits pooled
 text requests through a fair semaphore sized to the worker capacity. This prevents
-repeated callers from starving queued callers in iCLI's worker-acquisition path.
-iCLI still owns worker startup, rotation, protocol I/O and process termination;
+repeated callers from starving queued callers in Procwright's worker-acquisition path.
+Procwright still owns worker startup, rotation, protocol I/O and process termination;
 MyStem4j owns the public waiting, validation and exception contract. See
 [runtime limits and lifecycle](../reference/runtime-api.md#limits-and-timeouts).
 

@@ -189,7 +189,6 @@ Sample:
   that applies the plugin without downloading MyStem by default.
 - [API stability](docs/reference/api-stability.md)
 - [Glossary](docs/reference/glossary.md)
-- [Changelog](CHANGELOG.md)
 
 ## License
 

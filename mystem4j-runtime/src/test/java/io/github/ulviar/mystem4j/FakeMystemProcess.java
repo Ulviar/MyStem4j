@@ -166,6 +166,9 @@ public final class FakeMystemProcess {
             while ((input = reader.readLine()) != null) {
                 System.err.write(noise);
                 System.err.flush();
+                if (input.equals("hang")) {
+                    sleep(Long.MAX_VALUE);
+                }
                 Thread.sleep(200L);
                 writer.print(jsonLine(input));
                 writer.flush();

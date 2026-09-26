@@ -2,6 +2,7 @@ package io.github.ulviar.mystem4j.lucene;
 
 import static org.junit.Assume.assumeFalse;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import io.github.ulviar.mystem4j.Mystem;
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.MystemOptions;
@@ -25,6 +26,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.util.LuceneTestCase;
 
+@ThreadLeakFilters(defaultFilters = true, filters = ProcwrightSharedThreadsFilter.class)
 public class RealMystemLuceneIntegrationTest extends LuceneTestCase {
     private static final String FIELD = "body";
 

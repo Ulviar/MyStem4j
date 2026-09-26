@@ -18,6 +18,55 @@ class JavaConventionsArtifactsTest {
     Path temporaryDirectory;
 
     @Test
+    void publishedApiRejectsMissingDocumentationAndAcceptsImplementationContracts() throws IOException {
+        Files.createDirectories(temporaryDirectory.resolve("src/main/java/example"));
+        Files.writeString(temporaryDirectory.resolve("settings.gradle"), """
+                rootProject.name = 'documented-api-fixture'
+                dependencyResolutionManagement {
+                    versionCatalogs { libs { version('jacoco', '0.8.15') } }
+                }
+                """);
+        Files.writeString(temporaryDirectory.resolve("build.gradle"), """
+                plugins {
+                    id 'java'
+                    id 'io.github.ulviar.mystem4j.java-conventions'
+                    id 'maven-publish'
+                }
+                """);
+        Path source = temporaryDirectory.resolve("src/main/java/example/Example.java");
+        Files.writeString(source, """
+                package example;
+                /** A published API whose methods must be documented. */
+                public final class Example {
+                    private Example() {}
+                    public static int answer() { return 42; }
+                }
+                """);
+        GradleRunner runner = GradleRunner.create().withProjectDir(temporaryDirectory.toFile())
+                .withPluginClasspath().withArguments("javadoc", "--offline", "--configuration-cache");
+        String failure = runner.buildAndFail().getOutput();
+        assertTrue(failure.contains("no comment"), failure);
+        assertTrue(failure.contains("warnings found and -Werror specified"), failure);
+
+        Files.writeString(source, """
+                package example;
+                /** A published API with a complete contract. */
+                public final class Example {
+                    private Example() {}
+                    /**
+                     * Returns the example answer.
+                     * @implSpec Always returns the same constant.
+                     * @return the value 42
+                     */
+                    public static int answer() { return 42; }
+                }
+                """);
+        assertTrue(runner.build().getOutput().contains("Reusing configuration cache."));
+        String html = Files.readString(temporaryDirectory.resolve("build/docs/javadoc/example/Example.html"));
+        assertTrue(html.contains("Implementation Requirements:"));
+    }
+
+    @Test
     void allJarVariantsSupportAbsentOrConfiguredModuleNamesAndConfigurationCache() throws IOException {
         for (boolean configured : List.of(false, true)) {
             Path project = temporaryDirectory.resolve(configured ? "named" : "unnamed");

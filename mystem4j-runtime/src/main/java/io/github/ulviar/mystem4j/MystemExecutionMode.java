@@ -2,6 +2,9 @@ package io.github.ulviar.mystem4j;
 
 /**
  * Execution path of one completed request, as reported by {@link MystemRequestStats}.
+ *
+ * <p>This can differ from the client's {@link MystemClientExecutionProfile}: for example, a pooled
+ * client's file request is reported as {@link #ONE_SHOT_FILE}, not {@link #POOL}.
  */
 public enum MystemExecutionMode {
     /** A separate process handling caller-supplied text. */

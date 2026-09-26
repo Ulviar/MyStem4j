@@ -17,7 +17,10 @@ import kotlin.time.Duration as KotlinDuration
 import kotlin.time.toJavaDuration
 
 /**
- * Prevents accidental receiver leakage between nested MyStem4j DSL blocks.
+ * Restricts implicit calls in nested DSL blocks to the nearest MyStem4j receiver.
+ *
+ * Inside `options { ... }` or `pooled { ... }`, client-level configuration must use an
+ * explicit outer receiver. This prevents an unqualified call from silently changing the client.
  */
 @DslMarker
 public annotation class MystemDslMarker
@@ -31,8 +34,43 @@ public annotation class MystemDslMarker
  * returned client with `use { ... }` when possible. Session and pool clients require
  * JSON, reject `newLineEachWord(true)`, and reject CR/LF in text requests.
  *
- * @param configure configuration applied once before client creation
- * @return a client owned by the caller
+ * The callback runs synchronously on the calling thread with a fresh, mutable receiver.
+ * After it returns, [MystemClientBuilder.build] validates configuration and resolves the
+ * executable. Session mode also starts its process; pool mode performs configured warmup.
+ * One-shot mode starts no process until a request. No executable is downloaded.
+ *
+ * ```kotlin
+ * import io.github.ulviar.mystem4j.kotlin.analyzeWith
+ * import io.github.ulviar.mystem4j.kotlin.mystemClient
+ * import kotlin.time.Duration.Companion.seconds
+ *
+ * fun main(args: Array<String>) {
+ *     require(args.size == 1) { "Pass the path to an installed MyStem executable" }
+ *     mystemClient {
+ *         executable(args[0])
+ *         options {
+ *             grammarInfo()
+ *             disambiguate()
+ *         }
+ *         requestTimeout(5.seconds)
+ *     }.use { client ->
+ *         println("Мама мыла раму.".analyzeWith(client).output())
+ *     }
+ * }
+ * ```
+ *
+ * Results contain raw output, not parsed morphology, and remain usable after the client closes.
+ * Callback exceptions and Java runtime exceptions propagate without wrapping.
+ *
+ * @param configure configuration invoked exactly once before building the client
+ * @return an independent client owned by the caller; close it even when a request fails
+ * @throws io.github.ulviar.mystem4j.MystemInvalidOptionsException if CLI options are incompatible,
+ * the selected process mode rejects them, or a fixlist is not a readable regular file
+ * @throws io.github.ulviar.mystem4j.MystemExecutableNotFoundException if no usable executable is resolved
+ * @throws io.github.ulviar.mystem4j.MystemException if session or pool startup fails
+ * @throws IllegalArgumentException if a timeout, size limit, or pool setting is outside its allowed range
+ * @see MystemClientBuilder
+ * @see MystemClient
  */
 public fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient {
     val builder = Mystem.builder()
@@ -46,8 +84,27 @@ public fun mystemClient(configure: MystemClientDsl.() -> Unit): MystemClient {
  * Defaults are JSON, UTF-8, and all flags disabled. Calling a boolean option without
  * an argument enables it; omitting the call preserves the Java default.
  *
- * @param configure configuration applied once before option validation
- * @return validated options
+ * The callback runs immediately with a fresh receiver; options are validated after it returns.
+ * No executable is resolved or started, and fixlist files are not accessed at this stage.
+ * The returned options can be reused across clients and threads.
+ *
+ * ```kotlin
+ * import io.github.ulviar.mystem4j.kotlin.mystemOptions
+ *
+ * fun main() {
+ *     val options = mystemOptions {
+ *         grammarInfo()
+ *         mergeWordForms() // Requires grammarInfo(), checked after the block.
+ *     }
+ *     check(options.grammarInfo() && options.mergeWordForms())
+ * }
+ * ```
+ *
+ * @param configure configuration invoked exactly once before option validation
+ * @return immutable options snapshot, independent of subsequent receiver changes
+ * @throws io.github.ulviar.mystem4j.MystemInvalidOptionsException if word-form merging lacks
+ * grammar information, sentence markers lack input copying, or a grammar filter is blank
+ * @see MystemOptions.Builder
  */
 public fun mystemOptions(configure: MystemOptionsDsl.() -> Unit): MystemOptions {
     val builder = MystemOptions.builder()
@@ -56,18 +113,37 @@ public fun mystemOptions(configure: MystemOptionsDsl.() -> Unit): MystemOptions 
 }
 
 /**
- * Kotlin DSL facade for [MystemClientBuilder].
+ * Mutable client configuration receiver supplied to [mystemClient].
+ *
+ * Configure it within the callback; it is not intended for concurrent use. Settings delegate
+ * to [MystemClientBuilder], and later receiver changes do not reconfigure a built client.
+ * Nested [options] blocks start from fresh CLI defaults; nested [pooled] blocks start from
+ * fresh pool defaults. Repeating either block replaces the earlier configuration.
+ *
+ * Java and Kotlin duration overloads use the same runtime validation. Kotlin values are
+ * converted with [toJavaDuration]; they are not rounded to whole seconds by this DSL.
  */
 @MystemDslMarker
 public class MystemClientDsl internal constructor(
     private val builder: MystemClientBuilder,
 ) {
-    /** Sets the MyStem executable path. */
+    /**
+     * Selects a local executable, taking precedence over property, environment, and PATH lookup.
+     * The path is checked when [mystemClient] builds the client; relative paths are allowed.
+     *
+     * @param path path to a regular executable file
+     * @see MystemClientBuilder.executable
+     */
     public fun executable(path: Path): Unit {
         builder.executable(path)
     }
 
-    /** Sets the MyStem executable path from a string. */
+    /**
+     * Converts [path] with [Path.of] and selects it as the executable.
+     *
+     * @throws java.nio.file.InvalidPathException if the string is not a valid path on this platform
+     * @see executable
+     */
     public fun executable(path: String): Unit {
         executable(Path.of(path))
     }
@@ -77,12 +153,17 @@ public class MystemClientDsl internal constructor(
         executable(file.toPath())
     }
 
-    /** Sets already built MyStem CLI options. */
+    /** Replaces the complete CLI configuration with the supplied immutable [options]. */
     public fun options(options: MystemOptions): Unit {
         builder.options(options)
     }
 
-    /** Configures MyStem CLI options inline. */
+    /**
+     * Builds CLI options from fresh defaults and replaces the previous options.
+     * [configure] runs immediately; option dependencies are checked when the block returns.
+     *
+     * @see mystemOptions
+     */
     public fun options(configure: MystemOptionsDsl.() -> Unit): Unit {
         options(mystemOptions(configure))
     }
@@ -95,12 +176,20 @@ public class MystemClientDsl internal constructor(
     /**
      * Sets the positive execution timeout; defaults to three seconds.
      * Pool admission/acquisition and waiting behind another session caller are excluded.
+     *
+     * @throws IllegalArgumentException if [timeout] is zero or negative
+     * @see MystemClientBuilder.requestTimeout
      */
     public fun requestTimeout(timeout: Duration): Unit {
         builder.requestTimeout(timeout)
     }
 
-    /** Sets the positive execution timeout as a Kotlin duration; defaults to three seconds. */
+    /**
+     * Sets the execution timeout after [toJavaDuration] conversion; defaults to three seconds.
+     *
+     * @throws IllegalArgumentException if [timeout] is zero or negative
+     * @see MystemClientBuilder.requestTimeout
+     */
     @JvmName("requestTimeoutKotlinDuration")
     public fun requestTimeout(timeout: KotlinDuration): Unit {
         requestTimeout(timeout.toJavaDuration())
@@ -109,12 +198,21 @@ public class MystemClientDsl internal constructor(
     /**
      * Sets the non-negative process I/O inactivity timeout for session/pool workers; zero disables it.
      * This also applies during silent active requests and is disabled by default.
+     * One-shot requests, including file requests, do not use it.
+     *
+     * @throws IllegalArgumentException if [timeout] is negative
+     * @see MystemClientBuilder.idleTimeout
      */
     public fun idleTimeout(timeout: Duration): Unit {
         builder.idleTimeout(timeout)
     }
 
-    /** Sets the process I/O inactivity timeout as a Kotlin duration; zero (the default) disables it. */
+    /**
+     * Sets process I/O inactivity timeout after [toJavaDuration] conversion; zero disables it.
+     *
+     * @throws IllegalArgumentException if [timeout] is negative
+     * @see MystemClientBuilder.idleTimeout
+     */
     @JvmName("idleTimeoutKotlinDuration")
     public fun idleTimeout(timeout: KotlinDuration): Unit {
         idleTimeout(timeout.toJavaDuration())
@@ -131,6 +229,10 @@ public class MystemClientDsl internal constructor(
     /**
      * Configures a pool of JSON-line processes. Requires JSON, `newLineEachWord(false)`,
      * and text requests without CR/LF. File requests still run in separate one-shot processes.
+     * [configure] runs immediately with fresh defaults, replacing earlier pool settings.
+     *
+     * @throws IllegalArgumentException if the completed block contains invalid pool settings
+     * @see MystemPoolOptionsDsl
      */
     public fun pooled(configure: MystemPoolOptionsDsl.() -> Unit): Unit {
         builder.pooled { pool -> MystemPoolOptionsDsl(pool).configure() }
@@ -171,6 +273,7 @@ public class MystemClientDsl internal constructor(
     /**
      * Sets the positive capture/protocol buffer bound; defaults to 32,000,000 bytes.
      * Includes line endings and bounds stderr/backlog too; does not limit direct file output.
+     * Session and pool text requests discard excess stderr without failing; stdout limits still fail requests.
      */
     public fun maxResponseBytes(value: Int): Unit {
         builder.maxResponseBytes(value)
@@ -191,16 +294,23 @@ public class MystemClientDsl internal constructor(
 }
 
 /**
- * Kotlin DSL facade for [MystemPoolOptions.Builder].
+ * Mutable pool configuration receiver supplied to [MystemClientDsl.pooled].
  *
  * This receiver carries [MystemDslMarker], so client-level operations cannot be
  * called accidentally from inside `pooled { }`.
+ * Setters store values; [MystemPoolOptions.Builder.build] validates them when the block returns.
+ * This lets related settings such as [maxSize] and [warmupSize] be supplied in either order.
+ * Do not configure the receiver concurrently. The resulting options are immutable.
+ *
+ * Kotlin durations are converted with [toJavaDuration] and have the same runtime validation
+ * as their Java counterparts. Pool capacity applies to text requests; file requests start
+ * separate one-shot processes and can exceed that process count.
  */
 @MystemDslMarker
 public class MystemPoolOptionsDsl internal constructor(
     private val builder: MystemPoolOptions.Builder,
 ) {
-    /** Sets positive live-worker/admitted-request capacity; defaults to available processors. */
+    /** Sets live-worker/admitted-request capacity in `1..256`; defaults to available processors, capped at 256. */
     public fun maxSize(value: Int): Unit {
         builder.maxSize(value)
     }
@@ -266,7 +376,12 @@ public class MystemPoolOptionsDsl internal constructor(
 }
 
 /**
- * Kotlin DSL facade for [MystemOptions.Builder].
+ * Mutable CLI options receiver supplied to [mystemOptions] or [MystemClientDsl.options].
+ *
+ * Each block starts with JSON, UTF-8, and all flags disabled. Boolean methods default to
+ * enabling their option; pass `false` to disable it again within the same block. Validation
+ * of dependent flags occurs after the block, so their call order does not matter.
+ * Receivers are not thread-safe; the resulting [MystemOptions] is immutable.
  */
 @MystemDslMarker
 public class MystemOptionsDsl internal constructor(
@@ -327,12 +442,22 @@ public class MystemOptionsDsl internal constructor(
         builder.filterGrammar(value)
     }
 
-    /** Sets a custom dictionary path; client construction requires a readable regular file. */
+    /**
+     * Sets a custom dictionary path; client construction requires a readable regular file.
+     * Building options does not read, modify, or take ownership of the file.
+     *
+     * @see MystemOptions.Builder.fixlist
+     */
     public fun fixlist(path: Path): Unit {
         builder.fixlist(path)
     }
 
-    /** Sets a MyStem fixlist path from a string. */
+    /**
+     * Converts [path] with [Path.of] and selects it as the custom dictionary.
+     *
+     * @throws java.nio.file.InvalidPathException if the string is not a valid path on this platform
+     * @see fixlist
+     */
     public fun fixlist(path: String): Unit {
         fixlist(Path.of(path))
     }
@@ -347,7 +472,7 @@ public class MystemOptionsDsl internal constructor(
         builder.format(format)
     }
 
-    /** Asks MyStem to generate all possible forms. */
+    /** Asks MyStem to generate all hypotheses (`--generate-all`). */
     public fun generateAll(enabled: Boolean = true): Unit {
         builder.generateAll(enabled)
     }
@@ -360,15 +485,50 @@ public class MystemOptionsDsl internal constructor(
 
 /**
  * Analyzes this text with [client], preserving its limits, framing restrictions, and exceptions.
- * Does not close the client or parse its raw output.
+ *
+ * This is a synchronous call to [MystemClient.analyze]; it does not close the client,
+ * preprocess the input, parse raw output, retry failures, or dispatch to another thread.
+ * Built-in session and pool clients require text without CR or LF. Use one-shot mode for
+ * multiline text, or prepare it before this call in a higher-level integration.
+ *
+ * @receiver text to analyze, possibly empty
+ * @param client an open client, still owned by the caller after this call
+ * @return raw MyStem output with the input text and successful-request statistics
+ * @throws io.github.ulviar.mystem4j.MystemInvalidOptionsException if text exceeds payload limits
+ * or violates the selected mode's line-framing restrictions
+ * @throws io.github.ulviar.mystem4j.MystemClosedException if the client is closed
+ * @throws io.github.ulviar.mystem4j.MystemException if execution, communication, or acquisition fails
+ * @see MystemClient.analyze
  */
 public fun String.analyzeWith(client: MystemClient): MystemRawResult = client.analyze(this)
 
 /**
  * Analyzes this file and captures stdout through [client]. Built-in clients use a one-shot process.
- * Does not close the client or take ownership of the file.
+ *
+ * The file must be readable, regular, and encoded according to the client's options.
+ * Text payload limits and session/pool single-line restrictions do not apply to its contents;
+ * captured output remains subject to response limits. This synchronous call does not close
+ * the client, modify or delete the input file, or parse the output.
+ *
+ * @receiver path to the input file; relative paths are allowed
+ * @param client an open client, still owned by the caller after this call
+ * @return captured raw output, input path, format, and successful-request statistics
+ * @throws io.github.ulviar.mystem4j.MystemInvalidOptionsException if the path is not a readable regular file
+ * @throws io.github.ulviar.mystem4j.MystemClosedException if the client is closed
+ * @throws io.github.ulviar.mystem4j.MystemException if startup, execution, or output capture fails
+ * @see MystemClient.analyzeFile
  */
 public fun Path.analyzeWith(client: MystemClient): MystemFileContentResult = client.analyzeFile(this)
 
-/** Delegates file analysis to the [Path.analyzeWith] extension without closing [client]. */
+/**
+ * Converts this file with [File.toPath] and delegates to [Path.analyzeWith].
+ *
+ * @receiver readable regular file in the client's configured encoding
+ * @param client an open client, still owned by the caller after this call
+ * @return captured raw output, input path, format, and successful-request statistics
+ * @throws io.github.ulviar.mystem4j.MystemInvalidOptionsException if the file is not readable and regular
+ * @throws io.github.ulviar.mystem4j.MystemClosedException if the client is closed
+ * @throws io.github.ulviar.mystem4j.MystemException if startup, execution, or output capture fails
+ * @see Path.analyzeWith
+ */
 public fun File.analyzeWith(client: MystemClient): MystemFileContentResult = toPath().analyzeWith(client)

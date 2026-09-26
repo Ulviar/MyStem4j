@@ -2,6 +2,7 @@ package io.github.ulviar.mystem4j.lucene;
 
 import static org.junit.Assume.assumeFalse;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import example.LuceneSearchExample;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.apache.lucene.tests.util.LuceneTestCase;
 
+@ThreadLeakFilters(defaultFilters = true, filters = ProcwrightSharedThreadsFilter.class)
 public class MystemLuceneDocumentationExampleTest extends LuceneTestCase {
     public void testExampleIndexesAndQueriesLemmasWithinOneAnalyzerLifecycle() throws IOException {
         FakeMystemClient client = new FakeMystemClient(input -> switch (input) {

@@ -26,6 +26,6 @@ Unicode preparation, text issues, and offset alignment.
 ## Validation
 
 ```text
-./gradlew :mystem4j-model:test -Pmystem4j.useMavenLocal=true
-./gradlew realMystemUnicodeStress -Pmystem4j.useMavenLocal=true -Dmystem4j.executable=/path/to/mystem
+./gradlew :mystem4j-model:test
+./gradlew realMystemUnicodeStress -Dmystem4j.executable=/path/to/mystem
 ```

@@ -1,8 +1,8 @@
 package io.github.ulviar.mystem4j;
 
-import com.github.ulviar.icli.session.PooledProtocolSession;
-import com.github.ulviar.icli.session.PooledProtocolSessionException;
-import com.github.ulviar.icli.session.ProtocolSessionException;
+import io.github.ulviar.procwright.session.PooledProtocolSession;
+import io.github.ulviar.procwright.session.PooledSessionException;
+import io.github.ulviar.procwright.session.ProtocolSessionException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
@@ -35,7 +35,7 @@ final class PooledMystemClient implements MystemClient {
         this.options = Objects.requireNonNull(options, "options");
         this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
         this.requestLimits = requestLimits;
-        // iCLI worker acquisition is not FIFO. Bound admission fairly so a hot caller
+        // Keep FIFO admission independent of Procwright's worker acquisition policy, so a hot caller
         // cannot repeatedly take a worker ahead of callers already waiting for one.
         this.requestSlots = new Semaphore(poolOptions.maxSize(), true);
         this.acquireTimeoutNanos = TimeUnit.NANOSECONDS.convert(poolOptions.acquireTimeout());
@@ -74,7 +74,7 @@ final class PooledMystemClient implements MystemClient {
                 return new MystemRawResult(text, output, options.format(), stats);
             } catch (ProtocolSessionException error) {
                 throw MystemProtocolFailureMapper.map(error);
-            } catch (PooledProtocolSessionException error) {
+            } catch (PooledSessionException error) {
                 throw MystemProtocolFailureMapper.map(error);
             } finally {
                 requestSlots.release();
@@ -122,8 +122,13 @@ final class PooledMystemClient implements MystemClient {
         closeLock.writeLock().lock();
         try {
             if (closed.compareAndSet(false, true)) {
-                pool.close();
-                fileClient.close();
+                try {
+                    pool.close();
+                } catch (PooledSessionException error) {
+                    throw MystemProtocolFailureMapper.map(error);
+                } finally {
+                    fileClient.close();
+                }
             }
         } finally {
             closeLock.writeLock().unlock();

@@ -12,11 +12,38 @@ import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.process.CommandLineArgumentProvider;
 
+/**
+ * Prepares native MyStem distributions for Gradle builds.
+ *
+ * <p>Apply plugin ID {@code io.github.ulviar.mystem4j} and configure the
+ * {@link Mystem4jExtension mystem4j extension}. Tasks form the following dependency chain:
+ * {@code mystemPrepareTestRuntime -> mystemProbe -> mystemExtract -> mystemDownload}.
+ * Each stage can be requested separately. Applying the plugin only registers this
+ * configuration; downloads and license acceptance are opt-in.
+ *
+ * <p>For application packaging, consume {@link Mystem4jExtension#getPreparedExecutable()}
+ * without requesting the probe. For tests running on the build host, enable
+ * {@link Mystem4jExtension#getConfigureTests() configureTests} to prepare, probe, and
+ * pass the executable path to every {@link Test} task. The plugin does not select a
+ * packaging layout or configure executable discovery in a deployed application.
+ *
+ * @see Mystem4jExtension
+ */
 public class Mystem4jPlugin implements Plugin<Project> {
+    /**
+     * Creates an instance for Gradle's plugin manager; apply the plugin by its ID in a build script.
+     */
+    public Mystem4jPlugin() {}
+
     static final String GROUP = "mystem4j";
     static final String EXECUTABLE_PROPERTY = "mystem4j.executable";
     static final String EXECUTABLE_ENV = "MYSTEM_PATH";
 
+    /**
+     * Registers the extension, lazy preparation tasks, and optional test integration.
+     *
+     * @param project target Gradle project
+     */
     @Override
     public void apply(Project project) {
         Mystem4jExtension extension =

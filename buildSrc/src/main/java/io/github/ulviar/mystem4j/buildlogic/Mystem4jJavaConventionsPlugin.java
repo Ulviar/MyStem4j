@@ -53,10 +53,11 @@ public final class Mystem4jJavaConventionsPlugin implements Plugin<Project> {
         project.getTasks().withType(Javadoc.class).configureEach(task -> {
             task.getOptions().setEncoding("UTF-8");
             StandardJavadocDocletOptions options = (StandardJavadocDocletOptions) task.getOptions();
-            boolean documentedApi = java.util.Set.of("mystem4j-runtime", "mystem4j-model")
-                    .contains(project.getName());
+            boolean documentedApi = project.getPlugins().hasPlugin("maven-publish");
             options.addBooleanOption(documentedApi ? "Xdoclint:all" : "Xdoclint:all,-missing", true);
             options.addBooleanOption("Werror", true);
+            options.tags("apiNote:a:API Note:", "implSpec:a:Implementation Requirements:",
+                    "implNote:a:Implementation Note:");
         });
 
         project.getTasks().withType(Test.class).configureEach(Test::useJUnitPlatform);

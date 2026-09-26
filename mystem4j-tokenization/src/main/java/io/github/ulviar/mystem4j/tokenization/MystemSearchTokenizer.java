@@ -7,7 +7,22 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Converts parsed MyStem tokens into search-oriented tokens.
+ * Converts a parsed document into an immutable, complete partition of source text and search forms.
+ *
+ * <p>Every output token retains its original substring and half-open UTF-16 range. Lemmas, suffix
+ * variants, and normalized aliases are alternatives for that range; use source text for display or
+ * highlighting and forms for indexing. Separators remain in the result, even when an index does not
+ * emit them. Missing MyStem fragments are recovered from the original document.
+ *
+ * <p>Instances hold immutable options, perform no I/O, and can tokenize independent documents
+ * concurrently. The no-argument constructor uses {@link MystemSearchTokenizerOptions#conservative()}.
+ * Even a document with no model tokens recovers searchable source text:
+ * <pre>{@code
+ * var document = new MystemDocument("FOUR", List.of(), List.of());
+ * var token = new MystemSearchTokenizer().tokenize(document).getFirst();
+ * // token.text() is "FOUR", token.forms().getFirst().text() is "four".
+ * // Its source range is [0, 4), regardless of the form's normalization.
+ * }</pre>
  */
 public final class MystemSearchTokenizer {
     private final MystemSearchTokenizerOptions options;
@@ -23,6 +38,7 @@ public final class MystemSearchTokenizer {
      * Creates a tokenizer with explicit tokenization options.
      *
      * @param options tokenization policy
+     * @throws NullPointerException if {@code options} is {@code null}
      */
     public MystemSearchTokenizer(MystemSearchTokenizerOptions options) {
         this.options = Objects.requireNonNull(options, "options");
@@ -32,9 +48,13 @@ public final class MystemSearchTokenizer {
      * Converts a parsed MyStem document to search tokens.
      *
      * <p>When MyStem omits non-copy input fragments, gaps are synthesized from the original document text.
+     * Unknown-offset tokens are ignored by default; {@link MystemUnmatchedTokenPolicy#FAIL} rejects them.
+     * Known nonempty model ranges must be ordered, non-overlapping, within the original string, and must
+     * not split valid surrogate pairs. Empty model tokens with valid ranges are ignored.
      *
      * @param document parsed MyStem document
-     * @return search tokens with original-text offsets
+     * @return unmodifiable tokens in source order, covering the entire original text;
+     *         empty when the original text is empty and the model ranges are valid
      * @throws MystemTokenizationException when a model token has invalid offsets or strict unmatched-token policy fails
      * @throws NullPointerException when {@code document} is {@code null}
      */

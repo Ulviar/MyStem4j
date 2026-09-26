@@ -5,8 +5,14 @@ import java.time.Duration;
 /**
  * Immutable configuration for pooled MyStem JSON-line sessions.
  *
- * <p>Create instances with {@link #builder()} so new pool controls can be added without changing a positional
- * constructor.
+ * <p>Use {@link MystemClientBuilder#pooled(MystemPoolOptions)} to apply a configuration. Instances can be
+ * shared between builders and threads. The default starts workers on demand, up to the number of available
+ * processors, capped at 256; {@link #warmupSize()} and {@link #minIdle()} both default to zero.
+ *
+ * <p>Capacity limits text requests only. File requests use separate one-shot processes and can therefore
+ * start additional processes beyond {@link #maxSize()}. Text requests wait in FIFO admission order before
+ * acquiring a worker. {@link #acquireTimeout()} bounds each of these two stages separately; the execution
+ * timeout configured by {@link MystemClientBuilder#requestTimeout(Duration)} starts afterward.
  */
 public final class MystemPoolOptions {
     private final int maxSize;
@@ -27,8 +33,8 @@ public final class MystemPoolOptions {
         maxRequestsPerWorker = builder.maxRequestsPerWorker;
         maxWorkerAge = builder.maxWorkerAge;
         backgroundReplenishment = builder.backgroundReplenishment;
-        if (maxSize <= 0) {
-            throw new IllegalArgumentException("maxSize must be positive");
+        if (maxSize <= 0 || maxSize > 256) {
+            throw new IllegalArgumentException("maxSize must be in [1, 256]");
         }
         if (warmupSize < 0 || warmupSize > maxSize) {
             throw new IllegalArgumentException("warmupSize must be in [0, maxSize]");
@@ -53,7 +59,7 @@ public final class MystemPoolOptions {
     /**
      * Returns the maximum number of live workers and concurrent admitted text requests.
      *
-     * @return positive capacity; defaults to {@link Runtime#availableProcessors()}
+     * @return capacity in {@code [1, 256]}; defaults to {@link Runtime#availableProcessors()}, capped at 256
      */
     public int maxSize() {
         return maxSize;
@@ -71,7 +77,11 @@ public final class MystemPoolOptions {
     /**
      * Returns the target number of idle workers kept available.
      *
-     * @return idle worker target; defaults to {@code 0}
+     * <p>This is a replenishment target, not a reservation: busy workers count toward {@link #maxSize()},
+     * and startup failures or active requests can leave fewer idle workers available.
+     * The target is inactive when {@link #backgroundReplenishment()} is {@code false}.
+     *
+     * @return idle worker target in {@code [0, maxSize]}; defaults to {@code 0}
      */
     public int minIdle() {
         return minIdle;
@@ -107,6 +117,8 @@ public final class MystemPoolOptions {
     /**
      * Returns the age after which a worker becomes eligible for replacement.
      *
+     * <p>Age-based rotation does not interrupt a request already running on that worker.
+     *
      * @return non-negative age limit; defaults to zero, which disables age-based replacement
      */
     public Duration maxWorkerAge() {
@@ -123,7 +135,7 @@ public final class MystemPoolOptions {
     }
 
     /**
-     * Creates a pool builder with lazy worker startup and a capacity of available processors.
+     * Creates a pool builder with lazy worker startup and a capacity of available processors, capped at 256.
      *
      * @return a new pool options builder
      */
@@ -133,9 +145,12 @@ public final class MystemPoolOptions {
 
     /**
      * Mutable pool configuration builder; validation occurs in {@link #build()}.
+     *
+     * <p>Setters store values without validation, allowing related bounds to be configured in either order.
+     * Each build creates an independent immutable snapshot. Builder instances are not thread-safe.
      */
     public static final class Builder {
-        private int maxSize = Runtime.getRuntime().availableProcessors();
+        private int maxSize = Math.min(256, Runtime.getRuntime().availableProcessors());
         private int warmupSize;
         private int minIdle;
         private Duration acquireTimeout = Duration.ofSeconds(2);
@@ -149,7 +164,7 @@ public final class MystemPoolOptions {
         /**
          * Sets the maximum number of live workers and admitted text requests.
          *
-         * @param maxSize positive capacity; defaults to available processors
+         * @param maxSize capacity in {@code [1, 256]}; defaults to available processors, capped at 256
          * @return this builder
          */
         public Builder maxSize(int maxSize) {
@@ -182,7 +197,7 @@ public final class MystemPoolOptions {
         /**
          * Sets the timeout for FIFO request admission and subsequent worker acquisition.
          *
-         * @param acquireTimeout positive timeout for each acquisition stage; defaults to two seconds
+         * @param acquireTimeout non-null positive timeout for each acquisition stage; defaults to two seconds
          * @return this builder
          */
         public Builder acquireTimeout(Duration acquireTimeout) {
@@ -193,7 +208,7 @@ public final class MystemPoolOptions {
         /**
          * Sets the timeout for worker health-check and post-request reset hooks.
          *
-         * @param hookTimeout positive duration; defaults to two seconds
+         * @param hookTimeout non-null positive duration; defaults to two seconds
          * @return this builder
          */
         public Builder hookTimeout(Duration hookTimeout) {
@@ -217,7 +232,7 @@ public final class MystemPoolOptions {
          *
          * <p>This is a worker rotation policy, not a deadline that interrupts an active request.
          *
-         * @param maxWorkerAge non-negative duration; zero (the default) disables age-based replacement
+         * @param maxWorkerAge non-null, non-negative duration; zero (the default) disables age-based replacement
          * @return this builder
          */
         public Builder maxWorkerAge(Duration maxWorkerAge) {
@@ -227,6 +242,7 @@ public final class MystemPoolOptions {
 
         /**
          * Controls background replenishment of idle workers.
+         * When disabled, {@link #minIdle(int)} is not maintained; explicit warmup and on-demand startup still apply.
          *
          * @param backgroundReplenishment whether to replenish in the background; defaults to {@code true}
          * @return this builder
@@ -240,7 +256,9 @@ public final class MystemPoolOptions {
          * Creates an immutable, validated pool configuration.
          *
          * @return configured pool options
-         * @throws IllegalArgumentException when counts, bounds, or durations are invalid
+         * @throws IllegalArgumentException when capacity is outside {@code [1, 256]}, request count is not positive, warmup or idle
+         *     counts are outside {@code [0, maxSize]}, either timeout is null or not positive, or worker age
+         *     is null or negative
          */
         public MystemPoolOptions build() {
             return new MystemPoolOptions(this);

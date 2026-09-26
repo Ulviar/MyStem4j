@@ -5,6 +5,16 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Character encodings accepted by MyStem ({@code -e}) for process input and output.
+ *
+ * <p>UTF-8 is the default and preserves the widest range of input characters. The legacy Cyrillic
+ * encodings cannot represent arbitrary Unicode text. Built-in clients use replacement rather than strict
+ * rejection for unrepresentable input or malformed process output, so choose an encoding that can
+ * represent the caller's text when exact character preservation matters.
+ *
+ * <p>The same encoding is used for text input, captured stdout, and encoded byte limits. For file
+ * requests, the caller must supply file contents in that encoding; the runtime does not transcode files.
+ *
+ * @see MystemOptions.Builder#encoding(MystemEncoding)
  */
 public enum MystemEncoding {
     /** DOS Cyrillic (IBM866). */

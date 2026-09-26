@@ -33,40 +33,115 @@ import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
+/**
+ * Downloads or reuses a native MyStem archive after explicit opt-in and license acceptance.
+ *
+ * <p>{@link Mystem4jPlugin} registers this as {@code mystemDownload} and supplies
+ * properties from {@link Mystem4jExtension}. Remote archives require a SHA-256 checksum;
+ * new transfers are bounded by {@link #getMaxArchiveBytes()}. HTTP(S) I/O failures are
+ * retried up to three total attempts; checksum failures are reported immediately.
+ *
+ * <p>Project-local reuse checks the archive and metadata. With an expected checksum,
+ * a shared cache can also be reused after content verification. New archive data is
+ * staged in a temporary file before replacing the output. This task does not extract
+ * or execute the binary.
+ *
+ * @see MystemExtractTask
+ */
 @DisableCachingByDefault(because = "Downloads an external MyStem archive and manages its own local reuse checks.")
 public abstract class MystemDownloadTask extends DefaultTask {
+    /**
+     * Creates a Gradle-managed task whose properties are configured by the plugin or build script.
+     */
+    public MystemDownloadTask() {}
+
     private static final int MAX_DOWNLOAD_ATTEMPTS = 3;
     private static final long RETRY_DELAY_MILLIS = 100L;
     private static final ConcurrentMap<Path, Object> LOCAL_LOCKS = new ConcurrentHashMap<>();
 
+    /**
+     * Returns the version recorded in reuse metadata and used in the shared cache path.
+     *
+     * @return native MyStem version, supplied by the extension
+     */
     @Input
     public abstract Property<String> getVersion();
 
+    /**
+     * Returns whether the task is explicitly allowed to obtain an archive.
+     *
+     * @return required download opt-in; the plugin defaults it to {@code false}
+     */
     @Input
     public abstract Property<Boolean> getDownload();
 
+    /**
+     * Returns whether the build has explicitly accepted the Yandex MyStem license.
+     *
+     * @return required license opt-in; the plugin defaults it to {@code false}
+     */
     @Input
     public abstract Property<Boolean> getAcceptYandexMystemLicense();
 
+    /**
+     * Returns the complete archive URL using {@code https}, {@code http}, or {@code file}.
+     *
+     * @return source URL property
+     */
     @Input
     public abstract Property<String> getArchiveUrl();
 
+    /**
+     * Returns the expected SHA-256 as 64 hexadecimal digits, ignoring case and surrounding whitespace.
+     * Unset or blank is allowed only for {@code file:} URLs and disables shared-cache reuse.
+     *
+     * @return expected checksum property
+     */
     @Input
     @Optional
     public abstract Property<String> getExpectedSha256();
 
+    /**
+     * Returns the positive byte limit for new transfers, checked against reported size and bytes read.
+     * The limit does not apply to extracted data or to previously verified cache entries.
+     *
+     * @return transfer limit; the plugin defaults it to 100 MiB
+     */
     @Input
     public abstract Property<Long> getMaxArchiveBytes();
 
+    /**
+     * Returns the shared cache root used when a checksum is available.
+     * This optimization is independent of the declared project-local archive output.
+     *
+     * @return shared cache directory
+     */
     @Internal
     public abstract DirectoryProperty getCacheDirectory();
 
+    /**
+     * Returns the project-local destination consumed by extraction tasks.
+     *
+     * @return archive output file
+     */
     @OutputFile
     public abstract RegularFileProperty getArchiveFile();
 
+    /**
+     * Returns the sidecar recording version, source URL, and expected checksum for local reuse.
+     *
+     * @return metadata output file
+     */
     @OutputFile
     public abstract RegularFileProperty getMetadataFile();
 
+    /**
+     * Validates opt-ins and settings, then reuses or transfers the archive and writes metadata.
+     *
+     * @throws GradleException if opt-ins are absent, settings are invalid, a transfer exceeds
+     *         its limit, checksum verification fails, or archive I/O fails
+     * @throws IllegalArgumentException if the archive URL is not a syntactically valid URI
+     */
     @TaskAction
     public void download() {
         if (!getDownload().get()) {

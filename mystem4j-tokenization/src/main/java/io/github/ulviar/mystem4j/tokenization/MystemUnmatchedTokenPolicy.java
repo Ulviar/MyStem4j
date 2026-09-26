@@ -5,12 +5,15 @@ package io.github.ulviar.mystem4j.tokenization;
  */
 public enum MystemUnmatchedTokenPolicy {
     /**
-     * Reject the whole document when a MyStem token has unknown offsets.
+     * Reject the document with {@link MystemTokenizationException} when a model token has unknown offsets.
      */
     FAIL,
 
     /**
-     * Ignore the unaligned MyStem token and synthesize offset-safe tokens from the original text gaps.
+     * Discard the unaligned model token and synthesize offset-safe tokens from original-text gaps.
+     *
+     * <p>This is the default. The discarded token's analyses are not attached to a guessed source
+     * occurrence; uncovered text receives fallback forms instead. Invalid known ranges still fail.
      */
     SYNTHESIZE_FROM_ORIGINAL_TEXT
 }

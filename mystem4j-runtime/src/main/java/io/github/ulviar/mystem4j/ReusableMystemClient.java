@@ -1,7 +1,8 @@
 package io.github.ulviar.mystem4j;
 
-import com.github.ulviar.icli.session.ProtocolSession;
-import com.github.ulviar.icli.session.ProtocolSessionException;
+import io.github.ulviar.procwright.command.CommandExecutionException;
+import io.github.ulviar.procwright.session.ProtocolSession;
+import io.github.ulviar.procwright.session.ProtocolSessionException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
@@ -83,8 +84,13 @@ final class ReusableMystemClient implements MystemClient {
     @Override
     public synchronized void close() {
         if (closed.compareAndSet(false, true)) {
-            session.close();
-            fileClient.close();
+            try {
+                session.close();
+            } catch (CommandExecutionException error) {
+                throw MystemProtocolFailureMapper.map(error, "Failed to close reusable MyStem session");
+            } finally {
+                fileClient.close();
+            }
         }
     }
 
@@ -100,7 +106,7 @@ final class ReusableMystemClient implements MystemClient {
 
     private static boolean isTerminalSessionFailure(ProtocolSessionException error) {
         return switch (error.reason()) {
-            case TIMEOUT, CLOSED, EOF, BROKEN_PIPE, DECODE_ERROR, RESPONSE_TOO_LARGE, OUTPUT_BACKLOG_OVERFLOW,
+            case TIMEOUT, CLOSED, EOF, BROKEN_PIPE, DECODE_ERROR, RESPONSE_TOO_LARGE,
                             PROTOCOL_DECODER_FAILED, PROCESS_EXITED, FAILURE ->
                     true;
             case REQUEST_TOO_LARGE -> false;

@@ -34,7 +34,7 @@ the rejection paths.
 
 ## Consequences
 
-Applications using iCLI or Jackson APIs must declare those dependencies directly.
+Applications using Procwright (formerly iCLI) or Jackson APIs must declare those dependencies directly.
 Both libraries remain available at runtime. Java/Kotlin signatures and text
 behavior are unchanged.
 

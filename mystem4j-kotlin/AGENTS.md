@@ -26,5 +26,5 @@ sites without creating a second runtime model.
 ## Validation
 
 ```text
-./gradlew :mystem4j-kotlin:test :mystem4j-kotlin:apiCheck -Pmystem4j.useMavenLocal=true
+./gradlew :mystem4j-kotlin:test :mystem4j-kotlin:apiCheck
 ```

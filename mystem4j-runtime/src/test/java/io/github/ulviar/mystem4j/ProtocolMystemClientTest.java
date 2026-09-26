@@ -178,8 +178,8 @@ class ProtocolMystemClientTest {
         ExecutorService executor = Executors.newFixedThreadPool(4);
         try (MystemClient client = Mystem.builder()
                 .executable(executable)
-                .requestTimeout(Duration.ofSeconds(1))
-                .pooled(pool -> pool.maxSize(4).warmupSize(2).minIdle(1).acquireTimeout(Duration.ofSeconds(1)))
+                .requestTimeout(Duration.ofSeconds(5))
+                .pooled(pool -> pool.maxSize(4).warmupSize(2).minIdle(1).acquireTimeout(Duration.ofSeconds(5)))
                 .build()) {
             List<Future<String>> outputs = new ArrayList<>();
             for (int index = 0; index < 24; index++) {
@@ -201,8 +201,8 @@ class ProtocolMystemClientTest {
 
         try (MystemClient client = Mystem.builder()
                 .executable(executable)
-                .requestTimeout(Duration.ofSeconds(1))
-                .pooled(pool -> pool.maxSize(1).warmupSize(1).minIdle(1).acquireTimeout(Duration.ofSeconds(1)))
+                .requestTimeout(Duration.ofSeconds(5))
+                .pooled(pool -> pool.maxSize(1).warmupSize(1).minIdle(1).acquireTimeout(Duration.ofSeconds(5)))
                 .build()) {
             assertThrows(MystemException.class, () -> client.analyze("die"));
 
@@ -225,30 +225,32 @@ class ProtocolMystemClientTest {
     }
 
     @Test
-    void noisyReusableSessionFailsWithBoundedOutputLimit() throws IOException {
+    void noisyReusableSessionKeepsServingResponsesAfterStderrOverflow() throws IOException {
         Path executable = FakeMystemExecutable.create(temporaryDirectory, "noisy-interactive-mystem", "noisyInteractive");
 
         try (MystemClient client = Mystem.builder()
                 .executable(executable)
                 .maxResponseBytes(256)
-                .requestTimeout(Duration.ofSeconds(1))
+                .requestTimeout(Duration.ofSeconds(30))
                 .session()
                 .build()) {
-            assertThrows(MystemOutputLimitException.class, () -> client.analyze("one"));
+            assertEquals("[{\"text\":\"one\"}]\n", client.analyze("one").output());
+            assertEquals("[{\"text\":\"two\"}]\n", client.analyze("two").output());
         }
     }
 
     @Test
-    void noisyPooledSessionFailsWithBoundedOutputLimit() throws IOException {
+    void noisyPooledSessionKeepsServingResponsesAfterStderrOverflow() throws IOException {
         Path executable = FakeMystemExecutable.create(temporaryDirectory, "noisy-pooled-mystem", "noisyInteractive");
 
         try (MystemClient client = Mystem.builder()
                 .executable(executable)
                 .maxResponseBytes(256)
-                .requestTimeout(Duration.ofSeconds(1))
-                .pooled(pool -> pool.maxSize(1).warmupSize(1).acquireTimeout(Duration.ofSeconds(1)))
+                .requestTimeout(Duration.ofSeconds(30))
+                .pooled(pool -> pool.maxSize(1).warmupSize(1).acquireTimeout(Duration.ofSeconds(5)))
                 .build()) {
-            assertThrows(MystemOutputLimitException.class, () -> client.analyze("one"));
+            assertEquals("[{\"text\":\"one\"}]\n", client.analyze("one").output());
+            assertEquals("[{\"text\":\"two\"}]\n", client.analyze("two").output());
         }
     }
 

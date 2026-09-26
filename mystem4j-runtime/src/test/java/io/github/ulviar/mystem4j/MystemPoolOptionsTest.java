@@ -33,6 +33,8 @@ class MystemPoolOptionsTest {
     @Test
     void rejectsInvalidPoolInvariants() {
         assertThrows(IllegalArgumentException.class, () -> MystemPoolOptions.builder().maxSize(0).build());
+        assertThrows(IllegalArgumentException.class, () -> MystemPoolOptions.builder().maxSize(257).build());
+        assertEquals(256, MystemPoolOptions.builder().maxSize(256).build().maxSize());
         assertThrows(IllegalArgumentException.class, () -> MystemPoolOptions.builder().maxSize(1).warmupSize(2).build());
         assertThrows(IllegalArgumentException.class, () -> MystemPoolOptions.builder().maxSize(1).minIdle(2).build());
         assertThrows(

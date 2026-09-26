@@ -26,8 +26,8 @@ affect every module even when production APIs are untouched.
 ## Validation
 
 ```text
-./gradlew agentInfrastructureCheck check --configuration-cache -Pmystem4j.useMavenLocal=true
-./gradlew check --configuration-cache -Pmystem4j.useMavenLocal=true
+./gradlew agentInfrastructureCheck check --configuration-cache
+./gradlew check --configuration-cache
 ```
 
 Run the command twice and confirm configuration-cache reuse.

@@ -20,6 +20,9 @@ public record MystemProbeResult(Path executable, Duration elapsed, MystemOutputF
     /**
      * Creates probe metadata.
      *
+     * <p>This constructor checks non-null components and elapsed time. It does not run a probe or validate
+     * the output; use {@link MystemProbe#probe(Path)} to obtain an execution-validated result.
+     *
      * @throws NullPointerException when any component is null
      * @throws IllegalArgumentException when elapsed time is negative
      */

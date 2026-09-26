@@ -5,7 +5,17 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Prepares Java strings for MyStem while retaining offset mappings for tokenizer use.
+ * Replaces characters unsafe for MyStem and retains a mapping to the original Java string.
+ *
+ * <p>Use {@link #prepare(String)} for ordinary input and {@link #prepareJsonLine(String)} when
+ * a reusable MyStem process expects one request per line. Send {@link MystemPreparedText#text()}
+ * to MyStem, then pass the same {@link MystemPreparedText} to
+ * {@link MystemJsonParser#parse(MystemPreparedText, String)}. Parsing only the prepared string would
+ * lose original-text offsets when a replacement changes the UTF-16 length.
+ *
+ * <p>Preparation does not normalize case, combine Unicode sequences, remove soft hyphens, trim
+ * whitespace, or collapse adjacent spaces. Each replacement is recorded in the returned issues;
+ * the original string is retained unchanged. Static methods are safe to call concurrently.
  */
 public final class MystemTextPreprocessor {
     private MystemTextPreprocessor() {}
@@ -13,9 +23,24 @@ public final class MystemTextPreprocessor {
     /**
      * Replaces unsafe input characters while preserving a mapping to the original text.
      *
-     * <p>Unpaired surrogates become {@code U+FFFD}; Unicode noncharacters and ISO control characters
-     * other than CR, LF, and tab become spaces. Each replacement creates a text issue. Valid
-     * supplementary characters, soft hyphens, and combining marks are preserved.
+     * <table>
+     * <caption>Character replacements</caption>
+     * <thead><tr><th scope="col">Input</th><th scope="col">Replacement</th><th scope="col">Issue</th></tr></thead>
+     * <tbody>
+     * <tr><td>Unpaired high or low surrogate</td><td>{@code U+FFFD}</td>
+     *     <td>{@link MystemTextIssueType#UNPAIRED_SURROGATE}</td></tr>
+     * <tr><td>ISO control character, including NUL, other than CR, LF, or tab</td><td>One space</td>
+     *     <td>{@link MystemTextIssueType#CONTROL_CHARACTER}</td></tr>
+     * <tr><td>Unicode noncharacter: {@code U+FDD0..U+FDEF} or a code point ending in
+     *     {@code FFFE} or {@code FFFF}</td><td>One space</td>
+     *     <td>{@link MystemTextIssueType#NONCHARACTER}</td></tr>
+     * </tbody>
+     * </table>
+     *
+     * <p>Each replacement creates one issue with its range in the original text. A supplementary
+     * noncharacter occupies two UTF-16 code units but becomes one space; use the returned mapping
+     * rather than assuming that offsets are unchanged. All other characters, including valid
+     * supplementary characters, soft hyphens, combining marks, CR, LF, and tab, are preserved.
      *
      * @param text caller's original Java string
      * @return immutable prepared text, original-text offset mapping, and replacement issues
@@ -26,13 +51,15 @@ public final class MystemTextPreprocessor {
     }
 
     /**
-     * Prepares text for MyStem JSON-line protocol by replacing line separators with spaces.
+     * Applies {@link #prepare(String)} replacements and also replaces each CR and LF with a space.
      *
-     * <p>Reusable and pooled MyStem clients use one stdout line as one response frame, so raw CR/LF characters cannot
-     * be sent through that protocol. Offsets in the returned prepared text still map to the original string.
+     * <p>Reusable and pooled MyStem clients use one stdout line as one response frame, so raw CR/LF
+     * characters cannot be sent through that protocol. A CRLF pair becomes two spaces and produces
+     * two {@link MystemTextIssueType#CONTROL_CHARACTER} issues. Tab is preserved. This method does
+     * not append a request terminator; the client writing to MyStem owns framing.
      *
-     * @param text source text
-     * @return prepared text with CR/LF replaced
+     * @param text caller's original Java string, possibly containing multiple lines
+     * @return immutable prepared text, original-text offset mapping, and all replacement issues
      * @throws NullPointerException if text is {@code null}
      */
     public static MystemPreparedText prepareJsonLine(String text) {

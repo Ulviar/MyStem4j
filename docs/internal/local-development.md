@@ -15,18 +15,15 @@ focused test passes.
 Install JDK 25 and use the repository's `./gradlew` wrapper. The checked-in daemon
 criteria and compilation toolchains select Java 25 for Gradle, compilation and
 tests. They use an installed JDK; the build does not download a JDK automatically.
-In this checkout, iCLI `0.1.0` is supplied through local Maven
-with `-Pmystem4j.useMavenLocal=true`. The dependency repository is restricted to
-iCLI; other local JARs do not override the locked dependencies. Alternatively,
-the configured GitHub Packages iCLI repository uses `gpr.user`/`gpr.key` Gradle
-properties or `GITHUB_ACTOR`/`GITHUB_TOKEN` environment variables.
+Procwright `0.1.0` and the other library dependencies resolve from Maven Central.
+No Maven Local installation or private repository credentials are needed.
 Do not update lockfiles or API baselines just to remove a failure.
 
 ## Check the complete checkout
 
 ```bash
-./gradlew agentInfrastructureCheck check --configuration-cache -Pmystem4j.useMavenLocal=true
-./gradlew agentInfrastructureCheck check --configuration-cache -Pmystem4j.useMavenLocal=true
+./gradlew agentInfrastructureCheck check --configuration-cache
+./gradlew agentInfrastructureCheck check --configuration-cache
 ```
 
 The second invocation should report configuration-cache reuse. `check` owns module
@@ -49,7 +46,6 @@ Native tasks require an explicit working executable. They do not download one:
 ```bash
 ./gradlew memorySmokeTest unicodeContextStressTest realMystemTest \
   realMystemUnicodeStress realMystemPoolSoak \
-  -Pmystem4j.useMavenLocal=true \
   -Dmystem4j.executable=/absolute/path/to/mystem
 ```
 
@@ -59,7 +55,7 @@ validation. Inspect the task log and reports under each module's `build/reports`
 
 ## Finish
 
-Review the diff for unrelated edits, update the owning contract and changelog when
+Review the diff for unrelated edits, update the owning contract when
 behavior changes, and retain command logs under `build/agent/logs`. Promote any
 active-work decisions to source, tests or current docs and delete the completed
 active-work file. The [testing strategy](testing-strategy.md) owns the detailed

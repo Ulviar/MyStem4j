@@ -17,9 +17,10 @@ import java.time.Duration;
  *
  * <p>Character counts are Java UTF-16 code units, not Unicode code points. Text input counts describe the
  * caller's payload and exclude any protocol newline added by the runtime. Captured output counts include
- * line endings. Input bytes use the configured encoding. One-shot output bytes count captured raw bytes;
- * session/pool output bytes count the decoded response re-encoded with that encoding, so replacement of
- * malformed input can make them differ from bytes originally written by the process.
+ * line endings. Session/pool responses normalize the line terminator to a single LF before counting.
+ * Input bytes use the configured encoding. One-shot output bytes count captured raw bytes; session/pool
+ * output bytes count the decoded response re-encoded with that encoding, so line-ending normalization or
+ * replacement of malformed input can make them differ from bytes originally written by the process.
  *
  * <p>For file requests, file byte counts are inspected after successful execution and may be {@code -1}
  * if unavailable. Input character counts are {@code -1}; output character counts are also {@code -1} when
@@ -41,6 +42,10 @@ public record MystemRequestStats(
         long outputBytes) {
     /**
      * Creates request measurements.
+     *
+     * <p>Zero denotes an observed empty payload or zero elapsed time; {@code -1} denotes an unknown size.
+     * Values are checked individually, without attempting to infer or verify relationships between
+     * character counts, byte counts, or the execution mode.
      *
      * @throws IllegalArgumentException when elapsed is null or negative, mode is null, or a size is below {@code -1}
      */

@@ -4,7 +4,12 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Inflection grammemes for one MyStem grammar alternative.
+ * Immutable set of inflection grammemes for one MyStem grammar alternative.
+ *
+ * <p>These features supplement {@link MystemGrammar#commonGrammemes()}; the part of speech is stored
+ * separately in {@link MystemGrammar#partOfSpeech()}. An empty set is valid, for example for the
+ * empty right side of {@code PR=}. Duplicate features are removed, and their iteration order is
+ * unspecified.
  *
  * @param grammemes features of this alternative, copied into an immutable set with unspecified iteration order
  */

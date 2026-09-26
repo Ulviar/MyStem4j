@@ -1,9 +1,9 @@
 package io.github.ulviar.mystem4j;
 
-import com.github.ulviar.icli.command.CommandExecutionException;
-import com.github.ulviar.icli.session.ProtocolSessionException;
-import com.github.ulviar.icli.session.ProtocolTranscript;
-import com.github.ulviar.icli.session.PooledProtocolSessionException;
+import io.github.ulviar.procwright.command.CommandExecutionException;
+import io.github.ulviar.procwright.session.PooledSessionException;
+import io.github.ulviar.procwright.session.ProtocolSessionException;
+import io.github.ulviar.procwright.session.ProtocolTranscript;
 
 final class MystemProtocolFailureMapper {
     private MystemProtocolFailureMapper() {}
@@ -21,7 +21,7 @@ final class MystemProtocolFailureMapper {
             case TIMEOUT -> new MystemRequestTimeoutException(error.getMessage());
             case CLOSED -> new MystemClosedException(error.getMessage());
             case REQUEST_TOO_LARGE -> new MystemInvalidOptionsException(error.getMessage());
-            case RESPONSE_TOO_LARGE, OUTPUT_BACKLOG_OVERFLOW -> new MystemOutputLimitException(error.getMessage());
+            case RESPONSE_TOO_LARGE -> new MystemOutputLimitException(error.getMessage());
             case PROCESS_EXITED -> new MystemProcessException(
                     messageWithSafeTranscript(error),
                     error.exitCode(),
@@ -32,12 +32,12 @@ final class MystemProtocolFailureMapper {
         };
     }
 
-    static MystemException map(PooledProtocolSessionException error) {
+    static MystemException map(PooledSessionException error) {
         return switch (error.reason()) {
             case ACQUIRE_TIMEOUT -> new MystemPoolExhaustedException(error.getMessage(), error);
             case CLOSED -> new MystemClosedException(error.getMessage());
             case STARTUP_FAILED -> new MystemStartupException(error.getMessage(), error);
-            case HOOK_TIMEOUT, WORKER_FAILED -> new MystemProtocolException(error.getMessage(), error);
+            case HOOK_TIMEOUT, WORKER_FAILED, INTERRUPTED, DRAIN_TIMEOUT -> new MystemProtocolException(error.getMessage(), error);
         };
     }
 
@@ -78,9 +78,6 @@ final class MystemProtocolFailureMapper {
         }
         if (transcript.malformed()) {
             flags.append("[malformed] ");
-        }
-        if (transcript.redacted()) {
-            flags.append("[redacted] ");
         }
         return flags.toString().trim();
     }

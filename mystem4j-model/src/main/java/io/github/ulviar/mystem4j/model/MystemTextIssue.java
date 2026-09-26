@@ -3,12 +3,18 @@ package io.github.ulviar.mystem4j.model;
 import java.util.Objects;
 
 /**
- * Non-fatal issue detected while preparing or aligning text.
+ * Immutable diagnostic for a character replacement or a token that could not be aligned.
  *
  * <p>For character replacements, {@code offset} and {@code length} describe the replaced range in
  * the original Java string. For {@link MystemTextIssueType#UNMATCHED_TOKEN}, {@code offset} is the
  * original-text alignment cursor and {@code length} is the unmatched MyStem surface length; together
  * they do not identify a matched source range and may exceed the remaining source length.
+ * Use {@link #type()} to distinguish those cases, and {@link MystemToken#hasKnownOffsets()} to
+ * decide whether a token can be sliced from a parser-created document.
+ *
+ * <p>The message is for people, not for matching error conditions in code. Use the enum type for
+ * programmatic handling. An issue does not imply a failed parse: parser-created documents retain
+ * their tokens and collect issues in {@link MystemDocument#issues()}.
  *
  * @param type issue category
  * @param message human-readable diagnostic; not intended as a stable machine-readable identifier
@@ -18,6 +24,9 @@ import java.util.Objects;
 public record MystemTextIssue(MystemTextIssueType type, String message, int offset, int length) {
     /**
      * Creates a text diagnostic.
+     *
+     * <p>The constructor validates the numeric bounds only; it does not check the issue against
+     * a source string or require a particular length for an issue type.
      *
      * @param type issue category
      * @param message human-readable diagnostic

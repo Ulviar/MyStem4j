@@ -9,9 +9,12 @@ jmh = "1.37"
 junit = "6.1.3"
 kotlin = "2.4.20"
 lucene = "10.5.1"
+procwright = "0.1.0"
 spotless = "8.10.2"
+vanniktech = "0.37.0"
 
 [libraries]
+procwright = { module = "io.github.ulviar:procwright", version.ref = "procwright" }
 asm-core = { module = "org.ow2.asm:asm", version.ref = "asm" }
 asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson-core" }
@@ -27,6 +30,7 @@ lucene-test-framework = { module = "org.apache.lucene:lucene-test-framework", ve
 
 [plugins]
 binary-compatibility-validator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binary-compatibility-validator" }
-dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+maven-publish-base = { id = "com.vanniktech.maven.publish.base", version.ref = "vanniktech" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

@@ -18,18 +18,57 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
+/**
+ * Writes local runtime properties for a prepared MyStem executable.
+ *
+ * <p>The plugin registers this task as {@code mystemPrepareTestRuntime}, depending on
+ * {@code mystemProbe}. Its UTF-8 properties file contains {@code mystem4j.executable}
+ * (an absolute path) and {@code mystem4j.version}. The file is machine-local and should
+ * not be packaged as a portable runtime configuration.
+ *
+ * <p>This task only writes the file. The plugin separately injects the executable
+ * path into {@link org.gradle.api.tasks.testing.Test} processes when
+ * {@link Mystem4jExtension#getConfigureTests()} is enabled; the runtime library does
+ * not automatically load this properties file.
+ */
 @DisableCachingByDefault(because = "Writes local runtime properties that point at the prepared executable path.")
 public abstract class MystemPrepareRuntimeTask extends DefaultTask {
+    /**
+     * Creates a Gradle-managed task whose properties are configured by the plugin or build script.
+     */
+    public MystemPrepareRuntimeTask() {}
+
+    /**
+     * Returns the native MyStem version to record.
+     *
+     * @return native version property
+     */
     @Input
     public abstract Property<String> getVersion();
 
+    /**
+     * Returns the executable whose absolute path is recorded.
+     * The plugin's task dependency probes it before this action runs.
+     *
+     * @return prepared executable input file
+     */
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getExecutableFile();
 
+    /**
+     * Returns the UTF-8 properties output, replacing any existing file.
+     *
+     * @return local runtime properties file
+     */
     @OutputFile
     public abstract RegularFileProperty getPropertiesFile();
 
+    /**
+     * Writes the executable path and version, creating parent directories when needed.
+     *
+     * @throws GradleException if the properties file cannot be written
+     */
     @TaskAction
     public void writeRuntimeProperties() {
         Path executable = getExecutableFile().get().getAsFile().toPath();

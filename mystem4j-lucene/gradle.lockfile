@@ -5,7 +5,7 @@
 com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.8.1=testCompileClasspath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-core:2.22.2=runtimeClasspath,testRuntimeClasspath
 com.fasterxml.jackson:jackson-bom:2.22.2=runtimeClasspath,testRuntimeClasspath
-com.github.ulviar:icli:0.1.0=runtimeClasspath,testRuntimeClasspath
+io.github.ulviar:procwright:0.1.0=runtimeClasspath,testRuntimeClasspath
 junit:junit:4.13.1=testCompileClasspath
 junit:junit:4.13.2=testRuntimeClasspath
 org.apache.lucene:lucene-analysis-common:10.5.1=testCompileClasspath,testRuntimeClasspath
