@@ -13,6 +13,8 @@ final class ModuleBoundaryPolicy {
     private static final String ROOT = "io.github.ulviar.mystem4j";
     private static final Pattern EDGE = Pattern.compile("\\s+(\\S+)\\s+->\\s+(\\S+)\\s+.*");
     private static final Map<String, Rule> RULES = Map.of(
+            "http-client", new Rule(ROOT + ".http", ROOT + ".http", Set.of("runtime"), Set.of("jackson", "java-http")),
+            "http-server", new Rule(ROOT + ".server", ROOT + ".server", Set.of("runtime"), Set.of("jackson", "jdk-httpserver")),
             "runtime", new Rule(ROOT, ROOT, Set.of(), Set.of("procwright")),
             "model", new Rule(ROOT + ".model", ROOT + ".model", Set.of(), Set.of("jackson")),
             "tokenization", new Rule(ROOT + ".tokenization", ROOT + ".tokenization", Set.of("model"), Set.of()),
@@ -23,6 +25,8 @@ final class ModuleBoundaryPolicy {
             "gradle-plugin", new Rule(ROOT + ".gradle.plugin", ROOT + ".gradle",
                     Set.of("gradle-api"), Set.of()));
     private static final Map<String, String> EXTERNAL_MODULES = Map.of(
+            "java-http", "java.net.http",
+            "jdk-httpserver", "jdk.httpserver",
             "procwright", "io.github.ulviar.procwright",
             "jackson", "com.fasterxml.jackson.core",
             "lucene-core", "org.apache.lucene.core",
@@ -125,6 +129,7 @@ final class ModuleBoundaryPolicy {
     }
 
     private static void collectModules(String owner, boolean apiOnly, Set<String> modules) {
+        if (owner.equals("java-http") || owner.equals("jdk-httpserver")) return;
         if (!modules.add(moduleName(owner))) {
             return;
         }
@@ -150,6 +155,7 @@ final class ModuleBoundaryPolicy {
         if (!owner.isEmpty()) {
             return owner;
         }
+        if (className.startsWith("com.sun.net.httpserver.")) return "jdk-httpserver";
         if (className.startsWith("io.github.ulviar.procwright.")) return "procwright";
         if (className.startsWith("com.fasterxml.jackson.core.")) return "jackson";
         if (className.startsWith("org.apache.lucene.")) return "lucene-core";
@@ -174,7 +180,10 @@ final class ModuleBoundaryPolicy {
         boolean fileAccess = target.equals("java.nio.file.Files")
                 || target.startsWith("java.nio.channels.File")
                 || target.matches("java\\.io\\.(File(InputStream|OutputStream|Reader|Writer)|RandomAccessFile)");
-        return network || (!component.equals("runtime") && (process || fileAccess));
+        boolean http = component.equals("http-client") || component.equals("http-server");
+        boolean shutdownHook = component.equals("http-server") && target.equals("java.lang.Runtime");
+        return (!http && network) || (!component.equals("runtime") && process && !shutdownHook)
+                || (!component.equals("runtime") && !http && fileAccess);
     }
 
     private static void requireEqual(String label, Set<?> expected, Set<?> actual) {

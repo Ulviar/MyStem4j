@@ -21,3 +21,6 @@ include("mystem4j-lucene")
 include("mystem4j-kotlin")
 include("mystem4j-gradle-plugin")
 include("mystem4j-benchmarks")
+
+include("mystem4j-http-client")
+include("mystem4j-http-server")

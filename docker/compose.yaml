@@ -1,0 +1,19 @@
+services:
+  mystem:
+    image: mystem4j-http:0.2.0-SNAPSHOT
+    platform: linux/amd64
+    init: true
+    read_only: true
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      MYSTEM_MODE: pooled
+      MYSTEM_POOL_SIZE: "4"
+    volumes:
+      - type: bind
+        source: ${MYSTEM_BINARY:?Set MYSTEM_BINARY to the absolute path of a Linux x64 MyStem executable}
+        target: /opt/mystem/mystem
+        read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    stop_grace_period: 20s

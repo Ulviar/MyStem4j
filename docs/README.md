@@ -16,6 +16,7 @@ Start here if you are new to the library:
 ## How-to guides
 
 - [Prepare MyStem with Gradle](how-to/prepare-mystem-with-gradle.md)
+- [Run MyStem over HTTP, locally or in Docker](how-to/http-service.md) (development version)
 - [Use runtime clients](how-to/use-runtime-clients.md)
 - [Parse MyStem output](how-to/parse-mystem-output.md)
 - [Prepare search tokens](how-to/prepare-search-tokens.md)
@@ -27,6 +28,7 @@ Start here if you are new to the library:
 ## Reference
 
 - [API stability](reference/api-stability.md)
+- [HTTP API and wire protocol](reference/http-api.md) (development version)
 - [Runtime API](reference/runtime-api.md)
 - [Model API](reference/model-api.md)
 - [Tokenization API](reference/tokenization-api.md)

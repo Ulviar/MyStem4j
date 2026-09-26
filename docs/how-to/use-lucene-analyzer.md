@@ -1,11 +1,12 @@
 # Use Lucene analyzer
 
 Use `mystem4j-lucene` to feed MyStem-based tokens into Lucene indexing or query
-analysis.
+analysis. Supply a local native client or an [HTTP client](http-service.md). The
+HTTP variant requires the executable only on the service host.
 
 ## Index and query text
 
-Use Java 25 or newer and an executable MyStem 3.1 binary. To prepare the binary,
+The local example below uses Java 25 or newer and an executable MyStem 3.1 binary. To prepare the binary,
 follow [Prepare MyStem with Gradle](prepare-mystem-with-gradle.md). On Apple Silicon,
 the plugin's Intel macOS binary requires Rosetta; see
 [the setup instructions](troubleshooting.md#mystem-reports-bad-cpu-type-on-apple-silicon).

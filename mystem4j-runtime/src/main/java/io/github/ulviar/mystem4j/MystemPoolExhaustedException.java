@@ -1,9 +1,11 @@
 package io.github.ulviar.mystem4j;
 
 /**
- * A pooled request could not obtain admission or a worker within the acquisition timeout.
+ * A request could not obtain admission or processing capacity.
  *
- * <p>This is a capacity/acquisition failure, distinct from {@link MystemRequestTimeoutException}, which
+ * <p>Native pools report admission or worker-acquisition timeouts through this type. An HTTP service
+ * can also reject excess concurrent requests immediately, even with a one-shot or session backend.
+ * This is a capacity/acquisition failure, distinct from {@link MystemRequestTimeoutException}, which
  * bounds execution after a worker has been acquired. The failed acquisition does not close the client.
  *
  * @see MystemPoolOptions#acquireTimeout()

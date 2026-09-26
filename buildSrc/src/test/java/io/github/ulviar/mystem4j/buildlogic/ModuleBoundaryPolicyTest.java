@@ -138,6 +138,31 @@ class ModuleBoundaryPolicyTest {
                         .exports("io.github.ulviar.mystem4j.model.internal").build()));
     }
 
+    @Test
+    void httpModulesCanNetworkButCannotStartProcessesOrExposeTransportImplementation() throws IOException {
+        Path classes = compile(Map.of("io/github/ulviar/mystem4j/http/Client.java", """
+                package io.github.ulviar.mystem4j.http;
+                public class Client {
+                    public void request() throws Exception {
+                        java.net.http.HttpClient.newHttpClient().close();
+                        java.nio.file.Files.createTempFile("response", ".tmp");
+                    }
+                }
+                """));
+        assertDoesNotThrow(() -> inspect("http-client", classes, false));
+        assertDoesNotThrow(() -> inspect("http-client", classes, true));
+        String process = "   io.github.ulviar.mystem4j.http.Client -> java.lang.ProcessBuilder java.base";
+        assertRejected("remote process creation", "java.lang.ProcessBuilder",
+                () -> ModuleBoundaryPolicy.checkDependencies("http-client", process, false));
+        String serverProcess = "   io.github.ulviar.mystem4j.server.Server -> java.lang.ProcessBuilder java.base";
+        assertRejected("server process creation", "java.lang.ProcessBuilder",
+                () -> ModuleBoundaryPolicy.checkDependencies("http-server", serverProcess, false));
+        String leakedServer = "   io.github.ulviar.mystem4j.server.Server -> com.sun.net.httpserver.HttpServer jdk.httpserver";
+        assertDoesNotThrow(() -> ModuleBoundaryPolicy.checkDependencies("http-server", leakedServer, false));
+        assertRejected("HTTP server API", "com.sun.net.httpserver.HttpServer",
+                () -> ModuleBoundaryPolicy.checkDependencies("http-server", leakedServer, true));
+    }
+
     private Path compile(Map<String, String> sources) throws IOException {
         Path classes = temporaryDirectory.resolve("classes");
         Files.createDirectories(classes);

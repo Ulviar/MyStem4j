@@ -1,0 +1,7 @@
+**
+!mystem4j-http-server/
+!mystem4j-http-server/build/
+!mystem4j-http-server/build/install/
+!mystem4j-http-server/build/install/mystem4j-http-server/
+!mystem4j-http-server/build/install/mystem4j-http-server/lib/
+!mystem4j-http-server/build/install/mystem4j-http-server/lib/*.jar

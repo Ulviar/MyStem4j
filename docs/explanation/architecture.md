@@ -7,6 +7,8 @@ that are available to non-Lucene users.
 ## Module Layers
 
 - `mystem4j-runtime` starts MyStem processes and returns raw MyStem output.
+- `mystem4j-http-client` implements the runtime client interface over HTTP.
+- `mystem4j-http-server` hosts a configured runtime client and owns its lifecycle.
 - `mystem4j-model` parses MyStem JSON into Java model objects and aligns token offsets.
 - `mystem4j-tokenization` converts parsed model objects into search-oriented tokens.
 - `mystem4j-lucene` adapts search tokens to Lucene `Analyzer` and `Tokenizer` APIs.
@@ -28,6 +30,8 @@ at runtime.
 | --- | --- | --- |
 | runtime | none | Procwright |
 | model | none | Jackson Core |
+| HTTP client | runtime | Jackson Core, JDK HTTP client |
+| HTTP server | runtime | Jackson Core, JDK HTTP server |
 | tokenization | model | none |
 | Lucene | runtime, tokenization, Lucene Core | model |
 | Kotlin | runtime, Kotlin standard library | none |
@@ -113,3 +117,13 @@ Lucene attributes. `MystemLuceneAnalyzer` wires that tokenizer into Lucene's
 
 The Lucene module depends on Lucene `10.5.1` and follows the project Java 25
 baseline.
+
+## Remote execution
+
+The HTTP modules depend on the runtime API and are independent of each other in
+production. Their protocol is versioned and covered by end-to-end contract tests.
+The server wraps one configured native client, so one-shot/session/pool behavior
+is selected where processes run. The HTTP client owns connections and local file
+transfers; its close method never shuts down the remote backend. String envelopes
+preserve Java UTF-16 code units. See the [HTTP contract](../reference/http-api.md)
+for bounded transfers, native file handling, deadlines and ownership.

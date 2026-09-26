@@ -1,0 +1,29 @@
+# mystem4j-http-server
+
+## io.github.ulviar.mystem4j.server.MystemHttpServer
+Compiled from "MystemHttpServer.java"
+public final class io.github.ulviar.mystem4j.server.MystemHttpServer implements java.lang.AutoCloseable {
+  public static io.github.ulviar.mystem4j.server.MystemHttpServer$Builder builder(io.github.ulviar.mystem4j.MystemClient);
+  public java.net.InetSocketAddress address();
+  public synchronized void close();
+}
+
+## io.github.ulviar.mystem4j.server.MystemHttpServer$Builder
+Compiled from "MystemHttpServer.java"
+public final class io.github.ulviar.mystem4j.server.MystemHttpServer$Builder {
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder address(java.net.InetSocketAddress);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder maxConcurrentRequests(int);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder maxRequestBytes(int);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder maxResponseBytes(int);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder requestTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder shutdownGraceSeconds(int);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder temporaryDirectory(java.nio.file.Path);
+  public io.github.ulviar.mystem4j.server.MystemHttpServer$Builder bearerToken(java.lang.String);
+  public synchronized io.github.ulviar.mystem4j.server.MystemHttpServer start() throws java.io.IOException;
+}
+
+## io.github.ulviar.mystem4j.server.MystemServerMain
+Compiled from "MystemServerMain.java"
+public final class io.github.ulviar.mystem4j.server.MystemServerMain {
+  public static void main(java.lang.String[]) throws java.io.IOException, java.lang.InterruptedException;
+}

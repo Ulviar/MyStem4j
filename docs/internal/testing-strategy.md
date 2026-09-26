@@ -278,3 +278,15 @@ Do not permanently disable expensive behavioral tests. Put them behind explicit
 Gradle tasks or source sets, keep a representative regression subset in normal
 tests, and make failures include enough input and output data to reproduce the
 case.
+
+## HTTP transport and service
+
+The HTTP module tests use actual loopback connections and deterministic backends.
+They cover lossless Java strings, binary files and atomic destination replacement,
+metadata/error mapping, bounded chunked bodies, full-response deadlines, ownership,
+concurrency and temporary-file cleanup. The native runtime is not duplicated in
+HTTP tests. `:mystem4j-http-server:test -Dmystem4j.executable=/path/to/mystem` adds
+all three native modes, both file APIs, and local/remote Lucene offset equivalence.
+Root `realMystemTest` includes this suite. Docker packaging requires a separate
+Linux x64 smoke run using `docker/compose.yaml`; JVM tests do not prove container
+architecture or native binary compatibility.

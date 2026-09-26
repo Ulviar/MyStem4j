@@ -1,7 +1,7 @@
 package io.github.ulviar.mystem4j;
 
 /**
- * Base unchecked exception for executable resolution, validation and MyStem execution failures.
+ * Base unchecked exception for validation, native MyStem execution and remote-transport failures.
  *
  * <p>Catch a specific subtype when recovery depends on the cause: invalid input, request timeout, pool
  * saturation, and process failure require different handling. Built-in clients preserve the caller's

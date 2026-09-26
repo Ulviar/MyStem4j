@@ -1,0 +1,24 @@
+# mystem4j-http-client
+
+## io.github.ulviar.mystem4j.http.MystemHttpClient
+Compiled from "MystemHttpClient.java"
+public final class io.github.ulviar.mystem4j.http.MystemHttpClient implements io.github.ulviar.mystem4j.MystemClient {
+  public static io.github.ulviar.mystem4j.http.MystemHttpClient$Builder builder(java.net.URI);
+  public io.github.ulviar.mystem4j.MystemClientExecutionProfile executionProfile();
+  public java.util.Optional<io.github.ulviar.mystem4j.MystemOutputFormat> outputFormat();
+  public io.github.ulviar.mystem4j.MystemRawResult analyze(java.lang.String);
+  public io.github.ulviar.mystem4j.MystemFileContentResult analyzeFile(java.nio.file.Path);
+  public io.github.ulviar.mystem4j.MystemFileResult analyzeFile(java.nio.file.Path, java.nio.file.Path);
+  public void close();
+}
+
+## io.github.ulviar.mystem4j.http.MystemHttpClient$Builder
+Compiled from "MystemHttpClient.java"
+public final class io.github.ulviar.mystem4j.http.MystemHttpClient$Builder {
+  public io.github.ulviar.mystem4j.http.MystemHttpClient$Builder requestTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.http.MystemHttpClient$Builder connectTimeout(java.time.Duration);
+  public io.github.ulviar.mystem4j.http.MystemHttpClient$Builder maxRequestBytes(int);
+  public io.github.ulviar.mystem4j.http.MystemHttpClient$Builder maxResponseBytes(int);
+  public io.github.ulviar.mystem4j.http.MystemHttpClient$Builder bearerToken(java.lang.String);
+  public io.github.ulviar.mystem4j.http.MystemHttpClient build();
+}

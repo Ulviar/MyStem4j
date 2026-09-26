@@ -43,6 +43,8 @@ val automaticModuleNames = mapOf(
     "mystem4j-tokenization" to "io.github.ulviar.mystem4j.tokenization",
     "mystem4j-lucene" to "io.github.ulviar.mystem4j.lucene",
     "mystem4j-kotlin" to "io.github.ulviar.mystem4j.kotlin",
+    "mystem4j-http-client" to "io.github.ulviar.mystem4j.http",
+    "mystem4j-http-server" to "io.github.ulviar.mystem4j.server",
     "mystem4j-gradle-plugin" to "io.github.ulviar.mystem4j.gradle.plugin"
 )
 val libraryProjectNames = listOf(
@@ -50,7 +52,9 @@ val libraryProjectNames = listOf(
     "mystem4j-model",
     "mystem4j-tokenization",
     "mystem4j-lucene",
-    "mystem4j-kotlin"
+    "mystem4j-kotlin",
+    "mystem4j-http-client",
+    "mystem4j-http-server"
 )
 val apiSurfaceProjectNames = libraryProjectNames + "mystem4j-gradle-plugin"
 val scopedAgentDirectories = libraryProjectNames + listOf("mystem4j-gradle-plugin", "mystem4j-benchmarks", "buildSrc")
@@ -88,6 +92,8 @@ apiValidation {
             "mystem4j-lucene",
             "mystem4j-model",
             "mystem4j-runtime",
+            "mystem4j-http-client",
+            "mystem4j-http-server",
             "mystem4j-tokenization"
         )
     )
@@ -97,6 +103,7 @@ tasks.register("realMystemTest") {
     group = "verification"
     description = "Runs test suites with real MyStem integration tests enabled."
     dependsOn(
+        ":mystem4j-http-server:test",
         ":mystem4j-runtime:test",
         ":mystem4j-model:test",
         ":mystem4j-model:realMystemTest",
@@ -149,6 +156,8 @@ tasks.register("coverageReport") {
 
 val coverageThresholds = mapOf(
     "mystem4j-runtime" to ("0.82" to "0.65"),
+    "mystem4j-http-client" to ("0.85" to "0.70"),
+    "mystem4j-http-server" to ("0.80" to "0.65"),
     "mystem4j-model" to ("0.90" to "0.75"),
     "mystem4j-tokenization" to ("0.92" to "0.78"),
     "mystem4j-lucene" to ("0.90" to "0.70"),
@@ -273,6 +282,8 @@ tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
         .buildDirectory
         .file("publications/pluginMaven/pom-default.xml"))
     getDependencyScopesByProject().put("mystem4j-runtime", "procwright:runtime")
+    getDependencyScopesByProject().put("mystem4j-http-client", "mystem4j-runtime:compile,jackson-core:runtime")
+    getDependencyScopesByProject().put("mystem4j-http-server", "mystem4j-runtime:compile,jackson-core:runtime")
     getDependencyScopesByProject().put("mystem4j-model", "jackson-core:runtime")
     getDependencyScopesByProject().put("mystem4j-tokenization", "mystem4j-model:compile")
     getDependencyScopesByProject()
@@ -418,6 +429,7 @@ tasks.register<GradleBuild>("sampleSmokeTest") {
     tasks = listOf("help")
     startParameter.projectProperties["mystem4j.releaseDryRunRepository"] =
         layout.buildDirectory.dir("release-dry-run-repo").get().asFile.toURI().toString()
+    startParameter.projectProperties["mystem4j.version"] = mystem4jVersion.get()
     startParameter.projectProperties["mystem4j.download"] = "false"
 }
 

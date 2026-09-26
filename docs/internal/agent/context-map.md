@@ -21,6 +21,7 @@ reference pages or every module.
 | Task | Required context | Conditional context | Validation |
 | --- | --- | --- | --- |
 | Runtime process, options, limits, files | [runtime scope](../../../mystem4j-runtime/AGENTS.md), runtime tests, [runtime API](../../reference/runtime-api.md) | Procwright behavior, real MyStem protocol tests | `:mystem4j-runtime:test`, memory/real tests when relevant |
+| HTTP transport, service, Docker | [client scope](../../../mystem4j-http-client/AGENTS.md), [server scope](../../../mystem4j-http-server/AGENTS.md), [HTTP API](../../reference/http-api.md), HTTP tests | runtime contracts, build scope for publication changes | HTTP module tests, real HTTP/native tests, `check` |
 | JSON, grammar, Unicode, offsets | [model scope](../../../mystem4j-model/AGENTS.md), model tests, [model API](../../reference/model-api.md) | real Unicode characterization, Lucene replay for offset changes | `:mystem4j-model:test`, `realMystemUnicodeStress` |
 | Search forms, gaps, types, entities | [tokenization scope](../../../mystem4j-tokenization/AGENTS.md), tokenization tests, [tokenization API](../../reference/tokenization-api.md) | observed MyStem fixtures, Lucene semantics | module test, `unicodeContextStressTest` |
 | Analyzer, Tokenizer, positions, index/query | [Lucene scope](../../../mystem4j-lucene/AGENTS.md), Lucene test-framework tests, [Lucene API](../../reference/lucene-api.md) | model/tokenization scopes for upstream behavior | `:mystem4j-lucene:test`, memory and real tests |

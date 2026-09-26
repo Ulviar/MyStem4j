@@ -1,5 +1,5 @@
 plugins {
-    id("io.github.ulviar.mystem4j") version "0.1.0"
+    id("io.github.ulviar.mystem4j")
 }
 
 mystem4j {

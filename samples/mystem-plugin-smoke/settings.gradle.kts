@@ -1,4 +1,7 @@
 pluginManagement {
+    plugins {
+        id("io.github.ulviar.mystem4j") version providers.gradleProperty("mystem4j.version").orElse("0.1.0").get()
+    }
     repositories {
         providers.gradleProperty("mystem4j.releaseDryRunRepository").orNull?.let {
             maven {

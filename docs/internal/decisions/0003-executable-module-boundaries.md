@@ -1,6 +1,6 @@
 # ADR 0003: Executable module boundaries
 
-Status: accepted
+Status: accepted; network capability extended by [ADR 0004](0004-http-transport-and-service-ownership.md)
 Scope: production dependency graph, consumer compilation, and architecture gates
 
 ## Context

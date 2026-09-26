@@ -6,10 +6,12 @@ bring supporting modules when they are part of that module's public API.
 | Task | Declare | Also needed at runtime |
 | --- | --- | --- |
 | Run MyStem and read raw JSON, XML, or text | `mystem4j-runtime` | a MyStem executable path or `PATH` entry |
+| Call remote MyStem | `mystem4j-http-client` (development) | running HTTP service; no local native executable |
+| Host MyStem remotely | `mystem4j-http-server` (development) | server-side native executable |
 | Parse existing MyStem JSON without running MyStem | `mystem4j-model` | no MyStem executable |
 | Run MyStem and parse the JSON result | `mystem4j-runtime` + `mystem4j-model` | a MyStem executable |
 | Build search tokens from parsed model objects | `mystem4j-tokenization` | parsed `MystemDocument` values |
-| Use MyStem inside Lucene | `mystem4j-lucene` | a JSON-configured MyStem client and executable |
+| Use MyStem inside Lucene | `mystem4j-lucene` | a JSON-configured MyStem client; executable only for local execution |
 | Configure runtime clients from Kotlin | `mystem4j-kotlin` | a MyStem executable if the client runs MyStem |
 | Download and prepare MyStem in Gradle | `io.github.ulviar.mystem4j` Gradle plugin | explicit MyStem license acceptance |
 
@@ -60,3 +62,9 @@ Use the same group and version with `mystem4j-model`, `mystem4j-tokenization`,
 The Gradle plugin is not required to call the Java API. Use it only when the build
 should download, verify, extract, probe, or pass a MyStem executable path to tests
 or distribution tasks.
+
+## HTTP modules
+
+The HTTP client/server are new in `0.2.0-SNAPSHOT`, not published in `0.1.0`.
+Follow the [HTTP guide](http-service.md) to build and install them locally. For
+remote Lucene analysis, declare both the Lucene module and the HTTP client.

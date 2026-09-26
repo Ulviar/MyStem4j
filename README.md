@@ -12,7 +12,11 @@ Use MyStem4j to:
 - parse MyStem JSON into Java model objects with original text offsets;
 - build search tokens from MyStem lemmas before a custom search pipeline;
 - use MyStem inside a Lucene `Analyzer` or `Tokenizer`;
-- prepare the MyStem binary during a Gradle build.
+- prepare the MyStem binary during a Gradle build;
+- [call a remote MyStem service over HTTP](docs/how-to/http-service.md), including a Docker deployment.
+
+The HTTP modules are new in the development version `0.2.0-SNAPSHOT`; the other
+quick-start examples below use the published `0.1.0` release.
 
 ## Requirements
 
@@ -37,6 +41,8 @@ dependencies of those modules.
 | Need | Module |
 | --- | --- |
 | Run MyStem and receive raw output | `mystem4j-runtime` |
+| Call a remote MyStem service (development) | `mystem4j-http-client` |
+| Host a MyStem HTTP service (development) | `mystem4j-http-server` |
 | Parse existing MyStem JSON into Java objects | `mystem4j-model` |
 | Convert parsed model objects into search tokens | `mystem4j-tokenization` |
 | Use MyStem in Lucene analysis | `mystem4j-lucene` |

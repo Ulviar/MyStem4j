@@ -1,7 +1,9 @@
 # API Stability
 
 The APIs documented in `docs/reference` are the supported contract for MyStem4j
-`0.1.0`. This page defines its public surface and compatibility policy.
+`0.1.0`, plus the explicitly marked HTTP additions under development for
+`0.2.0-SNAPSHOT`. Existing release signatures are unchanged. This page defines
+the public surface and compatibility policy.
 
 All artifacts target Java 25 bytecode. Applications need Java 25 or newer; builds
 applying the MyStem4j Gradle plugin must also run Gradle on Java 25 or newer.
@@ -16,6 +18,8 @@ These packages are public:
 - `io.github.ulviar.mystem4j.lucene`
 - `io.github.ulviar.mystem4j.kotlin`
 - `io.github.ulviar.mystem4j.gradle`
+- `io.github.ulviar.mystem4j.http` (development)
+- `io.github.ulviar.mystem4j.server` (development)
 
 The Maven artifacts, Gradle plugin id, JPMS module names, and documented public
 types are part of the release surface.

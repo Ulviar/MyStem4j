@@ -62,8 +62,8 @@ history as the only record of progress.
   tests and Lucene test-framework coverage.
 - Keep entity enrichment opt-in. Conservative defaults must remain morphology and
   offset oriented.
-- Keep network access and Yandex license acceptance in the Gradle plugin, never in
-  runtime library execution.
+- Keep binary downloads and Yandex license acceptance in the Gradle plugin.
+  Service networking belongs only to the HTTP modules, never the native runtime.
 - Treat public API additions as deliberate. Check JPMS exports, Java baselines,
   Kotlin BCV, docs, and compatibility notes together.
 - Work with existing user changes. Do not discard unrelated modifications.

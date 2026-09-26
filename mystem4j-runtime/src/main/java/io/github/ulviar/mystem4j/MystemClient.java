@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Raw MyStem client backed by one or more external MyStem CLI processes.
+ * Raw MyStem analysis interface, implemented by native process clients and remote transports.
  *
  * <p>Clients created by {@link Mystem#builder()} may be shared between threads. One-shot and pooled clients
  * can serve concurrent requests; reusable-session clients serialize all request calls, including file
@@ -48,7 +48,7 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Analyzes one text request and returns raw MyStem output.
      *
-     * <p>Built-in session and pool clients accept single-line text without CR or LF only. One-shot clients
+     * <p>Native session and pool clients accept single-line text without CR or LF only. One-shot clients
      * accept multiline text. Payload limits count UTF-16 code units and bytes in the configured encoding,
      * excluding any protocol newline. Invalid input rejected before execution leaves the client usable.
      *
@@ -73,7 +73,7 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Analyzes an input file and captures stdout as a string.
      *
-     * <p>Built-in clients always use a separate one-shot process. Input files are not subject to text payload
+     * <p>Native runtime clients always use a separate one-shot process. Input files are not subject to text payload
      * size limits or single-line restrictions; captured stdout is subject to response limits. Neither the
      * client nor the result owns or deletes the input file.
      *
@@ -90,7 +90,7 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Analyzes an input file and writes MyStem output directly to another file.
      *
-     * <p>Built-in clients always use a separate one-shot process. File contents are not subject to in-memory
+     * <p>Native runtime clients always use a separate one-shot process. File contents are not subject to in-memory
      * text payload or captured-response limits. Input and output must identify different files, including
      * through symlinks/hard links. The output parent directory must already exist. The caller retains file
      * ownership; an execution failure may leave partial output. Any stdout or stderr emitted in addition to
@@ -128,7 +128,7 @@ public interface MystemClient extends AutoCloseable {
     /**
      * Closes all process resources owned by this client.
      *
-     * <p>Built-in clients wait for active requests to finish or reach their timeout before releasing resources.
+     * <p>Native runtime clients wait for active requests to finish or reach their timeout before releasing resources.
      * For pools this includes requests already waiting for admission or worker acquisition. Closing is
      * idempotent and does not cancel work immediately. Later request calls fail with
      * {@link MystemClosedException}; metadata methods remain available.
