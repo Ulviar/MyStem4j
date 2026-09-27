@@ -57,6 +57,7 @@ final class MystemExecutableResolver {
         return Arrays.stream(pathValue.split(File.pathSeparator))
                 .filter(entry -> !entry.isBlank())
                 .map(entry -> Path.of(entry).resolve(executableName(osName)))
+                .map(Path::toAbsolutePath)
                 .filter(Files::isRegularFile)
                 .filter(Files::isExecutable)
                 .findFirst();
@@ -68,9 +69,10 @@ final class MystemExecutableResolver {
     }
 
     private static Path requireExecutable(Path path, String source) {
-        if (!Files.isRegularFile(path) || !Files.isExecutable(path)) {
+        Path absolute = path.toAbsolutePath();
+        if (!Files.isRegularFile(absolute) || !Files.isExecutable(absolute)) {
             throw new MystemExecutableNotFoundException("MyStem " + source + " is not executable: " + path);
         }
-        return path;
+        return absolute;
     }
 }

@@ -5,10 +5,12 @@ package io.github.ulviar.mystem4j.lucene;
  *
  * <p>Only the first form of a search token advances the position; its other forms are synonyms at
  * position increment zero. Skipped tokens are counted as tokens, not individual characters.
+ * Search tokens whose forms all exceed Lucene's term-byte limit occupy one position under both
+ * policies, including trailing positions reported by {@link MystemLuceneTokenizer#end()}.
  */
 public enum MystemLucenePositionPolicy {
     /**
-     * Separators and other skipped tokens do not add position gaps.
+     * Tokens classified as separators or other non-search fragments do not add position gaps.
      */
     COMPACT,
 

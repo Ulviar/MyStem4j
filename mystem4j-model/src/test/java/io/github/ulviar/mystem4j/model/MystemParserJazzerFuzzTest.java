@@ -42,6 +42,9 @@ class MystemParserJazzerFuzzTest {
         "S,жен=(пр,ед|пр,мн)",
         "A=вин,ед,полн,муж,неод|им,ед,полн,муж",
         "PR=",
+        "S=|",
+        "S=||",
+        "S=им|",
         "(|=,,)"
     })
     void fuzzGrammarParser(@NotNull @WithUtf8Length(max = 1024) String grammarString) {

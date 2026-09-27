@@ -2,11 +2,13 @@ package io.github.ulviar.mystem4j;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,6 +16,27 @@ import org.junit.jupiter.api.io.TempDir;
 class MystemExecutableResolverTest {
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void anchorsRelativePathsFromEveryDiscoverySourceToTheCurrentDirectory() throws IOException {
+        Path directory = Files.createTempDirectory(Path.of(""), "mystem-resolver-");
+        Path relative = directory.resolve("mystem");
+        try {
+            Files.writeString(relative, "");
+            relative.toFile().setExecutable(true, false);
+            for (Path resolved : List.of(
+                MystemExecutableResolver.resolve(Optional.of(relative), false, null, null, null, "Linux"),
+                MystemExecutableResolver.resolve(Optional.empty(), false, relative.toString(), null, null, "Linux"),
+                MystemExecutableResolver.resolve(Optional.empty(), false, null, relative.toString(), null, "Linux"),
+                MystemExecutableResolver.resolve(Optional.empty(), true, null, null, relative.getParent().toString(), "Linux"))) {
+                assertTrue(resolved.isAbsolute(), resolved.toString());
+                assertTrue(Files.isSameFile(relative, resolved));
+            }
+        } finally {
+            Files.deleteIfExists(relative);
+            Files.deleteIfExists(directory);
+        }
+    }
 
     @Test
     void resolvesExplicitExecutableBeforeOtherSources() throws IOException {

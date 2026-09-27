@@ -104,7 +104,7 @@ public final class MystemSearchTokenizer {
                 appendGapTokens(originalText, cursor, prepared.startOffset, result, options);
                 cursor = prepared.startOffset;
             }
-            extendTokenForDroppedSuffixes(originalText, prepared);
+            extendTokenForDroppedSuffixes(originalText, prepared, originalText.length());
             result.add(prepared);
             cursor = Math.max(cursor, prepared.endOffset);
         }
@@ -142,8 +142,10 @@ public final class MystemSearchTokenizer {
         while (index < endOffset) {
             int nextOffset = nextGapTokenEnd(originalText, index, endOffset, options);
             String text = originalText.substring(index, nextOffset);
-            result.add(MystemPreparedSearchToken.gap(text, index, nextOffset, options));
-            index = nextOffset;
+            MystemPreparedSearchToken token = MystemPreparedSearchToken.gap(text, index, nextOffset, options);
+            extendTokenForDroppedSuffixes(originalText, token, endOffset);
+            result.add(token);
+            index = token.endOffset;
         }
     }
 
@@ -200,11 +202,12 @@ public final class MystemSearchTokenizer {
                 : token.withOffsets(cursor, token.endOffset);
     }
 
-    private static void extendTokenForDroppedSuffixes(String originalText, MystemPreparedSearchToken token) {
+    private static void extendTokenForDroppedSuffixes(
+            String originalText, MystemPreparedSearchToken token, int limit) {
         if (!token.features.contains(MystemTokenFeature.WORD)) {
             return;
         }
-        while (token.endOffset < originalText.length()
+        while (token.endOffset < limit
                 && originalText.codePointAt(token.endOffset) == MystemSearchTokenClassifier.SOFT_HYPHEN) {
             token.endOffset += Character.charCount(MystemSearchTokenClassifier.SOFT_HYPHEN);
         }
@@ -213,7 +216,7 @@ public final class MystemSearchTokenizer {
                 || token.features.contains(MystemTokenFeature.ENDS_WITH_NUMBER_SIGN)) {
             return;
         }
-        if (token.endOffset >= originalText.length()) {
+        if (token.endOffset >= limit) {
             return;
         }
         int codePoint = originalText.codePointAt(token.endOffset);
@@ -222,7 +225,7 @@ public final class MystemSearchTokenizer {
             token.endOffset += Character.charCount(MystemSearchTokenClassifier.NUMBER_SIGN);
         } else if (codePoint == MystemSearchTokenClassifier.PLUS) {
             token.endOffset += Character.charCount(MystemSearchTokenClassifier.PLUS);
-            if (token.endOffset < originalText.length()
+            if (token.endOffset < limit
                     && originalText.codePointAt(token.endOffset) == MystemSearchTokenClassifier.PLUS) {
                 token.features.add(MystemTokenFeature.ENDS_WITH_DOUBLE_PLUSES);
                 token.endOffset += Character.charCount(MystemSearchTokenClassifier.PLUS);

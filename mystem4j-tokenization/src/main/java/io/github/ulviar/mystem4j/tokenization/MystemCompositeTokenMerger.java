@@ -26,36 +26,19 @@ final class MystemCompositeTokenMerger {
             }
         }
         flushGroup(originalText, group, result);
-        return List.copyOf(result);
+        return options.mergeUrls() ? mergeUrls(originalText, result, options) : List.copyOf(result);
     }
 
     private static void flushGroup(
             String originalText, List<MystemPreparedSearchToken> group, List<MystemPreparedSearchToken> result) {
         ArrayList<Entity> entities = new ArrayList<>();
-        TreeSet<Integer> boundaries = new TreeSet<>();
         for (int marker = 0; marker < group.size(); marker++) {
             if (group.get(marker).features.contains(MystemTokenFeature.EMAIL_PART)) {
                 MergeRange range = emailRange(originalText, group, marker);
                 if (range != null) {
                     String text = originalText.substring(range.startOffset(), range.endOffset());
                     entities.add(new Entity(range, MystemTokenFeature.EMAIL, text.substring(text.lastIndexOf('@') + 1)));
-                    addBoundary(group, range, boundaries);
                 }
-            }
-        }
-        // Work backwards so a later valid entity can bound the preceding URL.
-        // Ordinary commas/semicolons in a URL remain part of that URL.
-        for (int marker = group.size() - 1; marker > 0; marker--) {
-            if (!group.get(marker).features.contains(MystemTokenFeature.URL_PART)) {
-                continue;
-            }
-            Integer boundary = boundaries.higher(marker);
-            int limit = boundary == null ? group.size() : boundary;
-            MergeRange range = urlRange(originalText, group, marker, limit);
-            if (range != null) {
-                entities.add(new Entity(range, MystemTokenFeature.URL,
-                        MystemEntitySyntax.urlDomain(originalText.substring(range.startOffset(), range.endOffset()))));
-                addBoundary(group, range, boundaries);
             }
         }
         entities.sort(Comparator.comparingInt(entity -> entity.range().firstIndex()));
@@ -63,7 +46,7 @@ final class MystemCompositeTokenMerger {
         for (Entity entity : entities) {
             MergeRange range = entity.range();
             if (range.firstIndex() < cursor) {
-                continue; // A URL owns an email-like range in its user info, path or query.
+                continue;
             }
             result.addAll(group.subList(cursor, range.firstIndex()));
             MystemPreparedSearchToken token = MystemPreparedSearchToken.composite(
@@ -76,59 +59,189 @@ final class MystemCompositeTokenMerger {
         result.addAll(group.subList(cursor, group.size()));
     }
 
-    private static boolean isEntityDelimiter(String text) {
-        return !text.isEmpty() && text.chars().allMatch(character -> character == ',' || character == ';');
+    private static List<MystemPreparedSearchToken> mergeUrls(
+            String originalText, List<MystemPreparedSearchToken> tokens, MystemSearchTokenizerOptions options) {
+        ArrayList<UrlRange> urls = new ArrayList<>();
+        // Later entities bound earlier URLs only after comma/semicolon delimiters.
+        // Email-like user info, paths and queries remain owned by the URL.
+        TreeSet<Integer> boundaries = new TreeSet<>();
+        for (MystemPreparedSearchToken token : tokens) {
+            if (token.features.contains(MystemTokenFeature.EMAIL)) {
+                addUrlBoundary(originalText, token.startOffset, boundaries);
+            }
+        }
+        for (int marker = originalText.indexOf("://"); marker >= 0; ) {
+            int start = urlSchemeStart(originalText, marker);
+            if (start < 0) {
+                marker = originalText.indexOf("://", marker + 3);
+                continue;
+            }
+            Integer boundary = boundaries.higher(marker);
+            int spanEnd = urlCandidateEnd(originalText, marker + 3,
+                    boundary == null ? originalText.length() : boundary);
+            appendUrlsInSpan(originalText, start, marker, spanEnd, urls);
+            // The first scheme owns this lexical span even when its URI is invalid.
+            // Embedded schemes are path/query content, not fresh suffix candidates.
+            marker = originalText.indexOf("://", spanEnd);
+        }
+        if (urls.isEmpty()) {
+            return List.copyOf(tokens);
+        }
+        ArrayList<MystemPreparedSearchToken> result = new ArrayList<>();
+        int index = 0;
+        int cursor = 0;
+        for (UrlRange url : urls) {
+            if (url.startOffset() < cursor) {
+                continue;
+            }
+            while (index < tokens.size() && tokens.get(index).endOffset <= url.startOffset()) {
+                MystemPreparedSearchToken token = tokens.get(index++);
+                appendFragment(originalText, token, Math.max(cursor, token.startOffset), token.endOffset, result, options);
+            }
+            if (index < tokens.size() && tokens.get(index).startOffset < url.startOffset()) {
+                MystemPreparedSearchToken token = tokens.get(index);
+                appendFragment(originalText, token, Math.max(cursor, token.startOffset), url.startOffset(), result, options);
+            }
+            MystemPreparedSearchToken token = MystemPreparedSearchToken.composite(
+                    originalText.substring(url.startOffset(), url.endOffset()),
+                    url.startOffset(), url.endOffset(), MystemTokenFeature.URL);
+            token.forms.add(url.domain());
+            result.add(token);
+            cursor = url.endOffset();
+            while (index < tokens.size() && tokens.get(index).endOffset <= cursor) {
+                index++;
+            }
+        }
+        while (index < tokens.size()) {
+            MystemPreparedSearchToken token = tokens.get(index++);
+            appendFragment(originalText, token, Math.max(cursor, token.startOffset), token.endOffset, result, options);
+        }
+        return List.copyOf(result);
     }
 
-    private static void addBoundary(List<MystemPreparedSearchToken> group, MergeRange range, TreeSet<Integer> boundaries) {
-        int delimiter = range.firstIndex() - 1;
-        if (delimiter >= 0 && isEntityDelimiter(group.get(delimiter).text)) {
+    private static void appendUrlsInSpan(
+            String text, int start, int marker, int spanEnd, List<UrlRange> urls) {
+        ArrayList<UrlCandidate> candidates = new ArrayList<>();
+        candidates.add(new UrlCandidate(start, marker, start));
+        for (int nextMarker = text.indexOf("://", marker + 3); nextMarker >= 0 && nextMarker < spanEnd;
+                nextMarker = text.indexOf("://", nextMarker + 3)) {
+            int nextStart = urlSchemeStart(text, nextMarker);
+            if (nextStart < 0) {
+                continue;
+            }
+            int delimiter = entityDelimiterStart(text, nextStart);
+            if (delimiter < nextStart) {
+                candidates.add(new UrlCandidate(nextStart, nextMarker, delimiter));
+            }
+        }
+        ArrayList<RecognizedUrl> recognized = new ArrayList<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            UrlCandidate candidate = candidates.get(index);
+            int limit = index + 1 < candidates.size() ? candidates.get(index + 1).delimiterOffset() : spanEnd;
+            UrlRange range = recognizeUrl(text, candidate, limit);
+            if (range != null) {
+                recognized.add(new RecognizedUrl(candidate, range, limit));
+            }
+        }
+        // Only recognized adjacent entities form boundaries. A rejected candidate
+        // can still be literal content in the preceding URL's path or query.
+        // Both passes validate disjoint ranges, so URI parsing never revisits a
+        // growing sequence of nested suffixes, including malformed tails.
+        for (int index = 0; index < recognized.size(); index++) {
+            RecognizedUrl url = recognized.get(index);
+            int limit = index + 1 < recognized.size()
+                    ? recognized.get(index + 1).candidate().delimiterOffset() : spanEnd;
+            UrlRange extended = limit > url.limit() ? recognizeUrl(text, url.candidate(), limit) : null;
+            urls.add(extended == null ? url.range() : extended);
+        }
+    }
+
+    private static UrlRange recognizeUrl(String text, UrlCandidate candidate, int limit) {
+        int end = urlCandidateEnd(text, candidate.markerOffset() + 3, limit);
+        while (end > candidate.markerOffset() + 3 && ".,;!'".indexOf(text.charAt(end - 1)) >= 0) {
+            end--;
+        }
+        String domain = MystemEntitySyntax.urlDomain(text.substring(candidate.startOffset(), end));
+        if (domain == null) {
+            // A comma after a bare authority may introduce prose. Try that one
+            // boundary; repeatedly validating longer malformed prefixes is unsafe.
+            for (int cursor = candidate.markerOffset() + 3; cursor < end; cursor++) {
+                if (isEntityDelimiter(text.charAt(cursor))) {
+                    domain = MystemEntitySyntax.urlDomain(text.substring(candidate.startOffset(), cursor));
+                    end = cursor;
+                    break;
+                }
+            }
+        }
+        return domain == null ? null : new UrlRange(candidate.startOffset(), end, domain);
+    }
+
+    private static int urlSchemeStart(String text, int marker) {
+        int start = marker;
+        while (start > 0 && isUriSchemePart(text.charAt(start - 1))) {
+            start--;
+        }
+        return isUriScheme(text.substring(start, marker)) ? start : -1;
+    }
+
+    private static void appendFragment(
+            String originalText, MystemPreparedSearchToken token, int start, int end,
+            List<MystemPreparedSearchToken> result, MystemSearchTokenizerOptions options) {
+        if (start < end) {
+            result.add(start == token.startOffset && end == token.endOffset ? token
+                    : MystemPreparedSearchToken.gap(originalText.substring(start, end), start, end, options));
+        }
+    }
+
+    private static void addUrlBoundary(String text, int start, TreeSet<Integer> boundaries) {
+        int delimiter = entityDelimiterStart(text, start);
+        if (delimiter < start) {
             boundaries.add(delimiter);
         }
     }
 
-    private static MergeRange urlRange(
-            String originalText, List<MystemPreparedSearchToken> group, int marker, int limit) {
-        MystemPreparedSearchToken scheme = group.get(marker - 1);
-        if (!scheme.features.contains(MystemTokenFeature.WORD) || !isUriScheme(scheme.text)) {
-            return null;
+    private static int entityDelimiterStart(String text, int start) {
+        int delimiter = start;
+        while (delimiter > 0 && isEntityDelimiter(text.charAt(delimiter - 1))) {
+            delimiter--;
         }
-        for (int last = limit - 1; last > marker; last--) {
-            MystemPreparedSearchToken candidateEnd = group.get(last);
-            if (!candidateEnd.features.contains(MystemTokenFeature.WORD)
-                    && !candidateEnd.features.contains(MystemTokenFeature.NUMBER)
-                    && !isUrlTail(candidateEnd.text)) {
-                continue;
-            }
-            MergeRange range = new MergeRange(marker - 1, last, scheme.startOffset, candidateEnd.endOffset);
-            if (canEndUrl(originalText, range.endOffset(), group.get(limit - 1).endOffset)
-                    && MystemEntitySyntax.urlDomain(originalText.substring(range.startOffset(), range.endOffset())) != null) {
-                return range;
-            }
-        }
-        return null;
+        return delimiter;
     }
 
-    private static boolean isUrlTail(String text) {
-        return !text.isEmpty() && text.chars().allMatch(character -> "/?#=&".indexOf(character) >= 0);
+    private static int urlCandidateEnd(String text, int start, int limit) {
+        int parentheses = 0;
+        int brackets = 0;
+        int cursor = start;
+        while (cursor < limit) {
+            int codePoint = text.codePointAt(cursor);
+            if (codePoint == '(') {
+                parentheses++;
+            } else if (codePoint == '[') {
+                brackets++;
+            } else if (codePoint == ')') {
+                if (parentheses-- == 0) {
+                    break;
+                }
+            } else if (codePoint == ']') {
+                if (brackets-- == 0) {
+                    break;
+                }
+            } else if (MystemSearchTokenClassifier.isSeparator(codePoint)
+                    || codePoint == '<' || codePoint == '>') {
+                break;
+            }
+            cursor += Character.charCount(codePoint);
+        }
+        return cursor;
     }
 
-    private static boolean canEndUrl(String originalText, int endOffset, int limit) {
-        if (endOffset >= limit) {
-            return true;
-        }
-        int next = originalText.codePointAt(endOffset);
-        if (next == ',' || next == ';') {
-            return true;
-        }
-        // Never salvage a malformed authority by cutting before its port, host label,
-        // or path. Doing so would index a different URL from the value in the source.
-        for (int cursor = endOffset; cursor < limit; cursor++) {
-            if (".,;!'".indexOf(originalText.charAt(cursor)) < 0) {
-                return false;
-            }
-        }
-        return true;
+    private static boolean isEntityDelimiter(char character) {
+        return character == ',' || character == ';';
+    }
+
+    private static boolean isUriSchemePart(char character) {
+        return isAsciiLetter(character) || (character >= '0' && character <= '9')
+                || character == '+' || character == '-' || character == '.';
     }
 
     private static boolean isUriScheme(String text) {
@@ -137,11 +250,7 @@ final class MystemCompositeTokenMerger {
         }
         for (int index = 1; index < text.length(); index++) {
             char character = text.charAt(index);
-            if (!isAsciiLetter(character)
-                    && !Character.isDigit(character)
-                    && character != '+'
-                    && character != '-'
-                    && character != '.') {
+            if (!isUriSchemePart(character)) {
                 return false;
             }
         }
@@ -219,6 +328,12 @@ final class MystemCompositeTokenMerger {
     private static String sourceText(String originalText, MystemPreparedSearchToken token) {
         return originalText.substring(token.startOffset, token.endOffset);
     }
+
+    private record UrlCandidate(int startOffset, int markerOffset, int delimiterOffset) {}
+
+    private record RecognizedUrl(UrlCandidate candidate, UrlRange range, int limit) {}
+
+    private record UrlRange(int startOffset, int endOffset, String domain) {}
 
     private record Entity(MergeRange range, MystemTokenFeature feature, String domain) {}
 

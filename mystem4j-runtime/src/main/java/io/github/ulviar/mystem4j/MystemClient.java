@@ -76,6 +76,7 @@ public interface MystemClient extends AutoCloseable {
      * <p>Native runtime clients always use a separate one-shot process. Input files are not subject to text payload
      * size limits or single-line restrictions; captured stdout is subject to response limits. Neither the
      * client nor the result owns or deletes the input file.
+     * Relative paths use the JVM working directory. Results retain the caller-supplied path.
      *
      * @param input readable regular input file in the configured encoding
      * @return raw file content result
@@ -95,6 +96,7 @@ public interface MystemClient extends AutoCloseable {
      * through symlinks/hard links. The output parent directory must already exist. The caller retains file
      * ownership; an execution failure may leave partial output. Any stdout or stderr emitted in addition to
      * the output file is still captured with the configured response limits.
+     * Relative paths use the JVM working directory. Results retain the caller-supplied paths.
      *
      * @param input readable regular input file in the configured encoding
      * @param output writable output file to create or overwrite

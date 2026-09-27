@@ -88,6 +88,15 @@ Multiple forms of one search token are emitted at the same offsets. The first fo
 uses the current token position increment; additional forms have position increment
 `0`.
 
+Forms exceeding Lucene's `IndexWriter.MAX_TERM_LENGTH` (32,766 UTF-8 bytes) are
+omitted; forms at the limit remain searchable. The limit applies after form
+normalization, independently to each lemma, literal form, and alias. Safe
+alternatives keep their original offsets and position. If every form of a search
+token is too long, that token still occupies one position, including a trailing
+position reported by `end()`, under either position policy. Forms are never
+truncated. This keeps large accepted fields indexable, but an omitted form cannot
+be searched. Single-term `normalize()` still returns one term without this filter.
+
 `SEPARATOR` and `OTHER` search-token types are not emitted to the Lucene token
 stream.
 

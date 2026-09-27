@@ -19,7 +19,8 @@ use only an explicit path, system property, or environment variable.
 the resolved path is not executable.
 PATH discovery skips directories and other non-regular files, continuing to the
 next candidate. Explicit paths, the property and `MYSTEM_PATH` must name a regular
-executable file; a symlink to one is accepted.
+executable file; a symlink to one is accepted. Relative executable paths are resolved
+against the JVM working directory when the client is built, independently of PATH lookup.
 
 ## Client Modes
 
@@ -99,7 +100,8 @@ For file input, `inputChars` is `-1` and `inputBytes` is the file size inspected
 successful execution. Direct file output likewise has `outputChars == -1` and the
 post-execution file size in `outputBytes`. File byte sizes become `-1` if unavailable;
 concurrent external file changes can affect these measurements. Returned file paths
-are the supplied paths, not necessarily absolute paths.
+are the supplied paths, not necessarily absolute paths. Relative file paths use the
+JVM working directory; filenames beginning with `-` are treated as files, not CLI options.
 
 ## Options
 

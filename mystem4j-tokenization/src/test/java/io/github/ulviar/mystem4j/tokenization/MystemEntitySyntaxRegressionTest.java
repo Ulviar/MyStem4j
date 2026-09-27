@@ -63,6 +63,54 @@ class MystemEntitySyntaxRegressionTest {
     }
 
     @Test
+    void preservesUrlBracketsSchemesAndTerminalUnreservedCharacters() {
+        for (String url : List.of("https://example.com/a(b)c", "https://example.com/a(b)",
+                "https://[::1]/path", "https://[::1]", "https://example.com/a~",
+                "http+custom://example.com/path", "http-custom.v1://example.com/path")) {
+            String domain = url.contains("[::1]") ? "[::1]" : "example.com";
+            for (String source : List.of(url, "😀 (" + url + "). after", "[" + url + "]")) {
+                assertEntity(gaps(source), MystemSearchTokenType.URL, url, domain);
+            }
+        }
+    }
+
+    @Test
+    void preservesUrlBracketsWithCopiedAndOmittedMyStemPunctuation() {
+        String source = "https://example.com/a(b)c";
+        // MyStem 3.1 macOS x64, -cd / -d --format=json, respectively.
+        for (String json : List.of(
+                """
+                [{"analysis":[],"text":"https"},{"text":"://"},{"analysis":[],"text":"example"},
+                 {"text":"."},{"analysis":[],"text":"com"},{"text":"/"},{"analysis":[],"text":"a"},
+                 {"text":"("},{"analysis":[],"text":"b"},{"text":")"},{"analysis":[],"text":"c"},
+                 {"text":"\\n"}]
+                """,
+                """
+                [{"analysis":[],"text":"https"},{"analysis":[],"text":"example"},
+                 {"analysis":[],"text":"com"},{"analysis":[],"text":"a"},
+                 {"analysis":[],"text":"b"},{"analysis":[],"text":"c"}]
+                """)) {
+            assertEntity(new MystemJsonParser().parse(source, json), MystemSearchTokenType.URL,
+                    source, "example.com");
+        }
+    }
+
+    @Test
+    void recognizesUrlsInsideCombinedCopiedPunctuationTokens() {
+        // MyStem 3.1 macOS x64, -cd --format=json.
+        assertEntity(new MystemJsonParser().parse("https://[::1]/path", """
+                [{"analysis":[],"text":"https"},{"text":"://[::"},{"text":"1"},{"text":"]/"},
+                 {"analysis":[],"text":"path"},{"text":"\\n"}]
+                """), MystemSearchTokenType.URL, "https://[::1]/path", "[::1]");
+        assertEntity(new MystemJsonParser().parse("(https://example.com/a(b)).", """
+                [{"text":"("},{"analysis":[],"text":"https"},{"text":"://"},
+                 {"analysis":[],"text":"example"},{"text":"."},{"analysis":[],"text":"com"},
+                 {"text":"/"},{"analysis":[],"text":"a"},{"text":"("},
+                 {"analysis":[],"text":"b"},{"text":"))"},{"text":"."},{"text":"\\n"}]
+                """), MystemSearchTokenType.URL, "https://example.com/a(b)", "example.com");
+    }
+
+    @Test
     void preservesAllUnquotedEmailLocalPartPunctuation() {
         for (char punctuation : "!#$%&'*+-/=?^_`{|}~".toCharArray()) {
             String source = "a" + punctuation + "b@example.com";
@@ -112,7 +160,8 @@ class MystemEntitySyntaxRegressionTest {
                 "https://example.com:-1/path", "https://example.com:abc/path",
                 "https://example.com:/path", "https://www..example.com/path",
                 "https://www.-example.com/path", "https://www._example.com/path",
-                "https://www.+example.com/path", "https://www!example.com/path", "https://./path")) {
+                "https://www.+example.com/path", "https://www!example.com/path", "https://./path",
+                "https://[::1]:65536/path", "https://[not-ip]/path")) {
             assertNoEntities(source);
         }
     }

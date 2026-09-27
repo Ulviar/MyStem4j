@@ -91,7 +91,7 @@ final class OneShotMystemClient implements MystemClient {
 
     private MystemFileContentResult analyzeFileContent(Path input) {
         Path validatedInput = validateInputFile(input);
-        CommandResult result = runFileCommand(List.of(validatedInput.toString()));
+        CommandResult result = runFileCommand(List.of(validatedInput));
         ensureSuccessful(result, "MyStem file request failed", validatedInput.toString());
 
         MystemRequestStats stats = MystemRequestStats.oneShotFile(
@@ -112,7 +112,7 @@ final class OneShotMystemClient implements MystemClient {
         Path validatedInput = validateInputFile(input);
         Path validatedOutput = validateOutputFile(output);
         validateDifferentFiles(validatedInput, validatedOutput);
-        CommandResult result = runFileCommand(List.of(validatedInput.toString(), validatedOutput.toString()));
+        CommandResult result = runFileCommand(List.of(validatedInput, validatedOutput));
         ensureSuccessful(result, "MyStem file request failed", validatedInput + " -> " + validatedOutput);
 
         MystemRequestStats stats = MystemRequestStats.oneShotFile(
@@ -140,9 +140,10 @@ final class OneShotMystemClient implements MystemClient {
         }
     }
 
-    private CommandResult runFileCommand(List<String> fileArguments) {
+    private CommandResult runFileCommand(List<Path> fileArguments) {
         ArrayList<String> arguments = new ArrayList<>(options.toArguments());
-        arguments.addAll(fileArguments);
+        // Relative filenames beginning with '-' must not be interpreted as MyStem options.
+        for (Path file : fileArguments) arguments.add(file.toAbsolutePath().toString());
         try {
             return Procwright.command(executable.toString())
                     .run()

@@ -57,7 +57,8 @@ public final class MystemClientBuilder {
      * Sets the executable path, taking precedence over the system property, environment and PATH.
      *
      * <p>The path must identify a regular executable file when {@link #build()} is called. Relative paths
-     * are allowed; symlinks to executable files are followed. The runtime never downloads the executable.
+     * are resolved against the JVM working directory at build time; symlinks to executable files are
+     * followed. The runtime never downloads the executable.
      *
      * @param executable non-null executable path
      * @return this builder

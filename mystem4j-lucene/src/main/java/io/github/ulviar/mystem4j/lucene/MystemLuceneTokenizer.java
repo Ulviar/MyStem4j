@@ -23,6 +23,8 @@ import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.util.UnicodeUtil;
 
 /**
  * Streams MyStem search forms from a Lucene field in bounded requests.
@@ -38,6 +40,9 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
  * share offsets. The first form advances the position according to
  * {@link MystemLucenePositionPolicy}; additional forms have position increment zero. Separator and
  * other non-search tokens are skipped. Their effect on positions is controlled by the same policy.
+ * Forms exceeding {@link IndexWriter#MAX_TERM_LENGTH} UTF-8 bytes are omitted without truncation;
+ * safe alternatives retain their offsets and position. A token with no remaining forms occupies one
+ * position under either policy, including trailing positions reported by {@link #end()}.
  *
  * <p>Chunk limits count UTF-16 units after character filtering and before Unicode preparation.
  * Boundaries prefer whitespace and never split valid surrogate pairs, even across reader calls. A
@@ -295,7 +300,8 @@ public final class MystemLuceneTokenizer extends Tokenizer {
      * Sets both final offsets to the corrected end of the complete field after stream exhaustion.
      *
      * <p>With truncation enabled, the unindexed remainder is still read so this offset includes it.
-     * The preserve-skipped policy also records trailing skipped tokens in the final position increment.
+     * The final position increment includes trailing search tokens whose forms exceed Lucene's byte
+     * limit, plus trailing non-search fragments under the preserve-skipped policy.
      * This method does not consume unread input; call it after {@link #incrementToken()} returns false.
      *
      * @throws IOException if Lucene cannot finalize the stream
@@ -304,9 +310,7 @@ public final class MystemLuceneTokenizer extends Tokenizer {
     public void end() throws IOException {
         super.end();
         offsetAttribute.setOffset(finalOffset, finalOffset);
-        if (analysisOptions.positionPolicy() == MystemLucenePositionPolicy.PRESERVE_SKIPPED_TOKENS) {
-            positionIncrementAttribute.setPositionIncrement(Math.max(0, pendingPositionIncrement - 1));
-        }
+        positionIncrementAttribute.setPositionIncrement(Math.max(0, pendingPositionIncrement - 1));
     }
 
     private static int chooseChunkEnd(CharSequence input, int maxChunkChars) {
@@ -350,8 +354,10 @@ public final class MystemLuceneTokenizer extends Tokenizer {
                 continue;
             }
             int positionIncrement = pendingPositionIncrement;
-            pendingPositionIncrement = 1;
             for (MystemTokenForm form : token.forms()) {
+                if (UnicodeUtil.calcUTF16toUTF8Length(form.text(), 0, form.text().length()) > IndexWriter.MAX_TERM_LENGTH) {
+                    continue;
+                }
                 result.add(new LuceneEmission(
                         form.text(),
                         offsetShift + token.startOffset(),
@@ -361,6 +367,8 @@ public final class MystemLuceneTokenizer extends Tokenizer {
                         positionIncrement));
                 positionIncrement = 0;
             }
+            // An omitted logical word still occupies a position, even in COMPACT mode.
+            pendingPositionIncrement = positionIncrement == 0 ? 1 : pendingPositionIncrement + 1;
         }
         return List.copyOf(result);
     }

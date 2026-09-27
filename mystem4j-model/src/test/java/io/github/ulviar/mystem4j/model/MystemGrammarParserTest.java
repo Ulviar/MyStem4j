@@ -1,8 +1,11 @@
 package io.github.ulviar.mystem4j.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -46,5 +49,46 @@ class MystemGrammarParserTest {
         assertEquals("PR", grammar.partOfSpeech().orElseThrow());
         assertEquals(1, grammar.variants().size());
         assertTrue(grammar.variants().get(0).grammemes().isEmpty());
+    }
+
+    @Test
+    void retainsEmptyAlternativesIncludingTrailingDelimiters() {
+        assertVariants("S=|", Set.of(), Set.of());
+        assertVariants("S=||", Set.of(), Set.of(), Set.of());
+        assertVariants("=|", Set.of(), Set.of());
+        assertVariants("S=им|", Set.of("им"), Set.of());
+        assertVariants("S=|им||род|", Set.of(), Set.of("им"), Set.of(), Set.of("род"), Set.of());
+        assertVariants("S=(|)", Set.of(), Set.of());
+        assertVariants("S=(им|)|", Set.of("им"), Set.of(), Set.of());
+    }
+
+    @Test
+    void stripsBracketGroupsUsingStringTrimWhitespaceSemantics() {
+        assertVariants("S=\u0000 (\t ( им \r) \n) \u001F", Set.of("им"));
+        assertVariants("S=((( )))", Set.of());
+        assertVariants("S=)им(", Set.of(")им("));
+        assertVariants("S=(\u2003им\u2003)", Set.of("\u2003им\u2003"));
+        assertVariants("S=\u2003(им)\u2003", Set.of("\u2003(им)\u2003"));
+    }
+
+    @Test
+    void stripsDeepBracketGroupsWithinBoundedTime() {
+        String raw = "S=" + "( \t".repeat(200_000) + "им,ед" + "\r )".repeat(200_000);
+
+        assertTimeout(Duration.ofSeconds(5), () -> {
+            MystemGrammar grammar = MystemGrammarParser.parse(raw);
+            assertEquals(raw, grammar.raw());
+            assertEquals(List.of(new MystemGrammarVariant(Set.of("им", "ед"))), grammar.variants());
+        });
+    }
+
+    @SafeVarargs
+    private static void assertVariants(String raw, Set<String>... alternatives) {
+        MystemGrammar grammar = MystemGrammarParser.parse(raw);
+        assertEquals(raw, grammar.raw());
+        assertEquals(alternatives.length, grammar.variants().size(), raw);
+        for (int index = 0; index < alternatives.length; index++) {
+            assertEquals(alternatives[index], grammar.variants().get(index).grammemes(), raw);
+        }
     }
 }

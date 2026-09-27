@@ -175,6 +175,22 @@ public class MystemLuceneAnalyzerTest extends BaseTokenStreamTestCase {
         }
     }
 
+    public void testRecoveredGapSuffixesAndCompleteUrlsKeepSourceOffsets() throws IOException {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(new FakeMystemClient(input -> "[]"))) {
+            assertAnalyzesTo(analyzer, "C++ C#", new String[] {"c++", "c", "c#", "c"},
+                    new int[] {0, 0, 4, 4}, new int[] {3, 3, 6, 6},
+                    new String[] {"word", "word", "word", "word"}, new int[] {1, 0, 1, 0});
+        }
+        String url = "https://example.com/a(b)c";
+        String text = "😀 (" + url + ").";
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.mystemLikeOmissions(),
+                MystemSearchTokenizerOptions.entityAware())) {
+            assertAnalyzesTo(analyzer, text, new String[] {url, "example.com"},
+                    new int[] {4, 4}, new int[] {4 + url.length(), 4 + url.length()},
+                    new String[] {"url", "url"}, new int[] {1, 0});
+        }
+    }
+
     public void testPositionPolicyCanPreserveSkippedTokenGaps() throws IOException {
         FakeMystemClient client = new FakeMystemClient(input -> {
             if (!"A B".equals(input)) {

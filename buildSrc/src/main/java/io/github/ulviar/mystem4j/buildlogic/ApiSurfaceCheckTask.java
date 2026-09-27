@@ -75,7 +75,7 @@ public abstract class ApiSurfaceCheckTask extends DefaultTask {
 
     private String publicApi(String projectName, File jarFile) {
         StringBuilder api = new StringBuilder();
-        api.append("# ").append(projectName).append(System.lineSeparator()).append(System.lineSeparator());
+        api.append("# ").append(projectName).append("\n\n");
         try (ZipFile zip = new ZipFile(jarFile)) {
             zip.stream()
                     .map(entry -> entry.getName())
@@ -88,7 +88,7 @@ public abstract class ApiSurfaceCheckTask extends DefaultTask {
         } catch (IOException error) {
             throw new GradleException("Failed to inspect " + jarFile, error);
         }
-        return api.toString().stripTrailing() + System.lineSeparator();
+        return api.toString().stripTrailing() + "\n";
     }
 
     private void appendPublicClass(StringBuilder api, File jarFile, String className) {
@@ -106,14 +106,14 @@ public abstract class ApiSurfaceCheckTask extends DefaultTask {
         boolean hasPublicDeclaration =
                 output.lines().anyMatch(line -> line.startsWith("public ") || line.startsWith("protected "));
         if (hasPublicDeclaration) {
-            api.append("## ").append(className).append(System.lineSeparator());
-            api.append(output).append(System.lineSeparator()).append(System.lineSeparator());
+            api.append("## ").append(className).append('\n');
+            api.append(output).append("\n\n");
         }
     }
 
     private static String read(File file) {
         try {
-            return Files.readString(file.toPath(), StandardCharsets.UTF_8);
+            return Files.readString(file.toPath(), StandardCharsets.UTF_8).replace("\r\n", "\n");
         } catch (IOException error) {
             throw new GradleException("Failed to read " + file, error);
         }

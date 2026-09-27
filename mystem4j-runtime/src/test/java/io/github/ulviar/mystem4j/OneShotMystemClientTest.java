@@ -12,12 +12,33 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class OneShotMystemClientTest {
     @TempDir
     Path temporaryDirectory;
+
+    @ParameterizedTest
+    @ValueSource(strings = {"oneshot", "session", "pooled"})
+    void launchesExplicitBareRelativeExecutableWithoutPathSearch(String mode) throws IOException {
+        Path executable = FakeMystemExecutable.create(Path.of("").toAbsolutePath(),
+                "mystem-relative-" + UUID.randomUUID(),
+                mode.equals("oneshot") ? "echo" : "interactiveEcho");
+        try {
+            var builder = Mystem.builder().executable(executable.getFileName()).searchPath(false);
+            if (mode.equals("session")) builder.session();
+            if (mode.equals("pooled")) builder.pooled();
+            try (var client = builder.build()) {
+                assertTrue(client.analyze("мама").output().contains("мама"));
+            }
+        } finally {
+            Files.deleteIfExists(executable);
+        }
+    }
 
     @Test
     void analyzesStringWithOneShotProcess() throws IOException {

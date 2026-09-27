@@ -30,7 +30,8 @@ public final class MystemGrammarParser {
      * Remaining items there are common grammemes; {@code |} separates alternatives after {@code =}.
      * Items are trimmed with {@link String#trim()}, empty items are ignored, and outer alternative
      * parentheses are removed. Duplicate grammemes within a set collapse to one value. Alternative
-     * order is retained; grammeme set iteration order is unspecified.
+     * order is retained, including empty alternatives before or after a {@code |}; grammeme set
+     * iteration order is unspecified.
      *
      * <p>A missing or blank right side produces one empty alternative. An empty or {@code null}
      * input therefore has no part of speech or common grammemes and has one empty alternative.
@@ -54,7 +55,7 @@ public final class MystemGrammarParser {
         if (parts.length == 1 || parts[1].isBlank()) {
             variants.add(new MystemGrammarVariant(Set.of()));
         } else {
-            for (String variant : parts[1].split("\\|")) {
+            for (String variant : parts[1].split("\\|", -1)) {
                 variants.add(new MystemGrammarVariant(new LinkedHashSet<>(splitGrammemes(stripVariantBrackets(variant)))));
             }
         }
@@ -62,14 +63,16 @@ public final class MystemGrammarParser {
     }
 
     private static String stripVariantBrackets(String value) {
-        String result = value.trim();
-        while (result.startsWith("(")) {
-            result = result.substring(1).trim();
+        int start = 0;
+        int end = value.length();
+        // String.trim() removes UTF-16 units <= U+0020, rather than all Unicode whitespace.
+        while (start < end && (value.charAt(start) <= ' ' || value.charAt(start) == '(')) {
+            start++;
         }
-        while (result.endsWith(")")) {
-            result = result.substring(0, result.length() - 1).trim();
+        while (end > start && (value.charAt(end - 1) <= ' ' || value.charAt(end - 1) == ')')) {
+            end--;
         }
-        return result;
+        return value.substring(start, end);
     }
 
     private static List<String> splitGrammemes(String value) {

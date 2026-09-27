@@ -58,12 +58,14 @@ as a substitute for focused unit tests.
   JPMS exports/requires, consumer dependency graphs, isolated consumers, and POM
   dependency scopes. The allowed graph is owned by
   `buildSrc/src/main/java/io/github/ulviar/mystem4j/buildlogic/ModuleBoundaryPolicy.java`.
-- `jpmsSmokeTest`: compiles and runs each of the five libraries as a separate
+- `jpmsSmokeTest`: compiles and runs each library as a separate
   consumer on both classpath and module path. Fixtures live in
   `config/module-consumers`; each resolves only its declared library and that
   library's appropriate Gradle dependency variant.
 - `publicationMetadataCheck`, `apiSurfaceCheck`: artifact metadata and public API
-  gates.
+  gates. API snapshots use canonical LF; comparisons also accept CRLF checkouts.
+  A build-logic regression runs the gate in separate LF/CRLF JVMs and verifies
+  that real API changes still fail.
 - `agentInfrastructureCheck`: LLM context routing, active-work lifecycle, and
   historical-document labeling.
 - `spotlessCheck`, `markdownLocalLinksCheck`: repository hygiene gates.

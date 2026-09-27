@@ -90,7 +90,11 @@ For `S,жен,од=им,ед`:
 - `им` and `ед` are grammemes of one variant.
 
 The first left-side item is treated as part of speech. Remaining left-side items
-become common grammemes. Right-side alternatives are split by `|`.
+become common grammemes. Right-side alternatives are split by `|`, preserving
+empty alternatives and their order: `S=им|` has an `им` variant followed by an
+empty variant, and `S=|` has two empty variants. A missing or blank right side
+produces one empty variant. Items use `String.trim()` whitespace semantics;
+outer alternative parentheses are removed without validating the tag vocabulary.
 
 ## Unicode Preparation
 

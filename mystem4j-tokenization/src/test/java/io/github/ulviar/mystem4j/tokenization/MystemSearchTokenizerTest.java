@@ -207,6 +207,49 @@ class MystemSearchTokenizerTest {
     }
 
     @Test
+    void restoresSuffixFormsInEmptySparseAndUnknownOffsetModelOutput() {
+        for (MystemSearchTokenizerOptions options : List.of(MystemSearchTokenizerOptions.conservative(),
+                MystemSearchTokenizerOptions.search(), MystemSearchTokenizerOptions.entityAware())) {
+            for (String suffix : List.of("+", "++", "#")) {
+                String source = "before C\u00AD" + suffix + " after ";
+                int start = source.indexOf('C');
+                int end = source.indexOf(" after");
+                for (List<MystemToken> model : List.of(List.<MystemToken>of(),
+                        List.of(token("before", 0, 6), token("after", end + 1, end + 6)),
+                        List.of(token("C", -1, -1)))) {
+                    List<MystemSearchToken> tokens = new MystemSearchTokenizer(options)
+                            .tokenize(new MystemDocument(source, model, List.of()));
+                    MystemSearchToken recovered = tokens.stream().filter(t -> t.startOffset() == start)
+                            .findFirst().orElseThrow();
+                    assertEquals(new MystemSearchToken(source.substring(start, end),
+                            List.of(new MystemTokenForm("c" + suffix, false), new MystemTokenForm("c", false)),
+                            start, end, MystemSearchTokenType.WORD), recovered);
+                    assertEquals(source, tokens.stream().map(MystemSearchToken::text)
+                            .collect(java.util.stream.Collectors.joining()));
+                    int cursor = 0;
+                    for (MystemSearchToken item : tokens) {
+                        assertEquals(cursor, item.startOffset());
+                        assertEquals(source.substring(item.startOffset(), item.endOffset()), item.text());
+                        cursor = item.endOffset();
+                    }
+                    assertEquals(source.length(), cursor);
+                }
+            }
+        }
+    }
+
+    @Test
+    void gapSuffixRecoveryStopsBeforeTheNextAlignedModelRange() {
+        String source = "C++next";
+        List<MystemSearchToken> tokens = tokenizer.tokenize(document(source, token("+next", 2, 7, "next")));
+        assertEquals(List.of("C+", "+next"), tokens.stream().map(MystemSearchToken::text).toList());
+        assertEquals(List.of(new MystemTokenForm("c+", false), new MystemTokenForm("c", false)),
+                tokens.getFirst().forms());
+        assertEquals(2, tokens.get(1).startOffset());
+        assertEquals(List.of(new MystemTokenForm("next", true)), tokens.get(1).forms());
+    }
+
+    @Test
     void mergesUrlAndEmailGroups() {
         String text = "Visit https://example.com or email me@example.com.";
         MystemDocument document = document(

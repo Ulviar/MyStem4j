@@ -175,6 +175,29 @@ public class MystemLuceneIndexRoundTripTest extends LuceneTestCase {
         }
     }
 
+    public void testCompleteUrlsRemainQueryableWithInternalBrackets() throws IOException {
+        for (String url : new String[] {"https://example.com/a(b)c", "https://[::1]/path",
+                "https://example.com/a~", "http+custom://example.com/path"}) {
+            try (Analyzer analyzer = new MystemLuceneAnalyzer(FakeMystemClient.mystemLikeOmissions(),
+                    MystemSearchTokenizerOptions.entityAware());
+                    Directory directory = indexOne(analyzer, "See (" + url + ").")) {
+                assertHitCount(directory, url, 1);
+                assertAnalyzedQueryHitCount(directory, analyzer, url, 1);
+            }
+        }
+    }
+
+    public void testRecoveredGapSuffixesRemainQueryableAtTheOriginalPosition() throws IOException {
+        try (Analyzer analyzer = new MystemLuceneAnalyzer(new FakeMystemClient(input -> "[]"));
+                Directory directory = indexOne(analyzer, "C++ next")) {
+            assertHitCount(directory, "c++", 1);
+            assertHitCount(directory, "c", 1);
+            assertAnalyzedQueryHitCount(directory, analyzer, "C++", 1);
+            assertPhraseHitCount(directory, "c++", "next", 1);
+            assertPhraseHitCount(directory, "c", "next", 1);
+        }
+    }
+
     private static Directory indexOne(Analyzer analyzer, String text) throws IOException {
         Directory directory = newDirectory();
         try (IndexWriter writer = new IndexWriter(directory, newIndexWriterConfig(analyzer))) {

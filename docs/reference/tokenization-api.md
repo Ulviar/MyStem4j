@@ -34,6 +34,10 @@ valid surrogate pairs.
 Invalid ranges raise `MystemTokenizationException`. Empty model tokens are ignored;
 an unpaired surrogate already present in the source is preserved in source text.
 
+Gap recovery also restores `C+`, `C++`, and `C#` with their suffixless aliases,
+including when every model token is missing or unaligned. A recovered gap token
+never consumes the next aligned model range.
+
 Suffix recovery may consume a prefix of a following copied separator. The
 remaining fragment keeps its original position; the tokenizer never moves a
 model analysis to a later repeated occurrence.
@@ -125,6 +129,11 @@ Entity merging handles several adjacent entities, including
 and each entity's full-value/domain forms. Commas and semicolons before another
 recognized entity act as boundaries. Otherwise they may remain inside a valid
 URL. An email-like value inside URL user info, a path or a query belongs to the URL.
+URL recognition preserves full schemes such as `http+custom`, bracketed IPv6 hosts,
+internal parentheses such as `https://example.com/a(b)c`, and terminal `~`.
+Surrounding closing brackets and prose punctuation stay outside the entity;
+balanced parentheses inside a path stay in its full-value form. An invalid URL is
+not recovered by treating an embedded `://` sequence as a separate URL.
 
 Unicode URL hosts such as `пример.рф` are recognized without DNS requests. The
 additional URL domain form removes a leading `www.` and a trailing host dot. In

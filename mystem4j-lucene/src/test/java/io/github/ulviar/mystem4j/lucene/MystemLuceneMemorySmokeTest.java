@@ -13,7 +13,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.tests.util.LuceneTestCase;
 
 public class MystemLuceneMemorySmokeTest extends LuceneTestCase {
@@ -27,20 +28,21 @@ public class MystemLuceneMemorySmokeTest extends LuceneTestCase {
                 new NonRetainingEchoClient(), MystemSearchTokenizerOptions.conservative(), analysisOptions)) {
             for (int iteration = 0; iteration < 200; iteration++) {
                 String text = largeToken(iteration);
-                assertEquals(text.length(), consumeSingleToken(analyzer, text));
+                assertOversizedTokenSkipped(analyzer, text);
             }
         }
     }
 
-    private static int consumeSingleToken(Analyzer analyzer, String text) throws IOException {
+    private static void assertOversizedTokenSkipped(Analyzer analyzer, String text) throws IOException {
         try (TokenStream stream = analyzer.tokenStream("body", text)) {
-            CharTermAttribute term = stream.addAttribute(CharTermAttribute.class);
+            OffsetAttribute offsets = stream.addAttribute(OffsetAttribute.class);
+            PositionIncrementAttribute positions = stream.addAttribute(PositionIncrementAttribute.class);
             stream.reset();
-            assertTrue(stream.incrementToken());
-            int length = term.length();
             assertFalse(stream.incrementToken());
             stream.end();
-            return length;
+            assertEquals(text.length(), offsets.startOffset());
+            assertEquals(text.length(), offsets.endOffset());
+            assertEquals(1, positions.getPositionIncrement());
         }
     }
 

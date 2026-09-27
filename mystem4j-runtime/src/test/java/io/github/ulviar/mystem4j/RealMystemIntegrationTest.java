@@ -24,6 +24,36 @@ class RealMystemIntegrationTest {
     @TempDir
     Path temporaryDirectory;
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"oneshot", "session", "pooled"})
+    void treatsRelativeFileNamesStartingWithDashAsPaths(String mode) throws IOException {
+        Path directory = Files.createTempDirectory(Path.of(""), "-mystem-files-");
+        Path input = directory.resolve("input.txt");
+        Path output = directory.resolve("output.json");
+        try {
+            Files.writeString(input, "Мама мыла раму.", StandardCharsets.UTF_8);
+            var builder = Mystem.builder().executable(Path.of(System.getProperty("mystem4j.executable")));
+            if (mode.equals("session")) builder.session();
+            if (mode.equals("pooled")) builder.pooled();
+            try (var client = builder.build()) {
+                var captured = client.analyzeFile(input);
+                assertEquals(input, captured.input());
+                assertTrue(captured.output().contains("\"lex\":\"мама\""));
+                // An absolute input isolates the output-argument case.
+                var saved = client.analyzeFile(input.toAbsolutePath(), output);
+                assertEquals(input.toAbsolutePath(), saved.input());
+                assertEquals(output, saved.output());
+                assertTrue(Files.readString(output).contains("\"lex\":\"мама\""));
+                assertTrue(saved.stats().outputBytes() > 0);
+                assertEquals("Мама мыла раму.", Files.readString(input));
+            }
+        } finally {
+            Files.deleteIfExists(output);
+            Files.deleteIfExists(input);
+            Files.deleteIfExists(directory);
+        }
+    }
+
     @Test
     void probesRealMystem() {
         Path executable = Path.of(System.getProperty("mystem4j.executable"));
