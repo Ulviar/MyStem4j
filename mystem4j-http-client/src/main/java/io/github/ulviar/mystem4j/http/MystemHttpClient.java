@@ -157,9 +157,7 @@ public final class MystemHttpClient implements MystemClient {
             var response = exchange("files/output", HttpRequest.BodyPublishers.ofFile(input),
                     "application/octet-stream", temporary, 200);
             var result = new MystemFileResult(input, output, responseFormat(response), ClientWire.stats(response.headers()));
-            if (!"application/octet-stream".equals(response.headers().firstValue("Content-Type").orElse(""))) {
-                throw new IOException("Unexpected file response media type");
-            }
+            ClientWire.requireMediaType(response.headers(), "application/octet-stream");
             Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             return result;
         } catch (IOException | IllegalArgumentException failure) {
@@ -182,9 +180,7 @@ public final class MystemHttpClient implements MystemClient {
     }
 
     private String decode(HttpResponse<byte[]> response) throws IOException {
-        if (!"application/json".equals(response.headers().firstValue("Content-Type").orElse(""))) {
-            throw new IOException("Unexpected JSON response media type");
-        }
+        ClientWire.requireMediaType(response.headers(), "application/json");
         return ClientWire.output(response.body(), maxResponseBytes);
     }
 

@@ -41,6 +41,27 @@ class JettyTransportTest {
         }
     }
 
+    @Test void repeatedContentTypesAreRejectedInEitherOrderOnEveryPostRoute() throws Exception {
+        var backend = new HttpServiceContractTest.Echo();
+        try (var server = service(backend).start()) {
+            for (String path : new String[]{"/v1/analyze", "/v1/files/content", "/v1/files/output"}) {
+                String type = path.equals("/v1/analyze") ? "application/json" : "application/octet-stream";
+                for (String types : new String[]{
+                        "Content-Type: " + type + "\r\nContent-Type: text/plain\r\n",
+                        "Content-Type: text/plain\r\nContent-Type: " + type + "\r\n",
+                        "Content-Type: " + type + "\r\ncontent-type: " + type + "\r\n",
+                        "Content-Type: " + type + ", text/plain\r\n"}) {
+                    String response = responseHeaders(server, "POST " + path + " HTTP/1.1\r\nHost: localhost\r\n"
+                            + types + "Content-Length: 12\r\n\r\n{\"text\":\"x\"}");
+                    assertTrue(response.startsWith("HTTP/1.1 415"), path + " " + types + response);
+                    assertTrue(response.contains("X-Mystem-Error: UNSUPPORTED_MEDIA_TYPE"), response);
+                }
+            }
+            assertEquals(0, backend.calls.get());
+        }
+        assertNoTemporaryFiles();
+    }
+
     @Test void rejectedIncompleteBodiesReturnProtocolErrorsWithoutWaitingForEof() throws Exception {
         var backend = new HttpServiceContractTest.Echo();
         try (var server = service(backend).maxRequestBytes(32).requestTimeout(Duration.ofSeconds(1)).start()) {

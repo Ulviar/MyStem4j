@@ -34,10 +34,12 @@ public class ProcwrightSharedThreadsFilterTest {
                 release.countDown();
             }
             long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-            while (!filter.reject(worker.get()) && System.nanoTime() < deadline) {
+            boolean idleObserved;
+            while (!(idleObserved = filter.reject(worker.get())) && System.nanoTime() < deadline) {
                 Thread.sleep(5);
             }
-            assertTrue("Idle shared executor may survive client close", filter.reject(worker.get()));
+            // A parked worker can wake between samples; assert the observation that ended the wait.
+            assertTrue("Idle shared executor may survive client close", idleObserved);
             worker.get().setName("procwright-protocol-stdout-0");
             assertFalse("Process stream threads must remain visible", filter.reject(worker.get()));
         }

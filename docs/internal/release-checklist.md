@@ -23,8 +23,8 @@ Central. Run the release gates with the default repository configuration.
   durable outcomes and delete completed work files before tagging the release.
 - Confirm the native MyStem binary is not bundled into published artifacts.
 - Build `:mystem4j-http-server:installDist` and smoke-test the Docker image with a
-  Linux x64 MyStem binary, text/file requests and graceful shutdown. JVM loopback
-  tests alone do not validate the container or native architecture.
+  Linux x64 MyStem binary using the [Docker smoke check](testing-strategy.md#http-transport-and-service).
+  JVM loopback tests alone do not validate the container or native architecture.
 
 ## Before a Central upload
 

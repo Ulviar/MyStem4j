@@ -16,9 +16,13 @@ import io.github.ulviar.mystem4j.MystemProtocolException;
 import io.github.ulviar.mystem4j.MystemRequestStats;
 import io.github.ulviar.mystem4j.MystemRequestTimeoutException;
 import io.github.ulviar.mystem4j.MystemStartupException;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.http.HttpHeaders;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /** Client half of the version 1 protocol. No morphology parsing happens here. */
@@ -39,7 +43,9 @@ final class ClientWire {
     static String output(byte[] bytes, int limit) throws IOException {
         var factory = JsonFactory.builder().streamReadConstraints(StreamReadConstraints.builder()
                 .maxStringLength(limit).maxNestingDepth(2).build()).build();
-        try (var json = factory.createParser(bytes)) {
+        var decoder = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT);
+        try (var json = factory.createParser(new InputStreamReader(new ByteArrayInputStream(bytes), decoder))) {
             if (json.nextToken() != JsonToken.START_OBJECT || json.nextToken() != JsonToken.FIELD_NAME
                     || !"output".equals(json.currentName()) || json.nextToken() != JsonToken.VALUE_STRING) {
                 throw new IOException("Expected an output string");
@@ -49,6 +55,14 @@ final class ClientWire {
                 throw new IOException("Unexpected response fields or trailing data");
             }
             return value;
+        }
+    }
+
+    static void requireMediaType(HttpHeaders headers, String expected) throws IOException {
+        var types = headers.allValues("Content-Type");
+        if (types.size() != 1 || !types.getFirst().equalsIgnoreCase(expected)
+                || !headers.allValues("Content-Encoding").isEmpty()) {
+            throw new IOException("Unexpected HTTP response media type or content encoding");
         }
     }
 

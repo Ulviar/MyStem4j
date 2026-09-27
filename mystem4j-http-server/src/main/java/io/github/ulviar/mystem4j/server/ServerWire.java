@@ -12,7 +12,11 @@ import io.github.ulviar.mystem4j.MystemRequestStats;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import org.eclipse.jetty.http.HttpFields;
 
 /** Server half of the version 1 protocol. */
@@ -22,7 +26,9 @@ final class ServerWire {
     static String text(InputStream input, int limit) throws IOException {
         var factory = JsonFactory.builder().streamReadConstraints(StreamReadConstraints.builder()
                 .maxStringLength(limit).maxNestingDepth(2).build()).build();
-        try (var json = factory.createParser(input)) {
+        var decoder = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT);
+        try (var json = factory.createParser(new InputStreamReader(input, decoder))) {
             if (json.nextToken() != JsonToken.START_OBJECT || json.nextToken() != JsonToken.FIELD_NAME
                     || !"text".equals(json.currentName()) || json.nextToken() != JsonToken.VALUE_STRING) {
                 throw new MystemInvalidOptionsException("Expected a text string");
@@ -32,6 +38,8 @@ final class ServerWire {
                 throw new MystemInvalidOptionsException("Unexpected fields or trailing data");
             }
             return text;
+        } catch (CharacterCodingException malformed) {
+            throw new MystemInvalidOptionsException("JSON request must use valid UTF-8");
         }
     }
 

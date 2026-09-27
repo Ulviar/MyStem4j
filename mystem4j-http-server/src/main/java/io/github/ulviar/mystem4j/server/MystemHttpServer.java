@@ -275,8 +275,8 @@ public final class MystemHttpServer implements AutoCloseable {
             return;
         }
         String expectedType = path.equals("/v1/analyze") ? "application/json" : "application/octet-stream";
-        String contentType = request.getHeaders().get("Content-Type");
-        if (contentType == null || !contentType.equalsIgnoreCase(expectedType)
+        var contentTypes = request.getHeaders().getValuesList("Content-Type");
+        if (contentTypes.size() != 1 || !contentTypes.getFirst().equalsIgnoreCase(expectedType)
                 || request.getHeaders().contains("Content-Encoding")) {
             error(response, 415, "UNSUPPORTED_MEDIA_TYPE"); return;
         }

@@ -100,6 +100,61 @@ class HttpClientFailureTest {
         }
     }
 
+    @Test void malformedUtf8AndNonUtf8ResponsesFailWithoutReplacingCharacters() throws Exception {
+        var bodies = new java.util.ArrayList<byte[]>();
+        String json = "{\"output\":\"Кошка\"}";
+        for (String encoding : java.util.List.of("UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE")) {
+            bodies.add(json.getBytes(java.nio.charset.Charset.forName(encoding)));
+        }
+        for (byte[] malformed : java.util.List.of(new byte[]{(byte) 0xc0, (byte) 0xaf},
+                new byte[]{(byte) 0xe0, (byte) 0x80, (byte) 0xaf},
+                new byte[]{(byte) 0xf0, (byte) 0x80, (byte) 0x80, (byte) 0xaf},
+                new byte[]{(byte) 0xed, (byte) 0xa0, (byte) 0x80},
+                new byte[]{(byte) 0xf4, (byte) 0x90, (byte) 0x80, (byte) 0x80},
+                new byte[]{(byte) 0x80}, new byte[]{(byte) 0xe2, (byte) 0x82})) {
+            var bytes = new java.io.ByteArrayOutputStream();
+            bytes.writeBytes("{\"output\":\"".getBytes(StandardCharsets.US_ASCII));
+            bytes.writeBytes(malformed);
+            bytes.writeBytes("\"}".getBytes(StandardCharsets.US_ASCII));
+            bodies.add(bytes.toByteArray());
+        }
+        Path input = directory.resolve("input");
+        Files.writeString(input, "source");
+        for (byte[] body : bodies) {
+            try (var remote = new Remote(exchange -> {
+                headers(exchange);
+                exchange.sendResponseHeaders(200, body.length);
+                exchange.getResponseBody().write(body);
+            }); var client = remote.builder().build()) {
+                assertThrows(MystemProtocolException.class, () -> client.analyze("source"));
+                assertThrows(MystemProtocolException.class, () -> client.analyzeFile(input));
+            }
+        }
+    }
+
+    @Test void ambiguousOrEncodedResponsesPreserveTheDestination() throws Exception {
+        Path input = directory.resolve("input"); Path output = directory.resolve("output");
+        Files.writeString(input, "source"); Files.writeString(output, "original");
+        for (boolean encoding : new boolean[]{false, true}) {
+            try (var remote = new Remote(exchange -> {
+                headers(exchange);
+                String type = exchange.getRequestURI().getPath().endsWith("/output")
+                        ? "application/octet-stream" : "application/json";
+                exchange.getResponseHeaders().set("Content-Type", type);
+                if (encoding) exchange.getResponseHeaders().set("Content-Encoding", "gzip");
+                else exchange.getResponseHeaders().add("Content-Type", "text/plain");
+                byte[] body = "{\"output\":\"x\"}".getBytes(StandardCharsets.US_ASCII);
+                exchange.sendResponseHeaders(200, body.length); exchange.getResponseBody().write(body);
+            }); var client = remote.builder().build()) {
+                assertThrows(MystemProtocolException.class, () -> client.analyze("source"));
+                assertThrows(MystemProtocolException.class, () -> client.analyzeFile(input));
+                assertThrows(MystemProtocolException.class, () -> client.analyzeFile(input, output));
+                assertEquals("original", Files.readString(output));
+            }
+        }
+        try (var files = Files.list(directory)) { assertEquals(2, files.count()); }
+    }
+
     @Test void successfulTextAndFileCallsValidateStatisticsAndLocalArguments() throws Exception {
         Path input = directory.resolve("input"); Path output = directory.resolve("output");
         Files.writeString(input, "a");

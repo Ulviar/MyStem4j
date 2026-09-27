@@ -283,7 +283,8 @@ case.
 
 The HTTP module tests use actual loopback connections and deterministic backends.
 They cover lossless Java strings, binary files and atomic destination replacement,
-metadata/error mapping, bounded chunked bodies, full-response deadlines, ownership,
+metadata/error mapping, strict UTF-8 decoding, unambiguous media-type headers,
+bounded chunked bodies, full-response deadlines, ownership,
 concurrency and temporary-file cleanup. Jetty transport tests also exercise raw
 HTTP header/framing rejection, early rejection of incomplete bodies, exact encoded
 paths, slow continuous uploads, stalled downloads, keep-alive deadline cancellation,
@@ -291,5 +292,15 @@ virtual-thread dispatch and both successful and expired graceful shutdown. The
 native runtime is not duplicated in HTTP tests. `:mystem4j-http-server:test -Dmystem4j.executable=/path/to/mystem` adds
 all three native modes, both file APIs, and local/remote Lucene offset equivalence.
 Root `realMystemTest` includes this suite. Docker packaging requires a separate
-Linux x64 smoke run using `docker/compose.yaml`; JVM tests do not prove container
-architecture or native binary compatibility.
+Linux x64 smoke run; JVM tests do not prove container architecture or native binary
+compatibility. Build the image as shown in the [HTTP guide](../how-to/http-service.md#run-in-docker),
+then run `python3 docker/smoke-test.py /absolute/path/to/linux-x64/mystem` with
+Python 3.10+ and Docker Compose 2.24.4+. The script exercises the supplied Compose
+service in all three native modes, including authenticated concurrent text calls,
+both file methods, temporary-file cleanup, container restrictions and SIGTERM.
+It uses an isolated Compose project and removes it on completion.
+
+The manual [HTTP Docker smoke workflow](../../.github/workflows/http-docker-smoke.yml)
+runs the same check on Linux. Its license input defaults to false: enable it only
+after accepting the linked Yandex MyStem license. The existing Gradle plugin
+downloads and probes MyStem for that run; neither binary nor image is published.

@@ -130,7 +130,11 @@ after such a failure. Pooled mode replaces failed workers through the native poo
 
 Endpoints are relative to the service root. Queries, unknown paths and path suffixes
 are rejected. Clients must use the exact media types below; content encoding such
-as gzip is not supported. Strings in JSON use UTF-8 or JSON Unicode escapes.
+as gzip is not supported. POST requests and successful analysis responses must have
+exactly one `Content-Type` field with the specified media type and no
+`Content-Encoding`. JSON bodies must use valid UTF-8; other encodings and malformed
+byte sequences are rejected. JSON Unicode escapes can represent isolated UTF-16
+surrogates without sending invalid UTF-8 bytes.
 
 | Method / path | Request body | Successful response |
 | --- | --- | --- |

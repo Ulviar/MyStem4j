@@ -1,0 +1,38 @@
+name: HTTP Docker smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      accept_yandex_mystem_license:
+        description: 'I accept https://yandex.ru/legal/mystem/ru/ for this MyStem download and run'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: ${{ inputs.accept_yandex_mystem_license }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build the JVM distribution
+        run: ./gradlew :mystem4j-http-server:installDist --console=plain
+      - name: Prepare the Linux x64 native executable with the Gradle plugin
+        run: >-
+          ./gradlew -p samples/mystem-plugin-smoke mystemProbe
+          -Pmystem4j.download=true -Pmystem4j.acceptYandexMystemLicense=true
+          --console=plain
+      - name: Build the image
+        run: docker build --platform linux/amd64 -f docker/Dockerfile -t mystem4j-http:0.2.0-SNAPSHOT .
+      - name: Check all native modes in the supplied Compose service
+        run: python3 docker/smoke-test.py samples/mystem-plugin-smoke/build/mystem/bin/linux-x64/mystem
