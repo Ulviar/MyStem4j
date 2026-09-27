@@ -6,9 +6,9 @@ several applications should share one MyStem service. The client implements
 extensions. No Solr or Elasticsearch plugin is included; their server-specific
 adapters and permissions are still needed.
 
-The HTTP modules are under development for `0.2.0-SNAPSHOT`. They are not in Maven
-Central `0.1.0`. The steps below build from this checkout and install the client
-in your local Maven repository. Java 25 is required on both sides.
+The HTTP modules require MyStem4j `0.2.0` and Java 25 on both sides. The steps
+below build the standalone service from this checkout; applications resolve the
+client from Maven Central.
 
 ## Start a local service
 
@@ -20,8 +20,7 @@ and Docker image do not download or bundle MyStem.
 From the repository root, with `JAVA_HOME` pointing to JDK 25:
 
 ```bash
-./gradlew :mystem4j-http-server:installDist \
-  :mystem4j-runtime:publishToMavenLocal :mystem4j-http-client:publishToMavenLocal
+./gradlew :mystem4j-http-server:installDist
 
 MYSTEM_EXECUTABLE=/absolute/path/to/mystem \
   mystem4j-http-server/build/install/mystem4j-http-server/bin/mystem4j-http-server
@@ -52,13 +51,10 @@ In the consuming application's Gradle build:
 
 ```kotlin
 plugins { java }
-repositories {
-    mavenLocal() // locally installed development artifacts from the commands above
-    mavenCentral()
-}
+repositories { mavenCentral() }
 java { toolchain { languageVersion.set(JavaLanguageVersion.of(25)) } }
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-http-client:0.2.0-SNAPSHOT")
+    implementation("io.github.ulviar.mystem4j:mystem4j-http-client:0.2.0")
 }
 ```
 
@@ -82,11 +78,10 @@ threads, and close it when the application stops. Client construction contacts
 the server to learn its output format and execution profile. Closing the client
 leaves the shared service running.
 
-For Lucene, also declare `mystem4j-lucene:0.1.0` and pass this client to
+For Lucene, also declare `mystem4j-lucene:0.2.0` and pass this client to
 `new MystemLuceneAnalyzer(client)` as shown in the [Lucene guide](use-lucene-analyzer.md).
-The unchanged runtime API permits that combination; Gradle selects the newer
-runtime brought by the HTTP client. Close the analyzer before the client. The
-standalone service uses JSON, copied input, grammar information and disambiguation,
+Close the analyzer before the client. The standalone service uses JSON, copied
+input, grammar information and disambiguation,
 which match this scenario. Existing Lucene preprocessing still handles multiline
 fields and maps tokens back to their original UTF-16 offsets.
 
@@ -143,7 +138,7 @@ Docker must provide x86-64 emulation.
 ```bash
 ./gradlew :mystem4j-http-server:installDist
 docker build --platform linux/amd64 -f docker/Dockerfile \
-  -t mystem4j-http:0.2.0-SNAPSHOT .
+  -t mystem4j-http:0.2.0 .
 
 export MYSTEM_BINARY=/absolute/path/to/linux-x64/mystem
 chmod a+rx "$MYSTEM_BINARY"
@@ -228,9 +223,8 @@ for error codes, cancellation and file replacement guarantees.
 ## Embed the service
 
 For custom MyStem options, construct a native client and pass it to the server
-builder. Declare `mystem4j-http-server:0.2.0-SNAPSHOT` and install that module to
-Maven Local first, just as for the client. The following startup pattern makes
-ownership explicit:
+builder. Declare `io.github.ulviar.mystem4j:mystem4j-http-server:0.2.0` from
+Maven Central. The following startup pattern makes ownership explicit:
 
 ```java
 import io.github.ulviar.mystem4j.Mystem;

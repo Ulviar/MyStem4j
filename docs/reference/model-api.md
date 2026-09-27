@@ -2,7 +2,7 @@
 
 Package: `io.github.ulviar.mystem4j.model`
 
-Artifact: `io.github.ulviar.mystem4j:mystem4j-model:0.1.0`
+Artifact: `io.github.ulviar.mystem4j:mystem4j-model:0.2.0`
 
 ## Parser
 

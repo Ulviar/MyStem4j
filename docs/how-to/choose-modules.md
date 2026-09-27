@@ -6,8 +6,8 @@ bring supporting modules when they are part of that module's public API.
 | Task | Declare | Also needed at runtime |
 | --- | --- | --- |
 | Run MyStem and read raw JSON, XML, or text | `mystem4j-runtime` | a MyStem executable path or `PATH` entry |
-| Call remote MyStem | `mystem4j-http-client` (development) | running HTTP service; no local native executable |
-| Host MyStem remotely | `mystem4j-http-server` (development) | server-side native executable |
+| Call remote MyStem | `mystem4j-http-client` | running HTTP service; no local native executable |
+| Host MyStem remotely | `mystem4j-http-server` | server-side native executable |
 | Parse existing MyStem JSON without running MyStem | `mystem4j-model` | no MyStem executable |
 | Run MyStem and parse the JSON result | `mystem4j-runtime` + `mystem4j-model` | a MyStem executable |
 | Build search tokens from parsed model objects | `mystem4j-tokenization` | parsed `MystemDocument` values |
@@ -19,7 +19,7 @@ bring supporting modules when they are part of that module's public API.
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0")
 }
 ```
 
@@ -27,7 +27,7 @@ For Lucene projects, usually declare only the Lucene module:
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-lucene:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-lucene:0.2.0")
 }
 ```
 
@@ -38,7 +38,7 @@ For Kotlin runtime helpers:
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.2.0")
 }
 ```
 
@@ -50,7 +50,7 @@ dependencies {
 <dependency>
   <groupId>io.github.ulviar.mystem4j</groupId>
   <artifactId>mystem4j-runtime</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
@@ -65,6 +65,5 @@ or distribution tasks.
 
 ## HTTP modules
 
-The HTTP client/server are new in `0.2.0-SNAPSHOT`, not published in `0.1.0`.
-Follow the [HTTP guide](http-service.md) to build and install them locally. For
-remote Lucene analysis, declare both the Lucene module and the HTTP client.
+Follow the [HTTP guide](http-service.md) to start a service and connect an application.
+For remote Lucene analysis, declare both the Lucene module and the HTTP client.

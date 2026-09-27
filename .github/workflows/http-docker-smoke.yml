@@ -25,14 +25,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Build the JVM distribution
-        run: ./gradlew :mystem4j-http-server:installDist --console=plain
+      - name: Build the JVM distribution and local Gradle plugin
+        run: >-
+          ./gradlew :mystem4j-http-server:installDist
+          :mystem4j-gradle-plugin:publishAllPublicationsToReleaseDryRunRepository
+          --console=plain
       - name: Prepare the Linux x64 native executable with the Gradle plugin
         run: >-
           ./gradlew -p samples/mystem-plugin-smoke mystemProbe
+          -Pmystem4j.version=0.2.0
+          -Pmystem4j.releaseDryRunRepository=file://${{ github.workspace }}/build/release-dry-run-repo
           -Pmystem4j.download=true -Pmystem4j.acceptYandexMystemLicense=true
           --console=plain
       - name: Build the image
-        run: docker build --platform linux/amd64 -f docker/Dockerfile -t mystem4j-http:0.2.0-SNAPSHOT .
+        run: docker build --platform linux/amd64 -f docker/Dockerfile -t mystem4j-http:0.2.0 .
       - name: Check all native modes in the supplied Compose service
         run: python3 docker/smoke-test.py samples/mystem-plugin-smoke/build/mystem/bin/linux-x64/mystem

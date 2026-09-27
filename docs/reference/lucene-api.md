@@ -2,7 +2,7 @@
 
 Package: `io.github.ulviar.mystem4j.lucene`
 
-Artifact: `io.github.ulviar.mystem4j:mystem4j-lucene:0.1.0`
+Artifact: `io.github.ulviar.mystem4j:mystem4j-lucene:0.2.0`
 
 ## Compatibility
 

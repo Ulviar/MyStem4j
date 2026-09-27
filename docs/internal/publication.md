@@ -64,9 +64,8 @@ Update the API baseline only after reviewing intentional public API changes:
 
 ## Release Checklist
 
-The current development version is `0.2.0-SNAPSHOT`. Set the intended release
-version in `gradle.properties` before publishing; `0.1.0` is already published
-and cannot be replaced.
+The release version in `gradle.properties` is `0.2.0`. Verify it before publishing;
+`0.1.0` is already published and cannot be replaced.
 
 Before publishing MyStem4j artifacts to a public repository, make sure every
 transitive runtime dependency, including `io.github.ulviar:procwright:0.1.0`, is already

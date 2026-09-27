@@ -35,7 +35,7 @@ tasks.wrapper {
     retryBackOffMs.set(500)
 }
 
-val mystem4jVersion = providers.gradleProperty("mystem4j.version").orElse("0.1.0")
+val mystem4jVersion = providers.gradleProperty("mystem4j.version").orElse("0.2.0")
 val projectUrlValue = "https://github.com/Ulviar/MyStem4j"
 val automaticModuleNames = mapOf(
     "mystem4j-runtime" to "io.github.ulviar.mystem4j",

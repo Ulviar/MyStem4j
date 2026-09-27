@@ -40,7 +40,7 @@ Create `build.gradle.kts`:
 ```kotlin
 plugins {
     java
-    id("io.github.ulviar.mystem4j") version "0.1.0"
+    id("io.github.ulviar.mystem4j") version "0.2.0"
 }
 
 java {
@@ -50,7 +50,7 @@ java {
 }
 
 dependencies {
-    testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 }

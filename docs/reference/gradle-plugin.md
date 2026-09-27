@@ -2,20 +2,20 @@
 
 Plugin id: `io.github.ulviar.mystem4j`
 
-Maven artifact: `io.github.ulviar.mystem4j:mystem4j-gradle-plugin:0.1.0`
+Maven artifact: `io.github.ulviar.mystem4j:mystem4j-gradle-plugin:0.2.0`
 
 Requires Java 25 or newer in the JVM running Gradle. Setting an application's
 Java toolchain does not change the Gradle JVM. Tested with Gradle 9.7.1.
 
 ```kotlin
 plugins {
-    id("io.github.ulviar.mystem4j") version "0.1.0"
+    id("io.github.ulviar.mystem4j") version "0.2.0"
 }
 ```
 
 ```groovy
 plugins {
-    id 'io.github.ulviar.mystem4j' version '0.1.0'
+    id 'io.github.ulviar.mystem4j' version '0.2.0'
 }
 ```
 
@@ -75,7 +75,7 @@ installer-staging tasks when packaging an application.
 
 ## Supported Archives
 
-The checksum values are embedded in MyStem4j `0.1.0` and are used to verify official
+The checksum values are embedded in MyStem4j `0.2.0` and are used to verify official
 downloads.
 
 | Target OS | Archive | Executable | SHA-256 |

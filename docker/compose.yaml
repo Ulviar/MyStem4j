@@ -1,6 +1,6 @@
 services:
   mystem:
-    image: mystem4j-http:0.2.0-SNAPSHOT
+    image: mystem4j-http:0.2.0
     platform: linux/amd64
     init: true
     read_only: true

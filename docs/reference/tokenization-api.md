@@ -2,7 +2,7 @@
 
 Package: `io.github.ulviar.mystem4j.tokenization`
 
-Artifact: `io.github.ulviar.mystem4j:mystem4j-tokenization:0.1.0`
+Artifact: `io.github.ulviar.mystem4j:mystem4j-tokenization:0.2.0`
 
 ## Search Tokenizer
 

@@ -9,7 +9,7 @@ For existing JSON:
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-model:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-model:0.2.0")
 }
 ```
 
@@ -17,8 +17,8 @@ If the same code also runs MyStem:
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
-    implementation("io.github.ulviar.mystem4j:mystem4j-model:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-model:0.2.0")
 }
 ```
 

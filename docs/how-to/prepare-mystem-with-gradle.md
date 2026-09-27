@@ -13,7 +13,7 @@ of the toolchain used to compile your application.
 ```kotlin
 plugins {
     java
-    id("io.github.ulviar.mystem4j") version "0.1.0"
+    id("io.github.ulviar.mystem4j") version "0.2.0"
 }
 ```
 

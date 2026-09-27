@@ -2,7 +2,7 @@
 
 Package: `io.github.ulviar.mystem4j.kotlin`
 
-Artifact: `io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0`
+Artifact: `io.github.ulviar.mystem4j:mystem4j-kotlin:0.2.0`
 
 `mystem4j-kotlin` brings `mystem4j-runtime` transitively.
 

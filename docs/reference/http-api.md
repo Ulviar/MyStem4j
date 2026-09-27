@@ -1,8 +1,8 @@
 # HTTP client and server
 
-The HTTP modules are new in `0.2.0-SNAPSHOT` and are not part of the published
-`0.1.0` release. See [Run MyStem over HTTP](../how-to/http-service.md) for local
-installation, Docker and complete client examples. Both modules require Java 25.
+The HTTP client and server are available from MyStem4j `0.2.0`. See
+[Run MyStem over HTTP](../how-to/http-service.md) for installation, Docker and
+complete client examples. Both modules require Java 25.
 
 | Artifact | JPMS module / public package | Public entry points |
 | --- | --- | --- |

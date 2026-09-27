@@ -2,7 +2,7 @@
 
 Package: `io.github.ulviar.mystem4j`
 
-Artifact: `io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0`
+Artifact: `io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0`
 
 ## Executable Resolution
 

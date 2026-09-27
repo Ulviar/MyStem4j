@@ -15,9 +15,6 @@ Use MyStem4j to:
 - prepare the MyStem binary during a Gradle build;
 - [call a remote MyStem service over HTTP](docs/how-to/http-service.md), including a Docker deployment.
 
-The HTTP modules are new in the development version `0.2.0-SNAPSHOT`; the other
-quick-start examples below use the published `0.1.0` release.
-
 ## Requirements
 
 - Java 25 or newer for every library and the Gradle plugin. Run Gradle on JDK 25
@@ -41,8 +38,8 @@ dependencies of those modules.
 | Need | Module |
 | --- | --- |
 | Run MyStem and receive raw output | `mystem4j-runtime` |
-| Call a remote MyStem service (development) | `mystem4j-http-client` |
-| Host a MyStem HTTP service (development) | `mystem4j-http-server` |
+| Call a remote MyStem service | `mystem4j-http-client` |
+| Host a MyStem HTTP service | `mystem4j-http-server` |
 | Parse existing MyStem JSON into Java objects | `mystem4j-model` |
 | Convert parsed model objects into search tokens | `mystem4j-tokenization` |
 | Use MyStem in Lucene analysis | `mystem4j-lucene` |
@@ -81,7 +78,7 @@ dependencyResolutionManagement {
 ```kotlin
 plugins {
     java
-    id("io.github.ulviar.mystem4j") version "0.1.0"
+    id("io.github.ulviar.mystem4j") version "0.2.0"
 }
 
 java {
@@ -91,7 +88,7 @@ java {
 }
 
 dependencies {
-    testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    testImplementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 }
@@ -167,7 +164,7 @@ For application code outside tests, use `implementation` instead of
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0")
 }
 ```
 

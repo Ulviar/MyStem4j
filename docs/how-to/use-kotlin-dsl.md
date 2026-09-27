@@ -21,7 +21,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-kotlin:0.2.0")
 }
 ```
 

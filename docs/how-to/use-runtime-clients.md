@@ -8,7 +8,7 @@ not parse JSON into model objects. For tokens, lemmas, grammar, or offsets, use
 
 ```kotlin
 dependencies {
-    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.1.0")
+    implementation("io.github.ulviar.mystem4j:mystem4j-runtime:0.2.0")
 }
 ```
 
