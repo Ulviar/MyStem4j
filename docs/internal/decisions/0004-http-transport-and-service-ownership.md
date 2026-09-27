@@ -3,6 +3,9 @@
 Status: accepted
 Scope: HTTP client/server modules, native execution boundary and protocol
 
+The server transport choice below is superseded by [ADR 0005](0005-jetty-core-server.md).
+The protocol and ownership decisions remain accepted.
+
 ## Context
 
 Applications that cannot launch native processes need the existing `MystemClient`

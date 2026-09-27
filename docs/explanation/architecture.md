@@ -31,7 +31,7 @@ at runtime.
 | runtime | none | Procwright |
 | model | none | Jackson Core |
 | HTTP client | runtime | Jackson Core, JDK HTTP client |
-| HTTP server | runtime | Jackson Core, JDK HTTP server |
+| HTTP server | runtime | Jackson Core, embedded Jetty Core |
 | tokenization | model | none |
 | Lucene | runtime, tokenization, Lucene Core | model |
 | Kotlin | runtime, Kotlin standard library | none |

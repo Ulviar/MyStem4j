@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
-import com.sun.net.httpserver.Headers;
 import io.github.ulviar.mystem4j.Mystem;
 import io.github.ulviar.mystem4j.MystemInvalidOptionsException;
 import io.github.ulviar.mystem4j.MystemOutputFormat;
@@ -14,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.eclipse.jetty.http.HttpFields;
 
 /** Server half of the version 1 protocol. */
 final class ServerWire {
@@ -55,14 +55,14 @@ final class ServerWire {
         return bytes.toByteArray();
     }
 
-    static void stats(Headers headers, MystemOutputFormat format, MystemRequestStats stats) {
-        headers.set("X-Mystem-Format", format.name());
-        headers.set("X-Mystem-Elapsed", stats.elapsed().toString());
-        headers.set("X-Mystem-Mode", stats.mode().name());
-        headers.set("X-Mystem-Input-Chars", Long.toString(stats.inputChars()));
-        headers.set("X-Mystem-Input-Bytes", Long.toString(stats.inputBytes()));
-        headers.set("X-Mystem-Output-Chars", Long.toString(stats.outputChars()));
-        headers.set("X-Mystem-Output-Bytes", Long.toString(stats.outputBytes()));
+    static void stats(HttpFields.Mutable headers, MystemOutputFormat format, MystemRequestStats stats) {
+        headers.put("X-Mystem-Format", format.name());
+        headers.put("X-Mystem-Elapsed", stats.elapsed().toString());
+        headers.put("X-Mystem-Mode", stats.mode().name());
+        headers.put("X-Mystem-Input-Chars", Long.toString(stats.inputChars()));
+        headers.put("X-Mystem-Input-Bytes", Long.toString(stats.inputBytes()));
+        headers.put("X-Mystem-Output-Chars", Long.toString(stats.outputChars()));
+        headers.put("X-Mystem-Output-Bytes", Long.toString(stats.outputBytes()));
     }
 
     static InputStream bounded(InputStream input, int limit) {

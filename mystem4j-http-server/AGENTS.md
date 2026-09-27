@@ -21,7 +21,7 @@ Owns HTTP admission, temporary files, backend ownership and standalone deploymen
 ## Validation
 
 ```text
-./gradlew :mystem4j-http-server:test :mystem4j-http-server:test
+./gradlew :mystem4j-http-client:test :mystem4j-http-server:test
 ./gradlew check
 ```
 

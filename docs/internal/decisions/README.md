@@ -34,3 +34,4 @@ Records:
 - [ADR 0002: Builder-only configuration APIs](0002-builder-only-configuration-apis.md)
 - [ADR 0003: Executable module boundaries](0003-executable-module-boundaries.md)
 - [ADR 0004: HTTP transport and service ownership](0004-http-transport-and-service-ownership.md)
+- [ADR 0005: Embedded Jetty Core server](0005-jetty-core-server.md)

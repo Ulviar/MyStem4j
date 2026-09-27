@@ -157,10 +157,13 @@ class ModuleBoundaryPolicyTest {
         String serverProcess = "   io.github.ulviar.mystem4j.server.Server -> java.lang.ProcessBuilder java.base";
         assertRejected("server process creation", "java.lang.ProcessBuilder",
                 () -> ModuleBoundaryPolicy.checkDependencies("http-server", serverProcess, false));
-        String leakedServer = "   io.github.ulviar.mystem4j.server.Server -> com.sun.net.httpserver.HttpServer jdk.httpserver";
+        String leakedServer = "   io.github.ulviar.mystem4j.server.Server -> org.eclipse.jetty.server.Server org.eclipse.jetty.server";
         assertDoesNotThrow(() -> ModuleBoundaryPolicy.checkDependencies("http-server", leakedServer, false));
-        assertRejected("HTTP server API", "com.sun.net.httpserver.HttpServer",
+        assertRejected("HTTP server API", "org.eclipse.jetty.server.Server",
                 () -> ModuleBoundaryPolicy.checkDependencies("http-server", leakedServer, true));
+        assertRejected("obsolete transport", "com.sun.net.httpserver.HttpServer",
+                () -> ModuleBoundaryPolicy.checkDependencies("http-server",
+                        "   io.github.ulviar.mystem4j.server.Server -> com.sun.net.httpserver.HttpServer jdk.httpserver", false));
     }
 
     private Path compile(Map<String, String> sources) throws IOException {

@@ -283,7 +283,7 @@ tasks.register<PublicationMetadataCheckTask>("publicationMetadataCheck") {
         .file("publications/pluginMaven/pom-default.xml"))
     getDependencyScopesByProject().put("mystem4j-runtime", "procwright:runtime")
     getDependencyScopesByProject().put("mystem4j-http-client", "mystem4j-runtime:compile,jackson-core:runtime")
-    getDependencyScopesByProject().put("mystem4j-http-server", "mystem4j-runtime:compile,jackson-core:runtime")
+    getDependencyScopesByProject().put("mystem4j-http-server", "mystem4j-runtime:compile,jackson-core:runtime,jetty-server:runtime")
     getDependencyScopesByProject().put("mystem4j-model", "jackson-core:runtime")
     getDependencyScopesByProject().put("mystem4j-tokenization", "mystem4j-model:compile")
     getDependencyScopesByProject()

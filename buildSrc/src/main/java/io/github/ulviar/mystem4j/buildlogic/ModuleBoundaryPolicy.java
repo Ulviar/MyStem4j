@@ -14,7 +14,8 @@ final class ModuleBoundaryPolicy {
     private static final Pattern EDGE = Pattern.compile("\\s+(\\S+)\\s+->\\s+(\\S+)\\s+.*");
     private static final Map<String, Rule> RULES = Map.of(
             "http-client", new Rule(ROOT + ".http", ROOT + ".http", Set.of("runtime"), Set.of("jackson", "java-http")),
-            "http-server", new Rule(ROOT + ".server", ROOT + ".server", Set.of("runtime"), Set.of("jackson", "jdk-httpserver")),
+            "http-server", new Rule(ROOT + ".server", ROOT + ".server", Set.of("runtime"),
+                    Set.of("jackson", "jetty-server", "jetty-http", "jetty-io", "jetty-util")),
             "runtime", new Rule(ROOT, ROOT, Set.of(), Set.of("procwright")),
             "model", new Rule(ROOT + ".model", ROOT + ".model", Set.of(), Set.of("jackson")),
             "tokenization", new Rule(ROOT + ".tokenization", ROOT + ".tokenization", Set.of("model"), Set.of()),
@@ -26,7 +27,11 @@ final class ModuleBoundaryPolicy {
                     Set.of("gradle-api"), Set.of()));
     private static final Map<String, String> EXTERNAL_MODULES = Map.of(
             "java-http", "java.net.http",
-            "jdk-httpserver", "jdk.httpserver",
+            "jetty-server", "org.eclipse.jetty.server",
+            "jetty-http", "org.eclipse.jetty.http",
+            "jetty-io", "org.eclipse.jetty.io",
+            "jetty-util", "org.eclipse.jetty.util",
+            "slf4j", "org.slf4j",
             "procwright", "io.github.ulviar.procwright",
             "jackson", "com.fasterxml.jackson.core",
             "lucene-core", "org.apache.lucene.core",
@@ -129,9 +134,13 @@ final class ModuleBoundaryPolicy {
     }
 
     private static void collectModules(String owner, boolean apiOnly, Set<String> modules) {
-        if (owner.equals("java-http") || owner.equals("jdk-httpserver")) return;
+        if (owner.equals("java-http")) return;
         if (!modules.add(moduleName(owner))) {
             return;
+        }
+        if (owner.startsWith("jetty-")) {
+            // Jetty Core's runtime graph; its logging provider belongs only to the distribution.
+            modules.add(moduleName("slf4j"));
         }
         Rule rule = RULES.get(owner);
         if (rule != null) {
@@ -155,7 +164,9 @@ final class ModuleBoundaryPolicy {
         if (!owner.isEmpty()) {
             return owner;
         }
-        if (className.startsWith("com.sun.net.httpserver.")) return "jdk-httpserver";
+        for (String part : Set.of("server", "http", "io", "util")) {
+            if (className.startsWith("org.eclipse.jetty." + part + ".")) return "jetty-" + part;
+        }
         if (className.startsWith("io.github.ulviar.procwright.")) return "procwright";
         if (className.startsWith("com.fasterxml.jackson.core.")) return "jackson";
         if (className.startsWith("org.apache.lucene.")) return "lucene-core";

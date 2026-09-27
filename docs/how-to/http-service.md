@@ -39,7 +39,9 @@ curl --fail-with-body http://127.0.0.1:8080/v1/analyze \
 
 The response is a JSON envelope whose `output` string contains raw MyStem JSON.
 `GET /health/live` checks HTTP liveness only; it does not verify the native binary.
-Stop the foreground service with Ctrl-C. The shutdown hook closes its native client.
+The service uses embedded Jetty Core over HTTP/1.1; no separate Jetty installation
+is needed. Stop the foreground service with Ctrl-C. The shutdown hook closes its
+native client.
 The installed distribution directory can be copied to a machine with Java 25;
 its `bin` launcher and `lib` directory must stay together. Windows uses the `.bat`
 launcher and environment variables set through PowerShell or the system shell.
@@ -208,6 +210,10 @@ The launcher accepts environment variables; `--help` prints the same names:
 | `MYSTEM_TEMP_DIRECTORY` | JVM temp | Existing writable temporary-file parent |
 | `MYSTEM_TOKEN_FILE` | absent | UTF-8 bearer token file, up to 4096 bytes; surrounding whitespace removed |
 
+Jetty also bounds accepted connections and request headers. Its per-instance
+limits and the distinction between idle timeout and total request deadline are
+listed in the [server contract](../reference/http-api.md#server-contract).
+
 Size the JVM heap for concurrent captured responses: the native output string
 and its JSON encoding coexist in memory. File downloads stream, but native file
 output still needs temporary disk space. Reduce body limits or concurrency for
@@ -248,3 +254,14 @@ After successful startup, the server owns and closes the backend. The native
 client's configured format, encoding, limits and process mode remain in force.
 The HTTP service never accepts arbitrary executable paths or native options from
 remote callers.
+
+Jetty logs through SLF4J. Reuse your application's SLF4J 2.x provider when embedding;
+the server dependency does not install one. If the application has no provider,
+add Jetty's console logger to its Gradle dependencies:
+
+```kotlin
+runtimeOnly("org.eclipse.jetty:jetty-slf4j-impl:12.1.13")
+```
+
+Choose one provider; omit this dependency when the application already has one.
+The standalone distribution includes this logger and needs no logging setup.

@@ -6,6 +6,7 @@ jackson-core = "2.22.2"
 jacoco = "0.8.15"
 jazzer = "0.30.0"
 jmh = "1.37"
+jetty = "12.1.13"
 junit = "6.1.3"
 kotlin = "2.4.20"
 lucene = "10.5.1"
@@ -17,6 +18,8 @@ vanniktech = "0.37.0"
 procwright = { module = "io.github.ulviar:procwright", version.ref = "procwright" }
 asm-core = { module = "org.ow2.asm:asm", version.ref = "asm" }
 asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }
+jetty-server = { module = "org.eclipse.jetty:jetty-server", version.ref = "jetty" }
+jetty-logging = { module = "org.eclipse.jetty:jetty-slf4j-impl", version.ref = "jetty" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson-core" }
 jazzer-junit = { module = "com.code-intelligence:jazzer-junit", version.ref = "jazzer" }
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }

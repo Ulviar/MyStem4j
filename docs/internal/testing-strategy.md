@@ -284,8 +284,11 @@ case.
 The HTTP module tests use actual loopback connections and deterministic backends.
 They cover lossless Java strings, binary files and atomic destination replacement,
 metadata/error mapping, bounded chunked bodies, full-response deadlines, ownership,
-concurrency and temporary-file cleanup. The native runtime is not duplicated in
-HTTP tests. `:mystem4j-http-server:test -Dmystem4j.executable=/path/to/mystem` adds
+concurrency and temporary-file cleanup. Jetty transport tests also exercise raw
+HTTP header/framing rejection, early rejection of incomplete bodies, exact encoded
+paths, slow continuous uploads, stalled downloads, keep-alive deadline cancellation,
+virtual-thread dispatch and both successful and expired graceful shutdown. The
+native runtime is not duplicated in HTTP tests. `:mystem4j-http-server:test -Dmystem4j.executable=/path/to/mystem` adds
 all three native modes, both file APIs, and local/remote Lucene offset equivalence.
 Root `realMystemTest` includes this suite. Docker packaging requires a separate
 Linux x64 smoke run using `docker/compose.yaml`; JVM tests do not prove container

@@ -37,10 +37,6 @@ public final class MystemServerMain {
             return;
         }
         if (args.length != 0) throw new IllegalArgumentException("Use --help or configure environment variables");
-        // JDK HTTP server controls act before a handler exists. Set defaults only for this standalone process.
-        System.setProperty("jdk.httpserver.maxConnections", System.getProperty("jdk.httpserver.maxConnections", "256"));
-        System.setProperty("sun.net.httpserver.maxReqTime", System.getProperty("sun.net.httpserver.maxReqTime", "60"));
-        System.setProperty("sun.net.httpserver.maxRspTime", System.getProperty("sun.net.httpserver.maxRspTime", "60"));
         var server = start(System.getenv());
         Thread hook = new Thread(server::close, "mystem-service-shutdown");
         try {

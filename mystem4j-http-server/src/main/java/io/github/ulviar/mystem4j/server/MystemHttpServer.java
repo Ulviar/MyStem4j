@@ -1,8 +1,6 @@
 package io.github.ulviar.mystem4j.server;
 
 import com.fasterxml.jackson.core.JacksonException;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 import io.github.ulviar.mystem4j.Mystem;
 import io.github.ulviar.mystem4j.MystemClient;
 import io.github.ulviar.mystem4j.MystemClientExecutionProfile;
@@ -25,12 +23,23 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.eclipse.jetty.io.Content;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.NetworkConnectionLimit;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.GracefulHandler;
+import org.eclipse.jetty.util.Callback;
 
 /**
  * HTTP service that owns one configured {@link MystemClient} after successful startup.
@@ -53,14 +62,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Statistics are backend measurements, not HTTP timings. Backend exception diagnostics are never sent
  * over the network, because they may contain source text or server paths.
  *
+ * <p>Each instance accepts up to 256 connections, with a 60-second connection idle timeout and
+ * a 16 KiB request-header limit. These are instance settings, not JVM system properties. The idle
+ * timeout does not bound the total time to receive headers; configure that at a public reverse proxy.
+ *
  * <p>Admission is bounded with immediate rejection; HTTP deadlines include body reads and writes.
- * Deadlines interrupt the handler and close its exchange. Built-in backends respond to interruption;
- * custom backends must also do so for bounded shutdown. A disconnected caller may leave native work
- * running until the server/native deadline. Use a reverse proxy for TLS and public connection limits.
+ * Deadlines start after headers arrive, interrupt the handler and close its connection. Built-in
+ * backends respond to interruption; custom backends must also do so for bounded shutdown. A disconnected
+ * caller may leave native work running until the server/native deadline. Jetty Core serves HTTP/1.1;
+ * use a reverse proxy for TLS and public traffic policies.
  */
 public final class MystemHttpServer implements AutoCloseable {
     private final MystemClient backend;
-    private final HttpServer server;
+    private final Server server;
+    private final InetSocketAddress address;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1);
     private final Semaphore admission;
@@ -70,7 +85,6 @@ public final class MystemHttpServer implements AutoCloseable {
     private final int maxRequestBytes;
     private final int maxResponseBytes;
     private final Duration timeout;
-    private final int shutdownSeconds;
     private final Path temporaryDirectory;
     private final byte[] authorization;
 
@@ -82,20 +96,47 @@ public final class MystemHttpServer implements AutoCloseable {
         maxRequestBytes = builder.maxRequestBytes;
         maxResponseBytes = builder.maxResponseBytes;
         timeout = builder.timeout;
-        shutdownSeconds = builder.shutdownSeconds;
         temporaryDirectory = builder.temporaryDirectory;
         authorization = builder.token == null ? null : ("Bearer " + builder.token).getBytes(StandardCharsets.US_ASCII);
-        server = HttpServer.create(builder.address, builder.maxConcurrentRequests);
+        server = new Server();
+        var http = new HttpConfiguration();
+        http.setSendServerVersion(false);
+        http.setSendXPoweredBy(false);
+        http.setRequestHeaderSize(16 * 1024);
+        var connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http));
+        connector.setHost(builder.address.getAddress().getHostAddress());
+        connector.setPort(builder.address.getPort());
+        connector.setIdleTimeout(60_000);
+        server.addConnector(connector);
+        server.addBean(new NetworkConnectionLimit(256, connector));
+        server.setStopTimeout(TimeUnit.SECONDS.toMillis(builder.shutdownSeconds));
+        server.setErrorHandler((request, response, callback) -> {
+            // Container errors must not expose a URI, stack trace or backend diagnostic.
+            response.getHeaders().put("Cache-Control", "no-store");
+            response.write(true, null, callback);
+            return true;
+        });
+        server.setHandler(new GracefulHandler(new Handler.Abstract.NonBlocking() {
+            @Override public boolean handle(Request request, Response response, Callback callback) {
+                accept(request, response, callback);
+                return true;
+            }
+        }) {
+            @Override protected void handleShutdownRejection(Request request, Response response, Callback callback) {
+                error(response, 503, "CLOSED");
+                callback.succeeded();
+            }
+        });
         try {
             timer.setRemoveOnCancelPolicy(true);
-            server.setExecutor(executor);
-            server.createContext("/", this::handle);
             server.start();
-        } catch (RuntimeException failure) {
-            server.stop(0);
+            address = new InetSocketAddress(builder.address.getAddress(), connector.getLocalPort());
+        } catch (Exception failure) {
+            try { server.stop(); } catch (Exception cleanup) { failure.addSuppressed(cleanup); }
             executor.shutdownNow();
             timer.shutdownNow();
-            throw failure;
+            if (failure instanceof RuntimeException runtime) throw runtime;
+            throw new IOException("Could not start HTTP service", failure);
         }
     }
 
@@ -111,104 +152,163 @@ public final class MystemHttpServer implements AutoCloseable {
      * Returns the bound address, including the allocated port when port zero was requested.
      * @return bound address; remains available after close
      */
-    public InetSocketAddress address() { return server.getAddress(); }
+    public InetSocketAddress address() { return address; }
 
-    private void handle(HttpExchange exchange) throws IOException {
-        if (!admission.tryAcquire()) {
-            try (exchange) { error(exchange, 429, "BUSY"); }
-            return;
-        }
-        Thread handler = Thread.currentThread();
-        java.util.concurrent.ScheduledFuture<?> deadline;
-        try {
-            deadline = timer.schedule(() -> {
-                handler.interrupt();
-                exchange.close();
-            }, timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (java.util.concurrent.RejectedExecutionException shuttingDown) {
-            admission.release();
-            exchange.close();
-            return;
-        }
-        try (exchange) {
+    private void accept(Request request, Response response, Callback callback) {
+        if (closed.get()) {
+            error(response, 503, "CLOSED");
+            callback.succeeded();
+        } else if (!admission.tryAcquire()) {
+            error(response, 429, "BUSY");
+            callback.succeeded();
+        } else {
+            var execution = new Execution(request, response, callback);
             try {
-                dispatch(exchange);
-            } catch (Exception failure) {
-                if (exchange.getResponseCode() == -1 && !handler.isInterrupted()) {
-                    if (failure instanceof MystemInvalidOptionsException || failure instanceof JacksonException
-                            || failure instanceof NumberFormatException) error(exchange, 400, "INVALID_REQUEST");
-                    else if (failure instanceof MystemClosedException) error(exchange, 503, "CLOSED");
-                    else if (failure instanceof MystemRequestTimeoutException) error(exchange, 504, "TIMEOUT");
-                    else if (failure instanceof MystemPoolExhaustedException) error(exchange, 429, "BUSY");
-                    else if (failure instanceof MystemOutputLimitException) error(exchange, 413, "OUTPUT_LIMIT");
-                    else if (failure instanceof MystemStartupException) error(exchange, 502, "STARTUP");
-                    else if (failure instanceof MystemProtocolException) error(exchange, 502, "PROTOCOL");
-                    else if (failure instanceof MystemProcessException process) {
-                        process.exitCode().ifPresent(code -> exchange.getResponseHeaders().set("X-Mystem-Exit-Code", Integer.toString(code)));
-                        error(exchange, 502, "PROCESS");
-                    } else error(exchange, 500, "INTERNAL");
-                }
+                request.addFailureListener(execution::abort);
+                execution.deadline = timer.schedule(() -> execution.abort(
+                        new java.util.concurrent.TimeoutException("HTTP request deadline exceeded")),
+                        timeout.toNanos(), TimeUnit.NANOSECONDS);
+                executor.execute(execution);
+            } catch (java.util.concurrent.RejectedExecutionException shuttingDown) {
+                execution.finish();
+                error(response, 503, "CLOSED");
+                callback.succeeded();
             }
-        } finally {
-            deadline.cancel(false);
-            admission.release();
         }
     }
 
-    private void dispatch(HttpExchange exchange) throws IOException {
-        exchange.getResponseHeaders().set("X-Mystem-Version", "1");
-        exchange.getResponseHeaders().set("Cache-Control", "no-store");
-        if (closed.get()) { error(exchange, 503, "CLOSED"); return; }
-        String path = exchange.getRequestURI().getRawPath();
-        if ("/health/live".equals(path) && exchange.getRequestURI().getRawQuery() == null
-                && "GET".equals(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(204, -1);
+    /** One admitted operation; callbacks never perform blocking backend work on Jetty I/O threads. */
+    private final class Execution implements Runnable {
+        private final Request request;
+        private final Response response;
+        private final Callback callback;
+        private java.util.concurrent.ScheduledFuture<?> deadline;
+        private Thread worker;
+        private Throwable failure;
+        private boolean finished;
+
+        private Execution(Request request, Response response, Callback callback) {
+            this.request = request;
+            this.response = response;
+            this.callback = callback;
+        }
+
+        private void abort(Throwable cause) {
+            synchronized (this) {
+                if (finished || failure != null) return;
+                failure = cause;
+                if (worker != null) worker.interrupt();
+            }
+            // Closing may invoke Jetty listeners. Do not hold our monitor across container callbacks.
+            // Once failure is recorded, completion cannot succeed and reuse this HTTP/1.1 connection.
+            request.getConnectionMetaData().getConnection().getEndPoint().close(cause);
+        }
+
+        private synchronized Throwable finish() {
+            finished = true;
+            worker = null;
+            if (deadline != null) deadline.cancel(false);
+            admission.release();
+            return failure;
+        }
+
+        @Override public void run() {
+            try {
+                synchronized (this) {
+                    worker = Thread.currentThread();
+                    if (failure != null) worker.interrupt();
+                }
+                if (!Thread.currentThread().isInterrupted()) dispatch(request, response);
+            } catch (Throwable cause) {
+                if (cause instanceof Exception && !response.isCommitted() && !Thread.currentThread().isInterrupted()) {
+                    reportFailure(response, cause);
+                } else {
+                    abort(cause);
+                }
+            } finally {
+                Throwable cause = finish();
+                if (cause == null) callback.succeeded();
+                else callback.failed(cause);
+            }
+        }
+    }
+
+    private static void reportFailure(Response response, Throwable failure) {
+        if (failure instanceof MystemInvalidOptionsException || failure instanceof JacksonException
+                || failure instanceof NumberFormatException) error(response, 400, "INVALID_REQUEST");
+        else if (failure instanceof MystemClosedException) error(response, 503, "CLOSED");
+        else if (failure instanceof MystemRequestTimeoutException) error(response, 504, "TIMEOUT");
+        else if (failure instanceof MystemPoolExhaustedException) error(response, 429, "BUSY");
+        else if (failure instanceof MystemOutputLimitException) error(response, 413, "OUTPUT_LIMIT");
+        else if (failure instanceof MystemStartupException) error(response, 502, "STARTUP");
+        else if (failure instanceof MystemProtocolException) error(response, 502, "PROTOCOL");
+        else if (failure instanceof MystemProcessException process) {
+            process.exitCode().ifPresent(code -> response.getHeaders().put("X-Mystem-Exit-Code", Integer.toString(code)));
+            error(response, 502, "PROCESS");
+        } else error(response, 500, "INTERNAL");
+    }
+
+    private void dispatch(Request request, Response response) throws IOException {
+        response.getHeaders().put("X-Mystem-Version", "1");
+        response.getHeaders().put("Cache-Control", "no-store");
+        if (closed.get()) { error(response, 503, "CLOSED"); return; }
+        String path = request.getHttpURI().getPath();
+        if ("/health/live".equals(path) && request.getHttpURI().getQuery() == null
+                && "GET".equals(request.getMethod())) {
+            response.setStatus(204);
             return;
         }
-        if (!authorized(exchange)) { error(exchange, 401, "UNAUTHORIZED"); return; }
-        if (exchange.getRequestURI().getRawQuery() != null || !java.util.Set.of(
+        if (!authorized(request)) { error(response, 401, "UNAUTHORIZED"); return; }
+        if (request.getHttpURI().getQuery() != null || !java.util.Set.of(
                 "/v1/info", "/v1/analyze", "/v1/files/content", "/v1/files/output").contains(path)) {
-            error(exchange, 404, "NOT_FOUND"); return;
+            error(response, 404, "NOT_FOUND"); return;
         }
         String method = "/v1/info".equals(path) ? "GET" : "POST";
-        if (!method.equals(exchange.getRequestMethod())) {
-            exchange.getResponseHeaders().set("Allow", method);
-            error(exchange, 405, "METHOD_NOT_ALLOWED"); return;
+        if (!method.equals(request.getMethod())) {
+            response.getHeaders().put("Allow", method);
+            error(response, 405, "METHOD_NOT_ALLOWED"); return;
         }
         if ("/v1/info".equals(path)) {
-            exchange.getResponseHeaders().set("X-Mystem-Format", format.name());
-            exchange.getResponseHeaders().set("X-Mystem-Profile", profile.name());
-            exchange.sendResponseHeaders(204, -1);
+            response.getHeaders().put("X-Mystem-Format", format.name());
+            response.getHeaders().put("X-Mystem-Profile", profile.name());
+            response.setStatus(204);
             return;
         }
         String expectedType = path.equals("/v1/analyze") ? "application/json" : "application/octet-stream";
-        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        String contentType = request.getHeaders().get("Content-Type");
         if (contentType == null || !contentType.equalsIgnoreCase(expectedType)
-                || exchange.getRequestHeaders().containsKey("Content-Encoding")) {
-            error(exchange, 415, "UNSUPPORTED_MEDIA_TYPE"); return;
+                || request.getHeaders().contains("Content-Encoding")) {
+            error(response, 415, "UNSUPPORTED_MEDIA_TYPE"); return;
         }
-        String length = exchange.getRequestHeaders().getFirst("Content-Length");
+        String length = request.getHeaders().get("Content-Length");
         if (length != null && Long.parseLong(length) > maxRequestBytes) {
-            error(exchange, 413, "INVALID_REQUEST"); return;
+            error(response, 413, "INVALID_REQUEST"); return;
         }
-        try (var input = ServerWire.bounded(exchange.getRequestBody(), maxRequestBytes)) {
+        var bodySource = new Request.Wrapper(request) {
+            @Override public void fail(Throwable failure) {
+                // InputStream.close() releases unread chunks but would otherwise fail the exchange
+                // before we can send INVALID_REQUEST. Let Jetty close it after the error response.
+                response.getHeaders().put("Connection", "close");
+            }
+        };
+        try (var input = ServerWire.bounded(Content.Source.asInputStream(bodySource), maxRequestBytes)) {
             if (path.equals("/v1/analyze")) {
                 var result = backend.analyze(ServerWire.text(input, maxRequestBytes));
-                sendText(exchange, result.output(), result.format(), result.stats());
+                sendText(response, result.output(), result.format(), result.stats());
             } else {
-                file(exchange, input, path.endsWith("/output"));
+                file(response, input, path.endsWith("/output"));
             }
         }
     }
 
-    private boolean authorized(HttpExchange exchange) {
+    private boolean authorized(Request request) {
         if (authorization == null) return true;
-        var values = exchange.getRequestHeaders().get("Authorization");
+        var values = request.getHeaders().getValuesList("Authorization");
         return values != null && values.size() == 1 && MessageDigest.isEqual(authorization,
                 values.getFirst().getBytes(StandardCharsets.UTF_8));
     }
 
-    private void file(HttpExchange exchange, java.io.InputStream input, boolean direct) throws IOException {
+    private void file(Response response, java.io.InputStream input, boolean direct) throws IOException {
         Path directory = temporaryDirectory == null ? Files.createTempDirectory("mystem-http-")
                 : Files.createTempDirectory(temporaryDirectory, "mystem-http-");
         Path source = directory.resolve("input");
@@ -219,13 +319,14 @@ public final class MystemHttpServer implements AutoCloseable {
                 var result = backend.analyzeFile(source, target);
                 long size = Files.size(target);
                 if (size > maxResponseBytes) throw new MystemOutputLimitException("File response exceeds HTTP limit");
-                ServerWire.stats(exchange.getResponseHeaders(), result.format(), result.stats());
-                exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
-                exchange.sendResponseHeaders(200, size == 0 ? -1 : size);
-                if (size != 0) try (var output = exchange.getResponseBody()) { Files.copy(target, output); }
+                ServerWire.stats(response.getHeaders(), result.format(), result.stats());
+                response.getHeaders().put("Content-Type", "application/octet-stream");
+                response.setStatus(200);
+                response.getHeaders().put("Content-Length", Long.toString(size));
+                try (var output = Content.Sink.asOutputStream(response)) { Files.copy(target, output); }
             } else {
                 var result = backend.analyzeFile(source);
-                sendText(exchange, result.output(), result.format(), result.stats());
+                sendText(response, result.output(), result.format(), result.stats());
             }
         } finally {
             try { Files.deleteIfExists(target); }
@@ -236,34 +337,45 @@ public final class MystemHttpServer implements AutoCloseable {
         }
     }
 
-    private void sendText(HttpExchange exchange, String output, MystemOutputFormat resultFormat, MystemRequestStats stats)
+    private void sendText(Response response, String output, MystemOutputFormat resultFormat, MystemRequestStats stats)
             throws IOException {
         byte[] bytes = ServerWire.output(output, maxResponseBytes);
-        ServerWire.stats(exchange.getResponseHeaders(), resultFormat, stats);
-        exchange.getResponseHeaders().set("Content-Type", "application/json");
-        exchange.sendResponseHeaders(200, bytes.length);
-        exchange.getResponseBody().write(bytes);
+        ServerWire.stats(response.getHeaders(), resultFormat, stats);
+        response.getHeaders().put("Content-Type", "application/json");
+        response.setStatus(200);
+        response.getHeaders().put("Content-Length", Integer.toString(bytes.length));
+        try (var body = Content.Sink.asOutputStream(response)) { body.write(bytes); }
     }
 
-    private static void error(HttpExchange exchange, int status, String code) throws IOException {
-        exchange.getResponseHeaders().set("X-Mystem-Error", code);
-        exchange.getResponseHeaders().set("X-Mystem-Version", "1");
-        exchange.getResponseHeaders().set("Cache-Control", "no-store");
-        exchange.sendResponseHeaders(status, -1);
+    private static void error(Response response, int status, String code) {
+        response.getHeaders().put("X-Mystem-Error", code);
+        response.getHeaders().put("X-Mystem-Version", "1");
+        response.getHeaders().put("Cache-Control", "no-store");
+        response.setStatus(status);
+        response.getHeaders().put("Content-Length", "0");
     }
 
     /**
      * Stops admission, drains exchanges for the configured grace period, interrupts remaining handlers,
      * and closes the owned backend. Idempotent; the service cannot restart.
-     * @throws MystemException if backend cleanup fails
+     * @throws MystemException if transport or backend cleanup fails
      */
     @Override public synchronized void close() {
         if (closed.compareAndSet(false, true)) {
-            server.stop(shutdownSeconds);
-            executor.shutdownNow();
-            timer.shutdownNow();
-            try { executor.close(); }
-            finally { backend.close(); }
+            try {
+                server.stop();
+            } catch (java.util.concurrent.TimeoutException expired) {
+                // Jetty has closed the connectors after the drain grace expired.
+                if (expired.getSuppressed().length != 0) throw new MystemException("HTTP shutdown failed", expired);
+            } catch (Exception failure) {
+                if (failure instanceof InterruptedException) Thread.currentThread().interrupt();
+                throw new MystemException("HTTP shutdown failed", failure);
+            } finally {
+                executor.shutdownNow();
+                timer.shutdownNow();
+                try { executor.close(); }
+                finally { backend.close(); }
+            }
         }
     }
 
@@ -320,7 +432,7 @@ public final class MystemHttpServer implements AutoCloseable {
         public Builder maxResponseBytes(int value) { maxResponseBytes = positive(value); return this; }
 
         /**
-         * Sets the total handler deadline, including upload, backend and download.
+         * Sets the total handler deadline after headers arrive, including upload, backend and download.
          * @param value positive duration at most one day, default 45 seconds
          * @return this builder
          * @throws IllegalArgumentException if outside the range
@@ -373,7 +485,7 @@ public final class MystemHttpServer implements AutoCloseable {
          * Binds and starts the service, transferring backend ownership on success.
          * <p>On failure the caller must close the backend. This builder can start at most one server.
          * @return running service owned by the caller
-         * @throws IOException if binding fails
+         * @throws IOException if transport startup fails
          * @throws IllegalStateException if this builder already started a server
          * @throws IllegalArgumentException if the backend has no output-format metadata
          */

@@ -10,10 +10,11 @@ installation, Docker and complete client examples. Both modules require Java 25.
 | `mystem4j-http-server` | `io.github.ulviar.mystem4j.server` | `MystemHttpServer.builder(MystemClient)`, `MystemServerMain` |
 
 Both expose the runtime API and keep Jackson Core as an implementation dependency.
-The client uses `java.net.http`; the server uses `jdk.httpserver`. Neither parses
-morphology, downloads MyStem, or depends on Lucene. The HTTP client never launches
-a local native process, although the runtime API dependency brings Procwright
-transitively.
+The client uses `java.net.http`; the server uses embedded Jetty Core 12.1,
+without Servlet dependencies. Jetty is private to the server implementation.
+Neither parses morphology, downloads MyStem, or depends on Lucene. The HTTP client
+never launches a local native process, although the runtime API dependency brings
+Procwright transitively.
 
 ## Client contract
 
@@ -93,12 +94,21 @@ its output format. All built-in native modes satisfy these requirements.
 | `bearerToken(String)` | absent | Required on versioned endpoints |
 
 Excess admitted work receives HTTP 429 immediately. This bounds backend calls and
-body storage; it is not a TCP connection limit. The standalone launcher also sets
-JDK HTTP server defaults of 256 connections and 60-second request/response socket
-limits. Embedders own those JVM-wide settings or configure them at their proxy.
+body storage; it is separate from the connection limit. Each server instance uses
+an HTTP/1.1 connector with a 256-connection acceptance limit, a 60-second connection
+idle timeout and a 16 KiB request-header limit. These settings also apply to embedded
+servers and do not change JVM-wide properties. The idle timeout is not a total
+header-read deadline; a public reverse proxy should bound header time as well.
+TLS and HTTP/2 termination belong at the reverse proxy.
 
-The handler deadline closes the exchange and interrupts the worker. Native clients
-terminate interrupted execution according to the runtime contract; custom backends
+Jetty handles network I/O; admitted body reads, native calls and response writes
+run on application-owned virtual threads. The installed distribution includes
+Jetty's SLF4J console provider. The Maven library leaves the provider to the host
+application, avoiding conflicts with its logging configuration.
+
+The handler deadline starts after request headers arrive; it closes the connection
+and interrupts the worker. Detected connection failures also interrupt active work.
+Native clients terminate interrupted execution according to the runtime contract; custom backends
 must cooperate with interruption. The client may observe a transport failure when
 the exchange closes rather than a complete 504 response. Explicit native timeouts
 that finish within the HTTP deadline return 504.
@@ -143,8 +153,9 @@ Versioned successful responses carry `X-Mystem-Version: 1` and
 - `X-Mystem-Input-Chars`, `X-Mystem-Input-Bytes`, `X-Mystem-Output-Chars`,
   `X-Mystem-Output-Bytes`: decimal counts, or `-1` if unknown.
 
-Failures have no response body. `X-Mystem-Error` supplies a stable code. Process
-failure can include `X-Mystem-Exit-Code`; raw stderr, exception messages, input and
+Application failures have no response body. `X-Mystem-Error` supplies a stable code.
+Jetty can reject malformed HTTP or oversized headers before routing; these empty
+responses do not carry a MyStem error code. Process failure can include `X-Mystem-Exit-Code`; raw stderr, exception messages, input and
 server paths are omitted. The Java client maps codes to exceptions:
 
 | HTTP status / code | Exception |
